@@ -1,0 +1,16 @@
+node_modules
+dist
+dev-dist
+.DS_Store
+*.local
+.env
+.env.*
+!.env.example
+coverage
+*.tsbuildinfo
+
+# Artefatos emitidos por `tsc -b` para o projeto composto do vite.config
+vite.config.js
+vite.config.d.ts
+.vscode/*
+!.vscode/extensions.json

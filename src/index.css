@@ -1,0 +1,106 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-bruto-black text-bruto-white font-sans antialiased;
+    /* Impede rolagem horizontal acidental em telas de 390px. */
+    overflow-x: hidden;
+  }
+
+  /* Foco sempre visível. `outline: none` é proibido no projeto — ver DESIGN_SYSTEM.md §6. */
+  :focus-visible {
+    @apply outline-none ring-2 ring-bruto-yellow ring-offset-2 ring-offset-bruto-black rounded-sm;
+  }
+
+  /* Números tabulares em toda métrica, para que colunas de valores alinhem. */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  ::selection {
+    @apply bg-bruto-yellow text-bruto-black;
+  }
+
+  /* Barra de rolagem discreta, coerente com a estética de central de comando. */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-bruto-black;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-bruto-steel rounded-full;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-bruto-carbon border border-bruto-steel rounded-xl;
+  }
+
+  .card-elevado {
+    @apply bg-bruto-graphite border border-bruto-steel rounded-xl;
+  }
+
+  .rotulo {
+    @apply text-[11px] font-medium uppercase tracking-wider text-bruto-ash;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 min-h-[44px]
+           text-sm font-semibold transition-colors disabled:opacity-40
+           disabled:cursor-not-allowed;
+  }
+
+  .btn-primario {
+    @apply btn bg-bruto-yellow text-bruto-black hover:bg-[#ffc720];
+  }
+
+  .btn-secundario {
+    @apply btn border border-bruto-steel text-bruto-white hover:bg-bruto-graphite;
+  }
+
+  .btn-fantasma {
+    @apply btn text-bruto-ash hover:text-bruto-white hover:bg-bruto-graphite;
+  }
+
+  .btn-perigo {
+    @apply btn border border-bruto-red/60 text-bruto-red hover:bg-bruto-red/10;
+  }
+
+  .campo {
+    @apply w-full rounded-lg bg-bruto-black border border-bruto-steel px-3 py-2.5
+           text-sm text-bruto-white placeholder:text-bruto-ash/60
+           focus:border-bruto-yellow;
+  }
+
+  .link-pular {
+    @apply sr-only focus:not-sr-only focus:absolute focus:z-50 focus:top-2 focus:left-2
+           focus:px-4 focus:py-2 focus:bg-bruto-yellow focus:text-bruto-black
+           focus:rounded-lg focus:font-semibold;
+  }
+}

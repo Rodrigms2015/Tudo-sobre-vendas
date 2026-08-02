@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="BRUTO OS">
+  <rect width="512" height="512" fill="#0A0A0B"/>
+  <g fill="#F2B705">
+    <polygon points="136,140 376,248 376,304 136,196"/>
+    <polygon points="136,216 376,324 376,380 136,272"/>
+  </g>
+</svg>

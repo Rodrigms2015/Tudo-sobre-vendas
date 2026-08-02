@@ -1,0 +1,15 @@
+# Publicação no Netlify.
+#
+# O deploy principal documentado é o Cloudflare Pages (docs/DEPLOYMENT.md §4).
+# Este arquivo existe para que o Netlify funcione como alternativa sem configuração
+# manual. Os dois leem `public/_headers` e `public/_redirects`, então os cabeçalhos de
+# segurança e o fallback de SPA valem igualmente nos dois.
+
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+# Nenhuma variável de ambiente é necessária: a aplicação não lê nenhuma em execução.

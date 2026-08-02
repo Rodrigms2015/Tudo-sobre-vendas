@@ -92,31 +92,92 @@ describe('proibições estruturais no código-fonte', () => {
   });
 });
 
-describe('cabeçalhos de segurança configurados', () => {
-  const headers = readFileSync(join(RAIZ, 'public/_headers'), 'utf-8');
+/**
+ * Analisa `_headers` no formato do Netlify / Cloudflare Pages: uma linha de padrão de
+ * rota na coluna zero, seguida de linhas indentadas `Nome: valor`.
+ */
+function lerHeaders(texto: string): Map<string, Record<string, string>> {
+  const regras = new Map<string, Record<string, string>>();
+  let atual: string | null = null;
+  for (const linha of texto.split('\n')) {
+    if (linha.trim() === '' || linha.trimStart().startsWith('#')) continue;
+    if (!/^\s/.test(linha)) {
+      atual = linha.trim();
+      if (!regras.has(atual)) regras.set(atual, {});
+      continue;
+    }
+    if (!atual) throw new Error(`Cabeçalho indentado sem regra de rota: "${linha}"`);
+    const sep = linha.indexOf(':');
+    if (sep === -1) throw new Error(`Linha sem "nome: valor": "${linha}"`);
+    regras.get(atual)![linha.slice(0, sep).trim()] = linha.slice(sep + 1).trim();
+  }
+  return regras;
+}
 
-  it('define uma Content-Security-Policy', () => {
-    expect(headers).toContain('Content-Security-Policy');
+describe('cabeçalhos de segurança configurados', () => {
+  const bruto = readFileSync(join(RAIZ, 'public/_headers'), 'utf-8');
+  const regras = lerHeaders(bruto);
+
+  // O bug que motivou este bloco: a primeira regra era "/ *" (com espaço) em vez de "/*".
+  // O arquivo continha todos os cabeçalhos, o teste antigo procurava o texto e passava,
+  // e NENHUM cabeçalho era aplicado em produção. Agora o padrão de rota é validado.
+  it('todo padrão de rota é válido: começa com "/" e não contém espaço', () => {
+    for (const rota of regras.keys()) {
+      expect(rota, `padrão de rota inválido: ${JSON.stringify(rota)}`).toMatch(/^\/\S*$/);
+    }
+  });
+
+  it('existe uma regra que casa com todas as rotas', () => {
+    expect([...regras.keys()]).toContain('/*');
+  });
+
+  const global = () => regras.get('/*') ?? {};
+
+  it('define uma Content-Security-Policy na regra global', () => {
+    expect(global()['Content-Security-Policy']).toBeDefined();
   });
 
   it("restringe connect-src a 'self' — o navegador impede envio para fora", () => {
-    expect(headers).toContain("connect-src 'self'");
+    expect(global()['Content-Security-Policy']).toContain("connect-src 'self'");
   });
 
   it('bloqueia enquadramento e sniffing de tipo', () => {
-    expect(headers).toContain('X-Frame-Options: DENY');
-    expect(headers).toContain('X-Content-Type-Options: nosniff');
-    expect(headers).toContain("frame-ancestors 'none'");
+    expect(global()['X-Frame-Options']).toBe('DENY');
+    expect(global()['X-Content-Type-Options']).toBe('nosniff');
+    expect(global()['Content-Security-Policy']).toContain("frame-ancestors 'none'");
   });
 
-  it("proíbe object-src, o vetor clássico de plugin", () => {
-    expect(headers).toContain("object-src 'none'");
+  it('proíbe object-src, o vetor clássico de plugin', () => {
+    expect(global()['Content-Security-Policy']).toContain("object-src 'none'");
   });
 
   it('desabilita permissões de dispositivo que o produto não usa', () => {
-    expect(headers).toContain('geolocation=()');
-    expect(headers).toContain('camera=()');
-    expect(headers).toContain('microphone=()');
+    const permissoes = global()['Permissions-Policy'] ?? '';
+    expect(permissoes).toContain('geolocation=()');
+    expect(permissoes).toContain('camera=()');
+    expect(permissoes).toContain('microphone=()');
+  });
+
+  it('não vaza referenciador', () => {
+    expect(global()['Referrer-Policy']).toBe('no-referrer');
+  });
+
+  it('marca os ativos versionados como imutáveis e o index como no-cache', () => {
+    expect(regras.get('/assets/*')?.['Cache-Control']).toContain('immutable');
+    expect(regras.get('/index.html')?.['Cache-Control']).toBe('no-cache');
+    expect(regras.get('/sw.js')?.['Cache-Control']).toBe('no-cache');
+  });
+});
+
+describe('fallback de SPA', () => {
+  it('_redirects envia toda rota não encontrada para o index com status 200', () => {
+    const redirects = readFileSync(join(RAIZ, 'public/_redirects'), 'utf-8');
+    const regra = redirects
+      .split('\n')
+      .map((l) => l.trim())
+      .filter((l) => l !== '' && !l.startsWith('#'))
+      .map((l) => l.split(/\s+/));
+    expect(regra).toContainEqual(['/*', '/index.html', '200']);
   });
 });
 

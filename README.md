@@ -98,7 +98,7 @@ Abra a aplicação → **Entrar no Cockpit** → **Carregar dados de demonstraç
 | Comando | O que faz |
 |---|---|
 | `npm run dev` | Desenvolvimento com recarga automática |
-| `npm run check` | **Portão de qualidade:** lint + 223 testes + build |
+| `npm run check` | **Portão de qualidade:** lint + 230 testes + build |
 | `npm test` | Testes |
 | `npm run build` | Build de produção em `dist/` |
 | `npm run preview` | Serve o build de produção |
@@ -109,20 +109,23 @@ Abra a aplicação → **Entrar no Cockpit** → **Carregar dados de demonstraç
 
 ## A foto de autoria
 
-O arquivo `public/rodrigo-soares.jpg` **não está no repositório**. Enquanto ele não existir,
-o componente exibe um **monograma tipográfico** no mesmo enquadramento — nunca uma silhueta,
-ilustração ou rosto gerado. Gerar uma imagem de rosto seria a violação mais direta possível
-do briefing.
+`public/rodrigo-soares.jpg` — 1086×1448, **3:4 exato**, 398 kB.
 
-Para publicá-la, basta colocar o arquivo na pasta:
+O contêiner do componente usa a mesma razão 3:4, então `object-fit: cover` **não recorta um
+único pixel**: a foto aparece exatamente como foi entregue. O único tratamento aplicado foi
+a conversão de PNG (2,78 MB) para JPEG qualidade 95 sem subamostragem de croma — necessária
+para não inchar o precache do PWA. Sem redimensionar, sem cortar, sem filtro, sem retoque,
+sem sobreposição. Erro médio medido: **0,36%**, todo ele do re-encode em fios de cabelo e
+barba. A auditoria completa, operação por operação, está em
+[`docs/CRITICAL_REVIEW.md`](docs/CRITICAL_REVIEW.md) §1.6.
 
-```bash
-cp /caminho/para/a/foto.jpg public/rodrigo-soares.jpg
-```
+Se a imagem falhar ao carregar, o componente exibe um **monograma tipográfico** no mesmo
+enquadramento — nunca uma silhueta, ilustração ou rosto gerado. Quatro testes protegem o
+arquivo: existência, razão, resolução mínima e teto de peso.
 
-Nenhuma alteração de código é necessária. A foto **não é processada de forma alguma**:
-`object-fit: cover` com `object-position` ajustável, proporção preservada, sem filtro,
-duotone ou saturação. Detalhes em [`docs/DESIGN_SYSTEM.md`](docs/DESIGN_SYSTEM.md) §7.
+Para trocar a foto, basta substituir o arquivo. Se a nova imagem não for 3:4, ajuste a prop
+`proporcao` do `AuthorPortrait` para a razão nativa dela — caso contrário `cover` vai
+recortar. Detalhes em [`docs/DESIGN_SYSTEM.md`](docs/DESIGN_SYSTEM.md) §7.
 
 ---
 
@@ -191,7 +194,7 @@ imediatamente, sem migração. O que persiste é a **decisão humana** sobre ele
 
 ## Testes
 
-**223 testes** cobrindo motor, dados, segurança e interface:
+**230 testes** cobrindo motor, dados, segurança e interface:
 
 | Arquivo | O que protege |
 |---|---|
@@ -208,6 +211,7 @@ imediatamente, sem migração. O que persiste é a **decisão humana** sobre ele
 | `security.test.ts` | Sem `dangerouslySetInnerHTML`, sem `eval`, **sem chamada de rede**, sem segredo, vocabulário proibido |
 | `scenarios.test.ts` | Rubrica completa, melhor resposta única, conteúdo de domínio |
 | `app.test.tsx` | Fluxo completo: estado vazio → demonstração → executar/rejeitar ação |
+| `portrait.test.ts` | Foto de autoria: existência, razão 3:4, resolução e teto de peso |
 
 ---
 

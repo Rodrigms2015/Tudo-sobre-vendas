@@ -173,12 +173,18 @@ describe('AuthorPortrait', () => {
     expect(img.getAttribute('src')).toBe('/rodrigo-soares.jpg');
   });
 
-  it('degrada para monograma tipográfico quando a foto não existe — nunca um rosto gerado', () => {
+  it('declara width e height, evitando deslocamento de layout no carregamento', () => {
     render(<AuthorPortrait />);
     const img = screen.getByRole('img', { name: /rodrigo soares/i });
-    // Simula o erro de carregamento que ocorre quando o arquivo não está na pasta.
+    expect(img.getAttribute('width')).toBe('1086');
+    expect(img.getAttribute('height')).toBe('1448');
+  });
+
+  it('degrada para monograma tipográfico se a foto não carregar — nunca um rosto gerado', () => {
+    render(<AuthorPortrait />);
+    const img = screen.getByRole('img', { name: /rodrigo soares/i });
     fireEvent.error(img);
     expect(screen.getByText('RS')).toBeInTheDocument();
-    expect(screen.getByText(/retrato não incluído no repositório/i)).toBeInTheDocument();
+    expect(screen.getByText(/retrato indisponível/i)).toBeInTheDocument();
   });
 });

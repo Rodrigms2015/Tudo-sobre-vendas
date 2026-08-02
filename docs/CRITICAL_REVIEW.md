@@ -146,23 +146,38 @@ apagado. Isso destrói o módulo que mais diferencia o produto.
 - Alerta sem ação sugerida executável **não é criado**. Se o sistema não sabe o que pedir para
   o vendedor fazer, ele não tem o direito de interromper o vendedor.
 
-### 1.6 A foto exigida não existe no repositório
+### 1.6 A foto exigida não existia no repositório (resolvido)
 
-A Seção 6.1 manda usar `public/rodrigo-soares.jpg`. O repositório estava **vazio** no início
-deste trabalho — não há foto alguma.
+A Seção 6.1 manda usar `public/rodrigo-soares.jpg`. O repositório estava **vazio** no
+início deste trabalho — não havia foto alguma.
 
-As regras do prompt são explícitas: não alterar o rosto, não gerar versão artificial. **Gerar
-uma imagem de rosto seria a violação mais direta possível do briefing.** Não farei isso.
+As regras do prompt são explícitas: não alterar o rosto, não gerar versão artificial.
+**Gerar uma imagem de rosto seria a violação mais direta possível do briefing.** Isso não
+foi feito. Enquanto o arquivo não existiu, o componente degradou para um monograma
+tipográfico — sem rosto, sem silhueta, sem ilustração de pessoa.
 
-**Correção adotada:**
+**Situação atual:** a foto foi fornecida e está no repositório. O tratamento aplicado a ela
+está registrado abaixo, item a item, para que qualquer pessoa possa auditar o que foi e o
+que não foi feito com a imagem.
 
-- O componente `AuthorPortrait` carrega `public/rodrigo-soares.jpg` quando o arquivo existir.
-- Quando não existir, ele degrada para um **monograma tipográfico** ("RS") no mesmo enquadramento
-  e proporção — sem rosto, sem silhueta, sem ilustração de pessoa.
-- O `object-fit: cover` e o `object-position` ajustável já estão implementados e passam a valer
-  automaticamente no instante em que o arquivo real for colocado na pasta. Nenhuma alteração de
-  código será necessária.
-- O README documenta o caminho exato, a proporção recomendada e como ajustar o enquadramento.
+| Operação | Aplicada? | Detalhe |
+|---|---|---|
+| Conversão de container PNG → JPEG | **Sim** | O original tinha 2,78 MB em PNG, o que incharia o precache do PWA. JPEG qualidade 95, sem subamostragem de croma (`4:4:4`), progressivo. Resultado: 398 kB. |
+| Redimensionamento | **Não** | 1086×1448 preservados, idênticos ao original. |
+| Corte / recorte | **Não** | O contêiner usa 3:4, a razão nativa do arquivo, então `object-fit: cover` não descarta um único pixel. |
+| Filtro, duotone, saturação, nitidez | **Não** | Nenhum. |
+| Retoque ou geração de qualquer parte do rosto | **Não** | Nenhum. |
+| Sobreposição de cor ou gradiente sobre o rosto | **Não** | Nenhuma. Apenas moldura de 1 px e raio de canto no contêiner. |
+
+**Fidelidade medida:** erro médio de **0,91 em 255 por canal** (0,36%), atribuível
+inteiramente ao re-encode JPEG em regiões de alta frequência (fios de cabelo, barba). O
+nível de qualidade foi escolhido comparando 88, 92, 95 e 97 — 95 é o ponto em que o erro
+para de cair de forma relevante e o arquivo ainda não dobra de tamanho.
+
+**A degradação sem rosto foi mantida.** Ela agora só dispara se a imagem falhar ao
+carregar, e o texto foi corrigido de "retrato não incluído no repositório" para "retrato
+indisponível", que é o que a situação passou a significar. Quatro testes protegem o
+arquivo: existência, razão 3:4, resolução mínima e teto de peso.
 
 ---
 

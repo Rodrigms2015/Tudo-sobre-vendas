@@ -153,19 +153,35 @@ Transições de 120–180 ms, apenas em `opacity` e `transform`. Nada pisca, nad
 
 ## 7. A foto de autoria
 
-Regras da Seção 6.1 do PROMPT_MASTER, implementadas em `src/ui/components/AuthorPortrait.tsx`:
+Regras da Seção 6.1 do PROMPT_MASTER, implementadas em `src/ui/components/AuthorPortrait.tsx`.
 
-- Origem: `public/rodrigo-soares.jpg`. **Nunca** alterada, filtrada ou gerada.
-- `object-fit: cover` com `object-position` ajustável via prop (padrão `center 30%`, que favorece
-  o enquadramento de rosto em retratos verticais).
-- Proporção preservada em contêiner de razão fixa; recorte responsivo por breakpoint.
-- Tratamento visual limitado a: moldura sutil de 1 px e raio de canto. Sem duotone, sem
-  saturação, sem sobreposição de cor sobre o rosto.
-- **Degradação sem rosto:** se o arquivo não existir, o componente exibe um monograma
-  tipográfico ("RS") no mesmo enquadramento. Nunca uma silhueta, ilustração ou rosto gerado
+**Arquivo:** `public/rodrigo-soares.jpg` — 1086×1448, **3:4 exato**, 398 kB.
+
+- **Nunca alterada.** Sem filtro, duotone, saturação, nitidez, retoque ou sobreposição de
+  cor sobre o rosto. O único tratamento foi a conversão de container PNG → JPEG (qualidade
+  95, croma 4:4:4), necessária porque o PNG original tinha 2,78 MB e a imagem entra no
+  precache do PWA. Auditoria completa em `CRITICAL_REVIEW.md` §1.6.
+- **Recorte zero.** O contêiner usa a razão nativa da foto (3:4), então `object-fit: cover`
+  não descarta um único pixel. Essa é a leitura correta de "preservar proporções": não
+  basta não distorcer, é preciso não cortar.
+- **`object-position` ajustável** via prop, para o caso de a razão do contêiner passar a
+  divergir da razão da imagem. No padrão atual não há efeito — não existe sobra para
+  deslocar.
+- **`width` e `height` declarados** no elemento, para que o navegador reserve o espaço e não
+  haja deslocamento de layout durante o carregamento.
+- **Sem `loading="lazy"`.** A foto está acima da dobra no herói da landing; adiar seu
+  carregamento pioraria a percepção de velocidade em vez de melhorar.
+- **Tratamento visual limitado a** moldura de 1 px e raio de canto no contêiner. Nada toca
+  os pixels da imagem.
+- **Degradação sem rosto:** se a imagem falhar ao carregar, exibe um monograma tipográfico
+  ("RS") no mesmo enquadramento. Nunca uma silhueta, ilustração ou rosto gerado
   (`CRITICAL_REVIEW.md` §1.6).
-- Posicionamento: assinatura de autoria e liderança, em escala contida — não é banner de
-  propaganda.
+- **Posicionamento:** assinatura de autoria e liderança, em escala contida (máximo 300 px de
+  largura) — não é banner de propaganda.
+
+**Ao trocar a foto:** se a nova imagem não for 3:4, ajuste a prop `proporcao` para a razão
+nativa dela, senão o `cover` volta a recortar. `src/test/portrait.test.ts` falha se o
+arquivo sumir, mudar de razão, ficar abaixo de 800 px de largura ou passar de 700 kB.
 
 ---
 

@@ -40,7 +40,7 @@ npm run build
 npm run preview
 ```
 
-**`npm run check` é o portão de qualidade.** Ele roda `eslint --max-warnings 0`, os 223
+**`npm run check` é o portão de qualidade.** Ele roda `eslint --max-warnings 0`, os 230
 testes e o build com verificação de tipos. Se ele passar, o deploy é seguro.
 
 ---
@@ -57,6 +57,7 @@ dist/
 ├── _headers                 ← cabeçalhos de segurança (Cloudflare Pages / Netlify)
 ├── _redirects               ← fallback de SPA
 ├── favicon.svg
+├── rodrigo-soares.jpg       ← retrato de autoria, servido sem processamento
 ├── icon-192.png, icon-512.png, icon-maskable-512.png
 ├── robots.txt
 └── assets/
@@ -192,27 +193,31 @@ a nova versão em segundo plano e ela entra em vigor no próximo carregamento.
 
 ## 10. A foto de autoria
 
-O arquivo **não está no repositório** e o componente degrada para um monograma
-tipográfico enquanto ele não existir (ver `CRITICAL_REVIEW.md` §1.6).
+O arquivo está no repositório: `public/rodrigo-soares.jpg`, 1086×1448 (**3:4 exato**),
+398 kB. É servido como está — o build **não processa a imagem de forma alguma**.
 
-Para publicá-la:
+**Para substituí-la:**
 
 ```bash
-cp /caminho/para/a/foto.jpg public/rodrigo-soares.jpg
+cp /caminho/para/a/nova-foto.jpg public/rodrigo-soares.jpg
 npm run build
 ```
 
-- Formato: JPG. Proporção recomendada: **4:5 (retrato)**, mínimo 800×1000 px.
-- A imagem **não é processada de forma alguma** pelo build — é servida como está.
-- Para ajustar o enquadramento sem editar a foto, altere `objectPositionRetrato` em
-  `SETTINGS_PADRAO` (`src/domain/types.ts`) ou passe a prop `objectPosition` ao
-  componente `AuthorPortrait`. O padrão `center 30%` favorece rostos no terço superior.
+- Se a nova imagem **não** for 3:4, ajuste a prop `proporcao` do `AuthorPortrait` para a
+  razão nativa dela. Caso contrário `object-fit: cover` vai recortar o rosto.
+- Para enquadrar deliberadamente sem editar o arquivo, use `objectPosition` (ou
+  `objectPositionRetrato` em `SETTINGS_PADRAO`). Com contêiner e imagem na mesma razão,
+  essa propriedade não tem efeito — não há sobra para deslocar.
+- Evite PNG para fotografia: o original desta imagem tinha 2,78 MB em PNG contra 398 kB em
+  JPEG qualidade 95. A foto entra no precache do service worker, então o peso importa.
+- Quatro testes em `src/test/portrait.test.ts` protegem existência, razão, resolução
+  mínima e teto de peso. Eles falham se o arquivo sumir ou vier desproporcional.
 
 ---
 
 ## 11. Checklist de publicação
 
-- [ ] `npm run check` verde (lint + 223 testes + build)
+- [ ] `npm run check` verde (lint + 230 testes + build)
 - [ ] `npm audit --omit=dev` revisado contra `SECURITY.md` §8.1 (advisory conhecido e não alcançável)
 - [ ] `ls dist/_headers dist/_redirects dist/sw.js` — os três existem
 - [ ] `npm run preview` e navegar por Cockpit, Carteira, Cliente 360 e Dados

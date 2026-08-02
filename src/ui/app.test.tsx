@@ -21,11 +21,11 @@ async function irParaCockpitComDemo(user: ReturnType<typeof userEvent.setup>) {
   const entrar = await screen.findAllByRole('link', { name: /entrar no cockpit/i });
   await user.click(entrar[0]);
   const carregar = await screen.findByRole('button', {
-    name: /carregar dados de demonstração/i,
+    name: /ver com dados de demonstração/i,
   });
   await user.click(carregar);
   await waitFor(
-    () => expect(screen.queryByText(/nenhuma carteira carregada/i)).not.toBeInTheDocument(),
+    () => expect(screen.queryByText(/sua carteira está vazia/i)).not.toBeInTheDocument(),
     { timeout: 15000 },
   );
 }
@@ -57,16 +57,20 @@ describe('landing', () => {
 });
 
 describe('estado vazio do cockpit', () => {
-  it('não inventa dados: oferece demonstração ou importação', async () => {
+  it('não inventa dados, e oferece os três caminhos de entrada', async () => {
     const user = userEvent.setup();
     render(<App />);
     await user.click((await screen.findAllByRole('link', { name: /entrar no cockpit/i }))[0]);
 
-    expect(await screen.findByText(/nenhuma carteira carregada/i)).toBeInTheDocument();
+    expect(await screen.findByText(/sua carteira está vazia/i)).toBeInTheDocument();
+    // Cadastro manual vem PRIMEIRO: sem ele, quem não tem CSV fica sem saída.
     expect(
-      screen.getByRole('button', { name: /carregar dados de demonstração/i }),
+      screen.getByRole('link', { name: /cadastrar meu primeiro cliente/i }),
     ).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /importar meus dados/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /ver com dados de demonstração/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /importar csv/i })).toBeInTheDocument();
   });
 });
 

@@ -7,7 +7,7 @@
  */
 
 import { useMemo, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useApp } from '../../state/store';
 import type { CustomerContext } from '../../domain/engine/context';
 import {
@@ -19,6 +19,7 @@ import {
 } from '../../domain/types';
 import { calcularScore } from '../../domain/engine/scoring';
 import { Card, EstadoVazio, SeloTemperatura, TituloSecao } from '../components/primitives';
+import { FormularioCliente } from '../components/FormularioCliente';
 import { ROTULO_TEMPERATURA } from '../../domain/engine/cadence';
 import { formatarDias, formatarMoeda, hoje } from '../../domain/dates';
 
@@ -80,7 +81,9 @@ const VISUALIZACOES: { valor: Visualizacao; rotulo: string; descricao: string }[
 type Ordenacao = 'SCORE' | 'NOME' | 'ULTIMA_COMPRA' | 'FATURAMENTO';
 
 export function Carteira() {
-  const { contextos, dados, settings, temDados } = useApp();
+  const { contextos, dados, settings, temDados, criarCliente } = useApp();
+  const navegar = useNavigate();
+  const [cadastrando, setCadastrando] = useState(false);
   const [params, setParams] = useSearchParams();
   const referencia = useMemo(() => hoje(), []);
 
@@ -189,23 +192,63 @@ export function Carteira() {
 
   if (!temDados) {
     return (
-      <EstadoVazio
-        titulo="Nenhuma carteira carregada"
-        descricao="Carregue a demonstração ou importe sua base para ver o radar da carteira."
-        acao={
-          <Link to="/app/dados" className="btn-primario">
-            Ir para Dados
-          </Link>
-        }
-      />
+      <div className="space-y-4">
+        {cadastrando ? (
+          <FormularioCliente
+            sellerId={settings.sellerAtivoId}
+            aoCancelar={() => setCadastrando(false)}
+            aoSalvar={async ({ cliente, frota }) => {
+              const id = await criarCliente(cliente, frota);
+              setCadastrando(false);
+              navegar(`/app/cliente/${id}`);
+            }}
+          />
+        ) : (
+          <EstadoVazio
+            titulo="Nenhuma conta na carteira"
+            descricao="Cadastre seus clientes um a um, importe sua base por CSV, ou carregue a carteira de demonstração para ver o sistema operando."
+            acao={
+              <>
+                <button className="btn-primario" onClick={() => setCadastrando(true)}>
+                  Cadastrar cliente
+                </button>
+                <Link to="/app/dados" className="btn-secundario">
+                  Importar ou carregar demonstração
+                </Link>
+              </>
+            }
+          />
+        )}
+      </div>
     );
   }
 
   return (
     <div className="space-y-5">
-      <TituloSecao descricao="Sua carteira vista por situação comercial, não por ordem alfabética.">
+      <TituloSecao
+        descricao="Sua carteira vista por situação comercial, não por ordem alfabética."
+        acao={
+          !cadastrando && (
+            <button className="btn-primario !min-h-[40px] text-xs" onClick={() => setCadastrando(true)}>
+              Novo cliente
+            </button>
+          )
+        }
+      >
         Radar da Carteira
       </TituloSecao>
+
+      {cadastrando && (
+        <FormularioCliente
+          sellerId={settings.sellerAtivoId}
+          aoCancelar={() => setCadastrando(false)}
+          aoSalvar={async ({ cliente, frota }) => {
+            const id = await criarCliente(cliente, frota);
+            setCadastrando(false);
+            navegar(`/app/cliente/${id}`);
+          }}
+        />
+      )}
 
       {/* Visualizações */}
       <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-4 px-4 sm:mx-0 sm:px-0">

@@ -271,6 +271,48 @@ são resultados. Aceitação sem resultado é ruído, e o painel de telemetria d
 
 ---
 
+## 5.1 Falha de escopo encontrada em uso real: não havia cadastro manual
+
+Descoberta quando o próprio idealizador tentou usar o produto e concluiu, corretamente,
+que ele "não era funcional".
+
+**O erro:** eu construí importação de CSV, exportação, validação linha a linha e relatório
+de erros — e **nenhuma tela para cadastrar um cliente ou registrar uma compra**. A única
+forma de colocar dados era importar planilha ou carregar a demonstração.
+
+Para um vendedor querendo testar com cinco contas reais, isso é o mesmo que não funcionar.
+Ninguém monta CSV no celular. O produto exibia 32 clientes fictícios e não oferecia porta
+de entrada para os dados de quem estava olhando.
+
+**Por que passou despercebido:** os 230 testes cobriam o motor com fixtures construídas em
+código e a interface com o seed já carregado. Nenhum deles percorria o caminho de um
+usuário que chega com o banco vazio e quer entrar com o próprio dado. Cobertura alta,
+caminho crítico não exercitado.
+
+**Correção:**
+
+- Cadastro, edição e exclusão de cliente pela interface, com exclusão em cascata.
+- Registro manual de compra por família — o dado que alimenta cadência, ticket,
+  recorrência e janela.
+- `SaleItem.productId` passou a ser anulável: o motor só usa `familyId`, e exigir um
+  produto obrigaria a inventar um (violaria R3).
+- O catálogo de 14 famílias passou a ser **carregado sempre**, não só com a demonstração.
+  Ele é vocabulário do setor, não dado fictício — sem ele não há família para escolher.
+- O estado vazio do Cockpit passou a oferecer **cadastrar cliente** como primeira opção,
+  antes da demonstração e da importação, com as três etapas até o motor acordar.
+- `cadastro.test.ts` percorre o fluxo inteiro sem CSV: abrir vazio, cadastrar, registrar
+  quatro compras e verificar que a cadência aparece.
+
+**Defeitos secundários encontrados no mesmo caminho:**
+
+1. Dois botões com o rótulo "Registrar compra" na mesma tela — um abria o formulário, o
+   outro salvava. O do cabeçalho virou "Nova compra".
+2. O Cockpit exibia "Ações na fila: 1" e, logo abaixo, "nenhuma conta exige ação agora".
+   Ações de confiança baixa são excluídas do Top 3, mas contadas na fila. Agora elas
+   aparecem com a lacuna em destaque, em vez de sumir e contradizer o contador.
+
+---
+
 ## 6. Riscos que permanecem (assumidos conscientemente)
 
 1. **Qualidade da importação.** O maior ponto de falha na adoção é o CSV do ERP. Mitigado com

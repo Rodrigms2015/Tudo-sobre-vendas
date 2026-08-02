@@ -23,6 +23,7 @@ import {
 import type {
   Alert,
   AlertAck,
+  Customer,
   DailyDebrief,
   Dataset,
   Interaction,
@@ -34,6 +35,9 @@ import type {
   RecommendationFeedback,
   Settings,
   Task,
+  Fleet,
+  Sale,
+  SaleItem,
 } from '../domain/types';
 import { datasetVazio, SETTINGS_PADRAO } from '../domain/types';
 import {
@@ -45,6 +49,7 @@ import {
   salvarDataset,
 } from '../data/db';
 import { gerarDadosDemo } from '../domain/seed';
+import { catalogoDeReferencia } from '../domain/seed/catalog';
 import { construirTodosContextos, type CustomerContext } from '../domain/engine/context';
 import { gerarRecomendacoes, ordenarRecomendacoes } from '../domain/engine/recommendations';
 import { chaveAlerta, gerarAlertas } from '../domain/engine/andon';
@@ -129,6 +134,24 @@ export interface EstadoApp {
     comentario: string,
   ) => Promise<void>;
   reconhecerAlerta: (alerta: Alert, motivo: string) => Promise<void>;
+  /** Cadastro manual. Sem isto, a única entrada de dados seria CSV — inviável no celular. */
+  criarCliente: (
+    cliente: Omit<Customer, 'id' | 'criadoEm' | 'origem'>,
+    frota: Omit<Fleet, 'id' | 'customerId'>,
+  ) => Promise<string>;
+  atualizarCliente: (
+    cliente: Customer,
+    frota: Omit<Fleet, 'id' | 'customerId'>,
+  ) => Promise<void>;
+  excluirCliente: (customerId: string) => Promise<void>;
+  /** Venda por FAMÍLIA: o motor só usa família, e exigir produto obrigaria a inventar um. */
+  registrarVenda: (venda: {
+    customerId: string;
+    data: string;
+    valorTotal: number;
+    margemPercentual: number | null;
+    familyIds: string[];
+  }) => Promise<void>;
   registrarInteracao: (interacao: Omit<Interaction, 'id'>) => Promise<void>;
   registrarPerda: (perda: Omit<LostSale, 'id'>) => Promise<void>;
   criarPromessa: (promessa: Omit<Promessa, 'id' | 'criadaEm' | 'status'>) => Promise<void>;
@@ -153,7 +176,33 @@ export function ProvedorApp({ children }: { children: ReactNode }) {
     let cancelado = false;
     (async () => {
       try {
-        const [dados, settings] = await Promise.all([carregarDataset(), carregarConfiguracoes()]);
+        const [lidos, settings] = await Promise.all([carregarDataset(), carregarConfiguracoes()]);
+
+        // O catálogo de famílias é vocabulário do setor, não dado de demonstração.
+        // Sem ele, quem nunca carregou a demonstração não teria família nenhuma para
+        // escolher ao registrar uma venda — e o cadastro manual seria inútil.
+        let dados = lidos;
+        if (lidos.productFamilies.length === 0) {
+          const catalogo = catalogoDeReferencia();
+          dados = {
+            ...lidos,
+            productFamilies: catalogo.familias,
+            productRelations: catalogo.relacoes,
+            sellers:
+              lidos.sellers.length > 0
+                ? lidos.sellers
+                : [
+                    {
+                      id: SETTINGS_PADRAO.sellerAtivoId,
+                      nome: 'Minha carteira',
+                      regiao: '',
+                      metaMensal: 0,
+                    },
+                  ],
+          };
+          await salvarDataset(dados);
+        }
+
         if (!cancelado) despachar({ tipo: 'CARREGADO', dados, settings });
       } catch (e) {
         if (!cancelado) {
@@ -327,6 +376,120 @@ export function ProvedorApp({ children }: { children: ReactNode }) {
     [estado.dados, persistir, referencia],
   );
 
+  const criarCliente = useCallback<EstadoApp['criarCliente']>(
+    async (cliente, frota) => {
+      const id = novoId('cli');
+      const novoCliente: Customer = {
+        ...cliente,
+        id,
+        criadoEm: referencia,
+        origem: 'MANUAL',
+      };
+      await persistir({
+        ...estado.dados,
+        customers: [...estado.dados.customers, novoCliente],
+        fleets: [...estado.dados.fleets, { ...frota, id: novoId('frt'), customerId: id }],
+        auditEvents: [
+          ...estado.dados.auditEvents,
+          {
+            id: novoId('aud'),
+            data: referencia,
+            tipo: 'IMPORTACAO',
+            descricao: `Cliente "${novoCliente.nomeFantasia}" cadastrado manualmente.`,
+            entidade: 'Customer',
+            entidadeId: id,
+          },
+        ],
+      });
+      return id;
+    },
+    [estado.dados, persistir, referencia],
+  );
+
+  const atualizarCliente = useCallback<EstadoApp['atualizarCliente']>(
+    async (cliente, frota) => {
+      const existente = estado.dados.fleets.find((f) => f.customerId === cliente.id);
+      await persistir({
+        ...estado.dados,
+        customers: estado.dados.customers.map((c) => (c.id === cliente.id ? cliente : c)),
+        fleets: existente
+          ? estado.dados.fleets.map((f) =>
+              f.customerId === cliente.id ? { ...frota, id: f.id, customerId: cliente.id } : f,
+            )
+          : [...estado.dados.fleets, { ...frota, id: novoId('frt'), customerId: cliente.id }],
+      });
+    },
+    [estado.dados, persistir],
+  );
+
+  const excluirCliente = useCallback<EstadoApp['excluirCliente']>(
+    async (customerId) => {
+      const frotasRemovidas = new Set(
+        estado.dados.fleets.filter((f) => f.customerId === customerId).map((f) => f.id),
+      );
+      const vendasRemovidas = new Set(
+        estado.dados.sales.filter((v) => v.customerId === customerId).map((v) => v.id),
+      );
+      const orcamentosRemovidos = new Set(
+        estado.dados.quotes.filter((q) => q.customerId === customerId).map((q) => q.id),
+      );
+      const semCliente = <T extends { customerId: string }>(itens: T[]) =>
+        itens.filter((i) => i.customerId !== customerId);
+
+      // Exclusão em cascata: registro órfão corrompe telemetria e integridade.
+      await persistir({
+        ...estado.dados,
+        customers: estado.dados.customers.filter((c) => c.id !== customerId),
+        contacts: semCliente(estado.dados.contacts),
+        fleets: semCliente(estado.dados.fleets),
+        vehicles: estado.dados.vehicles.filter((v) => !frotasRemovidas.has(v.fleetId)),
+        interactions: semCliente(estado.dados.interactions),
+        quotes: semCliente(estado.dados.quotes),
+        quoteItems: estado.dados.quoteItems.filter((i) => !orcamentosRemovidos.has(i.quoteId)),
+        sales: semCliente(estado.dados.sales),
+        saleItems: estado.dados.saleItems.filter((i) => !vendasRemovidas.has(i.saleId)),
+        lostSales: semCliente(estado.dados.lostSales),
+        promessas: semCliente(estado.dados.promessas),
+        tasks: estado.dados.tasks.filter((t) => t.customerId !== customerId),
+        recommendationFeedback: semCliente(estado.dados.recommendationFeedback),
+        alertAcks: semCliente(estado.dados.alertAcks),
+      });
+    },
+    [estado.dados, persistir],
+  );
+
+  const registrarVenda = useCallback<EstadoApp['registrarVenda']>(
+    async (venda) => {
+      const saleId = novoId('vnd');
+      const registro: Sale = {
+        id: saleId,
+        customerId: venda.customerId,
+        data: venda.data,
+        valorTotal: venda.valorTotal,
+        margemPercentual: venda.margemPercentual,
+        quoteId: null,
+      };
+      // O valor é rateado entre as famílias informadas; o motor usa o total da venda
+      // para ticket e a família para cadência, então o rateio não distorce nada.
+      const fatia = venda.familyIds.length > 0 ? venda.valorTotal / venda.familyIds.length : 0;
+      const itens: SaleItem[] = venda.familyIds.map((familyId) => ({
+        id: novoId('itm'),
+        saleId,
+        productId: null,
+        familyId,
+        quantidade: 1,
+        valorTotal: Math.round(fatia),
+      }));
+
+      await persistir({
+        ...estado.dados,
+        sales: [...estado.dados.sales, registro],
+        saleItems: [...estado.dados.saleItems, ...itens],
+      });
+    },
+    [estado.dados, persistir],
+  );
+
   const registrarInteracao = useCallback<EstadoApp['registrarInteracao']>(
     async (interacao) => {
       await persistir({
@@ -433,6 +596,10 @@ export function ProvedorApp({ children }: { children: ReactNode }) {
     atualizarSettings,
     registrarFeedback,
     reconhecerAlerta,
+    criarCliente,
+    atualizarCliente,
+    excluirCliente,
+    registrarVenda,
     registrarInteracao,
     registrarPerda,
     criarPromessa,

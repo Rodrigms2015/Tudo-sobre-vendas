@@ -131,7 +131,7 @@ describe('integridade referencial', () => {
     for (const s of dados.sales) expect(idsClientes.has(s.customerId)).toBe(true);
     for (const i of dados.saleItems) {
       expect(idsVendas.has(i.saleId)).toBe(true);
-      expect(idsProdutos.has(i.productId)).toBe(true);
+      if (i.productId) expect(idsProdutos.has(i.productId)).toBe(true);
       expect(idsFamilias.has(i.familyId)).toBe(true);
     }
     for (const q of dados.quotes) expect(idsClientes.has(q.customerId)).toBe(true);

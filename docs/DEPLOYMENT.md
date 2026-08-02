@@ -40,7 +40,7 @@ npm run build
 npm run preview
 ```
 
-**`npm run check` é o portão de qualidade.** Ele roda `eslint --max-warnings 0`, os 230
+**`npm run check` é o portão de qualidade.** Ele roda `eslint --max-warnings 0`, os 246
 testes e o build com verificação de tipos. Se ele passar, o deploy é seguro.
 
 ---
@@ -217,7 +217,7 @@ npm run build
 
 ## 11. Checklist de publicação
 
-- [ ] `npm run check` verde (lint + 230 testes + build)
+- [ ] `npm run check` verde (lint + 246 testes + build)
 - [ ] `npm audit --omit=dev` revisado contra `SECURITY.md` §8.1 (advisory conhecido e não alcançável)
 - [ ] `ls dist/_headers dist/_redirects dist/sw.js` — os três existem
 - [ ] `npm run preview` e navegar por Cockpit, Carteira, Cliente 360 e Dados

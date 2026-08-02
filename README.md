@@ -32,6 +32,7 @@ Toda tela responde uma pergunta só:
 | **Debriefing** | Pré-preenchido com o dia real. Meta: 60 segundos |
 | **Telemetria** | Execução antes de receita, com métricas antifraude |
 | **Centro de Conhecimento** | Playbooks e artigos, validado e não validado **separados** |
+| **Cadastro** | Criar, editar e excluir cliente; registrar compra por família — sem planilha |
 | **Dados** | Importação/exportação CSV, backup JSON, calibração do motor, privacidade |
 
 ---
@@ -91,14 +92,21 @@ npm ci
 npm run dev          # http://localhost:5173
 ```
 
-Abra a aplicação → **Entrar no Cockpit** → **Carregar dados de demonstração**.
+Abra a aplicação → **Entrar no Cockpit**. A partir daí há três caminhos:
+
+1. **Cadastrar meu primeiro cliente** — direto na tela, sem planilha. Só o nome é obrigatório.
+2. **Ver com dados de demonstração** — 32 contas fictícias para ver o sistema operando.
+3. **Importar CSV** — para quem já tem a base exportada do ERP.
+
+Para o motor calcular cadência e dizer quando ligar, são necessárias **4 compras
+registradas** por conta. Com menos que isso ele diz "sem base" em vez de inventar previsão.
 
 ### Comandos
 
 | Comando | O que faz |
 |---|---|
 | `npm run dev` | Desenvolvimento com recarga automática |
-| `npm run check` | **Portão de qualidade:** lint + 230 testes + build |
+| `npm run check` | **Portão de qualidade:** lint + 246 testes + build |
 | `npm test` | Testes |
 | `npm run build` | Build de produção em `dist/` |
 | `npm run preview` | Serve o build de produção |
@@ -194,7 +202,7 @@ imediatamente, sem migração. O que persiste é a **decisão humana** sobre ele
 
 ## Testes
 
-**230 testes** cobrindo motor, dados, segurança e interface:
+**246 testes** cobrindo motor, dados, segurança e interface:
 
 | Arquivo | O que protege |
 |---|---|
@@ -212,6 +220,7 @@ imediatamente, sem migração. O que persiste é a **decisão humana** sobre ele
 | `scenarios.test.ts` | Rubrica completa, melhor resposta única, conteúdo de domínio |
 | `app.test.tsx` | Fluxo completo: estado vazio → demonstração → executar/rejeitar ação |
 | `portrait.test.ts` | Foto de autoria: existência, razão 3:4, resolução e teto de peso |
+| `cadastro.test.tsx` | Uso **sem CSV**: carteira vazia → cadastrar → 4 compras → motor acorda |
 
 ---
 

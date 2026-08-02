@@ -180,3 +180,21 @@ export function gerarCatalogo(rng: Aleatorio): CatalogoDemo {
 
   return { familias: FAMILIAS, produtos, relacoes: RELACOES, precos };
 }
+
+/**
+ * Catálogo de referência do setor: as 14 famílias e os sistemas a que pertencem.
+ *
+ * Isto NÃO é dado de demonstração — é vocabulário de domínio da linha pesada. Sem ele,
+ * um usuário que nunca carregou a demonstração não conseguiria registrar uma venda,
+ * porque não haveria família nenhuma para escolher. Por isso é garantido no primeiro
+ * carregamento, independentemente de o usuário querer a carteira fictícia.
+ *
+ * Os produtos NÃO entram aqui: nome e código de peça são catálogo da distribuidora,
+ * não do setor. Quem quiser produtos importa os seus.
+ */
+export function catalogoDeReferencia(): {
+  familias: ProductFamily[];
+  relacoes: ProductRelation[];
+} {
+  return { familias: FAMILIAS, relacoes: RELACOES };
+}

@@ -14,7 +14,7 @@ import { useApp } from '../../state/store';
 import { selecionarTop3 } from '../../domain/engine/recommendations';
 import { CardAcao } from '../components/CardAcao';
 import { CardAlerta } from '../components/CardAlerta';
-import { Card, EstadoVazio, Metrica, Rotulo, TituloSecao } from '../components/primitives';
+import { Aviso, Card, EstadoVazio, Metrica, Rotulo, TituloSecao } from '../components/primitives';
 import { MapaCalorCidades } from '../charts';
 import { diasEntre, formatarData, formatarMoeda, hoje } from '../../domain/dates';
 
@@ -128,12 +128,15 @@ export function Cockpit() {
       <div className="space-y-4">
         <h1 className="text-2xl font-bold tracking-tight">Cockpit do Dia</h1>
         <EstadoVazio
-          titulo="Nenhuma carteira carregada"
-          descricao="O BRUTO OS não inventa dados. Carregue a carteira de demonstração para ver o sistema operando, ou importe a sua base por CSV."
+          titulo="Sua carteira está vazia"
+          descricao="O BRUTO OS não inventa dados. Escolha por onde começar — dá para cadastrar um cliente agora mesmo, sem planilha nenhuma."
           acao={
             <>
+              <Link to="/app/carteira" className="btn-primario">
+                Cadastrar meu primeiro cliente
+              </Link>
               <button
-                className="btn-primario"
+                className="btn-secundario"
                 disabled={carregandoDemo}
                 onClick={async () => {
                   setCarregandoDemo(true);
@@ -141,14 +144,29 @@ export function Cockpit() {
                   setCarregandoDemo(false);
                 }}
               >
-                {carregandoDemo ? 'Carregando…' : 'Carregar dados de demonstração'}
+                {carregandoDemo ? 'Carregando…' : 'Ver com dados de demonstração'}
               </button>
               <Link to="/app/dados" className="btn-secundario">
-                Importar meus dados
+                Importar CSV
               </Link>
             </>
           }
         />
+
+        <Card className="p-4">
+          <Rotulo>Como o sistema começa a funcionar</Rotulo>
+          <ol className="mt-2 space-y-1.5 text-sm text-bruto-ash list-decimal list-inside">
+            <li>Cadastre um cliente — só o nome é obrigatório.</li>
+            <li>
+              Registre as compras que ele já fez. <strong className="text-bruto-white">São
+              necessárias 4</strong> para o motor calcular a cadência e dizer quando ligar.
+            </li>
+            <li>
+              Com menos de 4, ele mostra &ldquo;sem base&rdquo; em vez de inventar uma previsão —
+              e diz qual pergunta cria essa base.
+            </li>
+          </ol>
+        </Card>
       </div>
     );
   }
@@ -250,10 +268,25 @@ export function Cockpit() {
               <CardAcao key={r.id} recomendacao={r} destaque />
             ))}
           </div>
+        ) : recomendacoes.length > 0 ? (
+          // A fila NÃO está vazia — as ações existem, mas nenhuma tem confiança suficiente
+          // para ocupar o topo do dia. Esconder isso contradiria o contador logo acima e
+          // faria o vendedor achar que o sistema perdeu as contas dele.
+          <div className="space-y-3">
+            <Aviso tom="atencao" titulo="Nenhuma ação com confiança alta o bastante para o topo do dia">
+              As {recomendacoes.length} ação(ões) da fila dependem de dados que ainda faltam. Elas
+              aparecem abaixo com a lacuna em destaque — feche a lacuna e elas sobem para o Top 3.
+            </Aviso>
+            <div className="grid gap-3 lg:grid-cols-3">
+              {recomendacoes.slice(0, 3).map((r) => (
+                <CardAcao key={r.id} recomendacao={r} destaque />
+              ))}
+            </div>
+          </div>
         ) : (
           <EstadoVazio
             titulo="Sua carteira está dentro do ciclo"
-            descricao="Nenhuma conta com confiança suficiente exige ação agora. Isso é um resultado válido, não uma tela vazia — use a Carteira Esquecida para trabalhar contas de longo prazo."
+            descricao="Nenhuma conta exige ação agora. Isso é um resultado válido, não uma tela vazia — use a Carteira Esquecida para trabalhar contas de longo prazo."
             acao={
               <Link to="/app/carteira?modo=carteira-esquecida" className="btn-secundario">
                 Ver carteira esquecida

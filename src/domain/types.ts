@@ -277,7 +277,12 @@ export interface Sale {
 export interface SaleItem {
   id: string;
   saleId: string;
-  productId: string;
+  /**
+   * Null quando a venda foi registrada manualmente pela família, sem item específico.
+   * O motor usa apenas `familyId` — cadência, cesta e expansão são todas por família.
+   * Exigir um produto obrigaria a inventar um: pior que assumir a ausência.
+   */
+  productId: string | null;
   familyId: string;
   quantidade: number;
   valorTotal: number;

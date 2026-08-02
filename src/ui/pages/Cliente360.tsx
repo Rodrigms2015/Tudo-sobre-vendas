@@ -7,7 +7,7 @@
  */
 
 import { useMemo, useState } from 'react';
-import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useApp } from '../../state/store';
 import { calcularScore } from '../../domain/engine/scoring';
 import { descreverMomento } from '../../domain/engine/recommendations';
@@ -40,6 +40,7 @@ import {
 } from '../components/primitives';
 import { formatarData, formatarDias, formatarMoeda, hoje, somarDias } from '../../domain/dates';
 import { CardAcao } from '../components/CardAcao';
+import { FormularioCliente, FormularioVenda } from '../components/FormularioCliente';
 
 type Aba = 'SITUACAO' | 'HISTORICO' | 'FROTA' | 'OPORTUNIDADE' | 'EXECUCAO';
 
@@ -64,10 +65,17 @@ export function Cliente360() {
     criarPromessa,
     resolverPromessa,
     concluirTarefa,
+    atualizarCliente,
+    excluirCliente,
+    registrarVenda,
   } = useApp();
+  const navegar = useNavigate();
   const referencia = useMemo(() => hoje(), []);
 
   const [aba, setAba] = useState<Aba>('SITUACAO');
+  const [editando, setEditando] = useState(false);
+  const [registrandoVenda, setRegistrandoVenda] = useState(false);
+  const [confirmandoExclusao, setConfirmandoExclusao] = useState(false);
   const [preparoAberto, setPreparoAberto] = useState(params.get('preparar') === '1');
   const [copiado, setCopiado] = useState(false);
 
@@ -127,11 +135,56 @@ export function Cliente360() {
               {ROTULO_SEGMENTO[ctx.customer.segmento]}
             </p>
           </div>
-          <button className="btn-primario shrink-0" onClick={() => setPreparoAberto((v) => !v)}>
-            {preparoAberto ? 'Fechar preparo' : 'Preparar ligação'}
-          </button>
+          <div className="flex gap-2 shrink-0 flex-wrap">
+            <button className="btn-primario" onClick={() => setPreparoAberto((v) => !v)}>
+              {preparoAberto ? 'Fechar preparo' : 'Preparar ligação'}
+            </button>
+            <button
+              className="btn-secundario"
+              onClick={() => {
+                setRegistrandoVenda((v) => !v);
+                setEditando(false);
+              }}
+            >
+              {registrandoVenda ? 'Fechar compra' : 'Nova compra'}
+            </button>
+            <button
+              className="btn-secundario"
+              onClick={() => {
+                setEditando((v) => !v);
+                setRegistrandoVenda(false);
+              }}
+            >
+              Editar
+            </button>
+          </div>
         </div>
       </div>
+
+      {editando && (
+        <FormularioCliente
+          sellerId={ctx.customer.sellerId}
+          inicial={ctx.customer}
+          frotaInicial={ctx.frota}
+          rotuloAcao="Salvar alterações"
+          aoCancelar={() => setEditando(false)}
+          aoSalvar={async ({ cliente, frota }) => {
+            await atualizarCliente({ ...ctx.customer, ...cliente }, frota);
+            setEditando(false);
+          }}
+        />
+      )}
+
+      {registrandoVenda && (
+        <FormularioVenda
+          familias={dados.productFamilies}
+          comprasExistentes={ctx.vendas.length}
+          aoCancelar={() => setRegistrandoVenda(false)}
+          aoSalvar={async (venda) => {
+            await registrarVenda({ ...venda, customerId: ctx.customer.id });
+          }}
+        />
+      )}
 
       {/* Preparo de ligação */}
       {preparoAberto && (
@@ -680,6 +733,39 @@ export function Cliente360() {
                     </li>
                   ))}
               </ul>
+            )}
+          </Card>
+
+          <Card className="p-4 border-bruto-red/40">
+            <TituloSecao descricao="Remove a conta e todo o histórico ligado a ela: compras, orçamentos, interações, perdas e promessas. Não há como desfazer.">
+              Excluir cliente
+            </TituloSecao>
+            {confirmandoExclusao ? (
+              <div className="space-y-2">
+                <p className="text-sm">
+                  Excluir <strong>{ctx.customer.nomeFantasia}</strong> e {ctx.vendas.length}{' '}
+                  compra(s), {ctx.orcamentos.length} orçamento(s), {ctx.interacoes.length}{' '}
+                  interação(ões) e {ctx.perdas.length} perda(s)?
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    className="btn-perigo flex-1"
+                    onClick={async () => {
+                      await excluirCliente(ctx.customer.id);
+                      navegar('/app/carteira');
+                    }}
+                  >
+                    Sim, excluir tudo
+                  </button>
+                  <button className="btn-fantasma" onClick={() => setConfirmandoExclusao(false)}>
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button className="btn-perigo" onClick={() => setConfirmandoExclusao(true)}>
+                Excluir este cliente
+              </button>
             )}
           </Card>
 

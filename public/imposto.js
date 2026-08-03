@@ -434,6 +434,15 @@
       classe = 'nota aviso';
     }
     caixa.appendChild(el('div', texto, classe));
+
+    // O Espírito Santo é porta de entrada de importação. Sair de lá com peça
+    // importada muda a alíquota de 12% para 4%, e isso engorda a ST em vez de
+    // baratear a nota — o crédito a abater fica menor.
+    if (e.uf === 'ES' && !e.importada) {
+      caixa.appendChild(el('div',
+        'Saindo do Espírito Santo, confira na nota do fornecedor se a peça é importada. Com conteúdo de importação acima de 40% a alíquota cai para 4% — e aí a ST sobe, porque o crédito a abater é menor. Marque a caixa de importada abaixo para ver a diferença.',
+        'nota'));
+    }
   }
 
   function renderizar() {
@@ -896,7 +905,8 @@
       o.textContent = u[0] + ' — ' + u[1];
       sel.appendChild(o);
     });
-    sel.value = 'MG';
+    sel.value = 'ES';
+    $('retemST').checked = PROTOCOLO_ST[sel.value] !== 'saiu';
 
     // Data de hoje
     var hoje = new Date();

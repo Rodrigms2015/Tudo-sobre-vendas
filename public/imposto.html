@@ -1,0 +1,573 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Calculadora de ICMS — venda de peças para São Paulo</title>
+<meta name="description" content="Calcula ICMS próprio, ICMS-ST e DIFAL de peças vendidas de qualquer estado para São Paulo. Revenda, consumidor final contribuinte e não contribuinte. Grátis." />
+<meta name="color-scheme" content="dark light" />
+<link rel="icon" href="/favicon.svg" />
+<style>
+/* ---------------------------------------------------------------------------
+   Identidade herdada do BRUTO OS (tailwind.config.js): grafite industrial,
+   um único amarelo como recurso caro, mono para todo código fiscal.
+   --------------------------------------------------------------------------- */
+:root {
+  --preto:    #0A0A0B;
+  --carbono:  #121316;
+  --grafite:  #1C1E23;
+  --aco:      #2A2D34;
+  --cinza:    #8A9099;
+  --claro:    #F5F6F7;
+  --amarelo:  #F2B705;
+  --ambar:    #D98C00;
+  --vermelho: #D64545;
+  --verde:    #3E9E6A;
+  --azul:     #4A7FB5;
+
+  --fundo:        var(--preto);
+  --superficie:   var(--carbono);
+  --superficie-2: var(--grafite);
+  --borda:        var(--aco);
+  --texto:        var(--claro);
+  --texto-fraco:  var(--cinza);
+  --acento:       var(--amarelo);
+  --acento-texto: #0A0A0B;
+  --ok:           var(--verde);
+  --alerta:       var(--ambar);
+  --erro:         var(--vermelho);
+  --info:         var(--azul);
+  --sombra:       0 1px 0 rgba(255,255,255,.03), 0 8px 24px rgba(0,0,0,.45);
+
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: light) {
+  :root {
+    --fundo:        #ECEEEC;
+    --superficie:   #F8F9F7;
+    --superficie-2: #FFFFFF;
+    --borda:        #C9CDC8;
+    --texto:        #12151A;
+    --texto-fraco:  #5A6169;
+    --acento:       #F2B705;
+    --acento-texto: #12151A;
+    --ok:           #1F7A4C;
+    --alerta:       #8A5A00;
+    --erro:         #B02E2E;
+    --info:         #2F5F8F;
+    --sombra:       0 1px 2px rgba(18,21,26,.06), 0 8px 24px rgba(18,21,26,.08);
+  }
+}
+:root[data-theme="light"] {
+  --fundo: #ECEEEC; --superficie: #F8F9F7; --superficie-2: #FFFFFF;
+  --borda: #C9CDC8; --texto: #12151A; --texto-fraco: #5A6169;
+  --acento: #F2B705; --acento-texto: #12151A;
+  --ok: #1F7A4C; --alerta: #8A5A00; --erro: #B02E2E; --info: #2F5F8F;
+  --sombra: 0 1px 2px rgba(18,21,26,.06), 0 8px 24px rgba(18,21,26,.08);
+}
+:root[data-theme="dark"] {
+  --fundo: #0A0A0B; --superficie: #121316; --superficie-2: #1C1E23;
+  --borda: #2A2D34; --texto: #F5F6F7; --texto-fraco: #8A9099;
+  --acento: #F2B705; --acento-texto: #0A0A0B;
+  --ok: #3E9E6A; --alerta: #D98C00; --erro: #D64545; --info: #4A7FB5;
+  --sombra: 0 1px 0 rgba(255,255,255,.03), 0 8px 24px rgba(0,0,0,.45);
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--fundo);
+  color: var(--texto);
+  font-family: var(--sans);
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; border-radius: 2px; }
+
+.shell { max-width: 1180px; margin: 0 auto; padding: 0 20px 96px; }
+
+/* --- cabeçalho ---------------------------------------------------------- */
+.topo {
+  border-bottom: 1px solid var(--borda);
+  background: var(--superficie);
+  position: sticky; top: 0; z-index: 20;
+}
+.topo-in {
+  max-width: 1180px; margin: 0 auto; padding: 12px 20px;
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+}
+.marca { display: flex; align-items: baseline; gap: 10px; margin-right: auto; }
+.marca strong { font-size: 15px; font-weight: 700; letter-spacing: -.01em; }
+.marca span {
+  font-family: var(--mono); font-size: 11px; color: var(--texto-fraco);
+  text-transform: uppercase; letter-spacing: .08em;
+}
+.btn-tema {
+  min-height: 36px; padding: 0 12px; border: 1px solid var(--borda);
+  background: var(--superficie-2); color: var(--texto-fraco);
+  font-family: var(--mono); font-size: 11px; letter-spacing: .06em;
+  text-transform: uppercase; border-radius: 3px; cursor: pointer;
+}
+.btn-tema:hover { color: var(--texto); border-color: var(--cinza); }
+
+.hero { padding: 40px 0 28px; max-width: 62ch; }
+.hero h1 {
+  margin: 0 0 12px; font-size: clamp(28px, 5vw, 40px); line-height: 1.08;
+  letter-spacing: -.025em; text-wrap: balance; font-weight: 750;
+}
+.hero p { margin: 0; color: var(--texto-fraco); font-size: 16px; }
+
+/* --- faixa de vigência -------------------------------------------------- */
+.faixa {
+  display: flex; gap: 12px; align-items: flex-start;
+  border: 1px solid var(--borda); border-left: 3px solid var(--alerta);
+  background: var(--superficie); padding: 14px 16px; border-radius: 3px;
+  margin-bottom: 28px;
+}
+.faixa-tag {
+  font-family: var(--mono); font-size: 10px; text-transform: uppercase;
+  letter-spacing: .1em; color: var(--alerta); white-space: nowrap; padding-top: 2px;
+}
+.faixa p { margin: 0; font-size: 14px; line-height: 1.5; }
+.faixa p + p { margin-top: 6px; color: var(--texto-fraco); }
+
+/* --- layout ------------------------------------------------------------- */
+.colunas { display: grid; grid-template-columns: 1fr; gap: 24px; align-items: start; }
+@media (min-width: 960px) { .colunas { grid-template-columns: minmax(0,1fr) 420px; gap: 32px; } }
+
+.passos { display: flex; flex-direction: column; gap: 20px; }
+
+.bloco {
+  background: var(--superficie); border: 1px solid var(--borda);
+  border-radius: 4px; overflow: hidden;
+}
+.bloco-topo {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 18px; border-bottom: 1px solid var(--borda);
+  background: var(--superficie-2);
+}
+.num {
+  font-family: var(--mono); font-size: 11px; font-weight: 700;
+  width: 24px; height: 24px; flex: none; display: grid; place-items: center;
+  background: var(--acento); color: var(--acento-texto); border-radius: 2px;
+}
+.bloco-topo h2 { margin: 0; font-size: 15px; font-weight: 650; letter-spacing: -.01em; }
+.bloco-topo em {
+  margin-left: auto; font-style: normal; font-family: var(--mono);
+  font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: var(--texto-fraco);
+}
+.bloco-corpo { padding: 18px; display: flex; flex-direction: column; gap: 16px; }
+
+/* --- campos ------------------------------------------------------------- */
+.grade { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+.campo { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.campo > label, .legenda {
+  font-family: var(--mono); font-size: 10px; text-transform: uppercase;
+  letter-spacing: .09em; color: var(--texto-fraco);
+}
+input[type="text"], input[type="number"], input[type="date"], select {
+  min-height: 44px; width: 100%; padding: 0 12px;
+  background: var(--fundo); color: var(--texto);
+  border: 1px solid var(--borda); border-radius: 3px;
+  font-family: var(--sans); font-size: 15px; font-variant-numeric: tabular-nums;
+}
+input.mono { font-family: var(--mono); letter-spacing: .02em; }
+input:hover, select:hover { border-color: var(--cinza); }
+select { appearance: none; padding-right: 32px; cursor: pointer;
+  background-image: linear-gradient(45deg, transparent 50%, var(--texto-fraco) 50%),
+                    linear-gradient(135deg, var(--texto-fraco) 50%, transparent 50%);
+  background-position: calc(100% - 16px) 20px, calc(100% - 11px) 20px;
+  background-size: 5px 5px, 5px 5px; background-repeat: no-repeat; }
+.dica { font-size: 12px; color: var(--texto-fraco); line-height: 1.45; }
+
+.linha-botoes { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn {
+  min-height: 44px; padding: 0 16px; border-radius: 3px; cursor: pointer;
+  font-family: var(--sans); font-size: 14px; font-weight: 600;
+  border: 1px solid var(--borda); background: var(--superficie-2); color: var(--texto);
+  display: inline-flex; align-items: center; gap: 8px; text-decoration: none;
+}
+.btn:hover { border-color: var(--cinza); }
+.btn-principal { background: var(--acento); color: var(--acento-texto); border-color: var(--acento); }
+.btn-principal:hover { background: var(--ambar); border-color: var(--ambar); }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn-mini {
+  min-height: 36px; padding: 0 10px; font-size: 12px; font-weight: 500;
+  font-family: var(--mono); letter-spacing: .03em;
+}
+
+/* --- opções de perfil --------------------------------------------------- */
+.opcoes { display: flex; flex-direction: column; gap: 8px; }
+.opcao {
+  display: flex; gap: 12px; align-items: flex-start;
+  border: 1px solid var(--borda); border-radius: 3px; padding: 12px 14px;
+  cursor: pointer; background: var(--fundo); min-height: 48px;
+}
+.opcao:hover { border-color: var(--cinza); }
+.opcao input { margin: 3px 0 0; accent-color: var(--acento); width: 16px; height: 16px; flex: none; }
+.opcao-txt strong { display: block; font-size: 14px; font-weight: 600; }
+.opcao-txt span { display: block; font-size: 12.5px; color: var(--texto-fraco); margin-top: 2px; }
+.opcao:has(input:checked) { border-color: var(--acento); background: var(--superficie-2); }
+
+.check { display: flex; gap: 10px; align-items: center; min-height: 44px; cursor: pointer; font-size: 14px; }
+.check input { accent-color: var(--acento); width: 17px; height: 17px; flex: none; }
+
+/* --- ficha do CNPJ ------------------------------------------------------ */
+.ficha {
+  border: 1px solid var(--borda); border-radius: 3px; background: var(--fundo);
+  padding: 14px; display: flex; flex-direction: column; gap: 10px;
+}
+.ficha-nome { font-size: 15px; font-weight: 650; line-height: 1.3; }
+.ficha-linhas { display: grid; gap: 6px; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+.ficha-linhas div { font-size: 12.5px; color: var(--texto-fraco); }
+.ficha-linhas b { color: var(--texto); font-weight: 550; }
+.pilulas { display: flex; gap: 6px; flex-wrap: wrap; }
+.pilula {
+  font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: .07em;
+  padding: 4px 8px; border-radius: 2px; border: 1px solid var(--borda); color: var(--texto-fraco);
+}
+.pilula.ok    { color: var(--ok);    border-color: color-mix(in srgb, var(--ok) 45%, transparent); }
+.pilula.aviso { color: var(--alerta);border-color: color-mix(in srgb, var(--alerta) 45%, transparent); }
+.pilula.erro  { color: var(--erro);  border-color: color-mix(in srgb, var(--erro) 45%, transparent); }
+.pilula.info  { color: var(--info);  border-color: color-mix(in srgb, var(--info) 45%, transparent); }
+
+.nota {
+  display: flex; gap: 10px; align-items: flex-start;
+  font-size: 13px; line-height: 1.5; padding: 11px 13px; border-radius: 3px;
+  border: 1px solid var(--borda); border-left: 3px solid var(--info); background: var(--fundo);
+}
+.nota.aviso { border-left-color: var(--alerta); }
+.nota.erro  { border-left-color: var(--erro); }
+.nota.ok    { border-left-color: var(--ok); }
+.nota b { font-weight: 650; }
+
+.resultados-ncm { display: flex; flex-direction: column; gap: 4px; max-height: 220px; overflow-y: auto; }
+.resultados-ncm button {
+  text-align: left; width: 100%; min-height: 44px; padding: 8px 10px; cursor: pointer;
+  background: var(--fundo); border: 1px solid var(--borda); border-radius: 3px; color: var(--texto);
+  display: flex; gap: 10px; align-items: baseline; font-size: 13px;
+}
+.resultados-ncm button:hover { border-color: var(--acento); }
+.resultados-ncm code { font-family: var(--mono); color: var(--acento); flex: none; font-size: 12px; }
+
+/* --- painel de resultado ------------------------------------------------ */
+.painel { position: sticky; top: 72px; display: flex; flex-direction: column; gap: 16px; }
+@media (max-width: 959px) { .painel { position: static; } }
+
+.placar {
+  background: var(--superficie); border: 1px solid var(--borda);
+  border-top: 3px solid var(--acento); border-radius: 4px; box-shadow: var(--sombra);
+  overflow: hidden;
+}
+.placar-topo { padding: 16px 18px 14px; border-bottom: 1px solid var(--borda); }
+.placar-rot {
+  font-family: var(--mono); font-size: 10px; text-transform: uppercase;
+  letter-spacing: .1em; color: var(--texto-fraco); margin-bottom: 6px;
+}
+.placar-valor {
+  font-size: 34px; font-weight: 700; letter-spacing: -.03em; line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.placar-sub { font-size: 12.5px; color: var(--texto-fraco); margin-top: 7px; line-height: 1.45; }
+
+table.detalhe { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+table.detalhe th, table.detalhe td { padding: 9px 18px; text-align: left; vertical-align: top; }
+table.detalhe td.v { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; font-family: var(--mono); font-size: 13px; }
+table.detalhe tr + tr { border-top: 1px solid var(--borda); }
+table.detalhe tr.destaque { background: var(--superficie-2); }
+table.detalhe tr.destaque td { font-weight: 650; }
+table.detalhe .sub { display: block; font-size: 11.5px; color: var(--texto-fraco); margin-top: 2px; line-height: 1.4; font-family: var(--sans); }
+table.detalhe caption {
+  caption-side: top; text-align: left; padding: 14px 18px 6px;
+  font-family: var(--mono); font-size: 10px; text-transform: uppercase;
+  letter-spacing: .1em; color: var(--texto-fraco);
+}
+.tabela-rolagem { overflow-x: auto; }
+
+.cartao {
+  background: var(--superficie); border: 1px solid var(--borda); border-radius: 4px; padding: 14px 16px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.cartao h3 {
+  margin: 0; font-family: var(--mono); font-size: 10px; text-transform: uppercase;
+  letter-spacing: .1em; color: var(--texto-fraco); font-weight: 500;
+}
+.cartao p { margin: 0; font-size: 13.5px; line-height: 1.5; }
+.cartao ul { margin: 0; padding-left: 18px; font-size: 13.5px; line-height: 1.6; }
+.cartao li + li { margin-top: 4px; }
+.quem { display: flex; flex-direction: column; gap: 10px; }
+.quem-item { display: flex; gap: 10px; align-items: baseline; font-size: 13.5px; line-height: 1.45; }
+.quem-item .bola { width: 8px; height: 8px; border-radius: 50%; flex: none; margin-top: 5px; }
+
+.vazio { padding: 28px 18px; text-align: center; color: var(--texto-fraco); font-size: 14px; line-height: 1.5; }
+
+.rodape {
+  margin-top: 40px; padding-top: 24px; border-top: 1px solid var(--borda);
+  font-size: 12.5px; color: var(--texto-fraco); line-height: 1.6; max-width: 78ch;
+}
+.rodape a { color: var(--texto); }
+.rodape h4 { margin: 0 0 8px; font-size: 12.5px; color: var(--texto); font-weight: 650; }
+.rodape p + h4 { margin-top: 18px; }
+
+.oculto { display: none !important; }
+@media (prefers-reduced-motion: no-preference) {
+  .btn, .opcao, input, select { transition: border-color .15s, background-color .15s, color .15s; }
+}
+</style>
+</head>
+<body>
+
+<header class="topo">
+  <div class="topo-in">
+    <div class="marca">
+      <strong>Imposto para SP</strong>
+      <span>ICMS · ST · DIFAL</span>
+    </div>
+    <button type="button" class="btn-tema" id="btnTema" aria-label="Alternar tema claro e escuro">Tema</button>
+  </div>
+</header>
+
+<main class="shell">
+
+  <div class="hero">
+    <h1>Quanto de imposto entra na venda dessa peça para São Paulo</h1>
+    <p>Coloque o CNPJ do cliente e o valor da peça. A conta sai com ICMS próprio, ICMS-ST e DIFAL separados, e com quem recolhe cada parte. Nenhum cadastro, nenhum custo.</p>
+  </div>
+
+  <div class="faixa" id="faixaVigencia">
+    <span class="faixa-tag">Vigência</span>
+    <div>
+      <p><b>Autopeças saem da substituição tributária em SP em 1º de outubro de 2026.</b> A Portaria SRE 34/2026 revoga o Anexo XIV inteiro. Até 30/09/2026 a venda para revenda ainda tem ICMS-ST retido; a partir de 01/10/2026 a mesma venda sai só com o ICMS próprio.</p>
+      <p>A data da operação abaixo controla essa virada. Compare os dois cenários antes de fechar pedido com entrega em outubro.</p>
+    </div>
+  </div>
+
+  <div class="colunas">
+
+    <!-- ================= COLUNA DE ENTRADA ================= -->
+    <form class="passos" id="formulario" autocomplete="off">
+
+      <!-- PASSO 1 — CLIENTE -->
+      <section class="bloco">
+        <div class="bloco-topo">
+          <span class="num">1</span>
+          <h2>Cliente</h2>
+          <em>define o cenário</em>
+        </div>
+        <div class="bloco-corpo">
+          <div class="grade" style="grid-template-columns: minmax(200px,1fr) auto; align-items: end;">
+            <div class="campo">
+              <label for="cnpj">CNPJ do cliente</label>
+              <input type="text" id="cnpj" class="mono" inputmode="numeric" placeholder="00.000.000/0000-00" maxlength="18" />
+            </div>
+            <button type="button" class="btn" id="btnCnpj">Consultar</button>
+          </div>
+          <p class="dica" id="dicaCnpj">A consulta usa a base pública da Receita Federal para trazer razão social, estado, atividade e Simples Nacional. Não é obrigatória — dá para preencher tudo na mão.</p>
+
+          <div id="fichaCnpj" class="oculto"></div>
+
+          <fieldset style="border:0;padding:0;margin:0;display:flex;flex-direction:column;gap:8px;">
+            <legend class="legenda" style="padding:0;margin-bottom:2px;">O que o cliente faz com a peça</legend>
+            <div class="opcoes">
+              <label class="opcao">
+                <input type="radio" name="perfil" value="REVENDA" checked />
+                <span class="opcao-txt">
+                  <strong>Revenda</strong>
+                  <span>Loja, distribuidor ou autopeças que vai vender a peça de novo.</span>
+                </span>
+              </label>
+              <label class="opcao">
+                <input type="radio" name="perfil" value="CF_CONTRIBUINTE" />
+                <span class="opcao-txt">
+                  <strong>Consumidor final com inscrição estadual</strong>
+                  <span>Usina, transportadora, frota, mineradora, indústria. Compra para uso, consumo ou imobilizado.</span>
+                </span>
+              </label>
+              <label class="opcao">
+                <input type="radio" name="perfil" value="CF_NAO_CONTRIBUINTE" />
+                <span class="opcao-txt">
+                  <strong>Consumidor final sem inscrição estadual</strong>
+                  <span>Construtora, locadora, órgão público, prestador de serviço, pessoa física.</span>
+                </span>
+              </label>
+            </div>
+          </fieldset>
+          <div id="avisoPerfil"></div>
+        </div>
+      </section>
+
+      <!-- PASSO 2 — PEÇA -->
+      <section class="bloco">
+        <div class="bloco-topo">
+          <span class="num">2</span>
+          <h2>Peça</h2>
+          <em>opcional, ajuda a achar o NCM</em>
+        </div>
+        <div class="bloco-corpo">
+          <div class="grade">
+            <div class="campo">
+              <label for="codigo">Código da peça</label>
+              <input type="text" id="codigo" class="mono" placeholder="ex.: 3097517" />
+            </div>
+            <div class="campo">
+              <label for="descricao">Descrição</label>
+              <input type="text" id="descricao" placeholder="ex.: pastilha de freio" />
+            </div>
+            <div class="campo">
+              <label for="ncm">NCM</label>
+              <input type="text" id="ncm" class="mono" placeholder="8708.30.90" maxlength="10" />
+            </div>
+          </div>
+          <div class="linha-botoes">
+            <button type="button" class="btn btn-mini" id="btnBuscaNcm">Achar NCM pela descrição</button>
+            <a class="btn btn-mini" id="linkCatalogo" href="#" target="_blank" rel="noopener noreferrer">Achar a peça no catálogo</a>
+            <a class="btn btn-mini" id="linkGoogle" href="#" target="_blank" rel="noopener noreferrer">Procurar o código no Google</a>
+          </div>
+          <div id="saidaNcm"></div>
+          <p class="dica">O NCM não muda a conta por si só — ele diz se a peça está na lista da substituição tributária e qual IVA-ST vale. Confira sempre com a nota do fornecedor.</p>
+        </div>
+      </section>
+
+      <!-- PASSO 3 — VALORES -->
+      <section class="bloco">
+        <div class="bloco-topo">
+          <span class="num">3</span>
+          <h2>Valores e origem</h2>
+          <em>a conta</em>
+        </div>
+        <div class="bloco-corpo">
+          <div class="grade">
+            <div class="campo">
+              <label for="valor">Valor dos produtos (R$)</label>
+              <input type="number" id="valor" step="0.01" min="0" placeholder="0,00" value="1000" />
+            </div>
+            <div class="campo">
+              <label for="desconto">Desconto incondicional (R$)</label>
+              <input type="number" id="desconto" step="0.01" min="0" placeholder="0,00" value="0" />
+            </div>
+            <div class="campo">
+              <label for="ipi">IPI (%)</label>
+              <input type="number" id="ipi" step="0.01" min="0" placeholder="0,00" value="0" />
+            </div>
+          </div>
+
+          <div class="grade">
+            <div class="campo">
+              <label for="frete">Frete (R$)</label>
+              <input type="number" id="frete" step="0.01" min="0" placeholder="0,00" value="0" />
+            </div>
+            <div class="campo">
+              <label for="seguro">Seguro (R$)</label>
+              <input type="number" id="seguro" step="0.01" min="0" placeholder="0,00" value="0" />
+            </div>
+            <div class="campo">
+              <label for="outras">Outras despesas (R$)</label>
+              <input type="number" id="outras" step="0.01" min="0" placeholder="0,00" value="0" />
+            </div>
+          </div>
+
+          <label class="check"><input type="checkbox" id="freteCif" checked /> Frete por conta do remetente (CIF) — entra na nota e na base</label>
+
+          <div class="grade">
+            <div class="campo">
+              <label for="uf">Estado de origem</label>
+              <select id="uf"></select>
+            </div>
+            <div class="campo">
+              <label for="data">Data da operação</label>
+              <input type="date" id="data" />
+            </div>
+            <div class="campo">
+              <label for="interna">Alíquota interna SP (%)</label>
+              <input type="number" id="interna" step="0.01" min="0" value="18" />
+            </div>
+          </div>
+
+          <div class="grade">
+            <div class="campo">
+              <label for="ivaPreset">IVA-ST (Portaria SRE 16/2023)</label>
+              <select id="ivaPreset">
+                <option value="72.15" selected>72,15% — mercado de reposição (regra geral)</option>
+                <option value="47.19">47,19% — montadora ou distribuidor com contrato de fidelidade</option>
+                <option value="custom">Outro percentual</option>
+              </select>
+            </div>
+            <div class="campo">
+              <label for="iva">IVA-ST aplicado (%)</label>
+              <input type="number" id="iva" step="0.01" min="0" value="72.15" />
+            </div>
+          </div>
+
+          <label class="check"><input type="checkbox" id="temST" checked /> Peça está na lista da substituição tributária de autopeças</label>
+          <label class="check"><input type="checkbox" id="importada" /> Mercadoria importada com conteúdo de importação acima de 40% (alíquota de 4%)</label>
+          <label class="check"><input type="checkbox" id="simples" /> Quem vende é optante pelo Simples Nacional</label>
+          <label class="check"><input type="checkbox" id="baseDupla" /> Calcular o DIFAL do contribuinte por base dupla</label>
+        </div>
+      </section>
+    </form>
+
+    <!-- ================= COLUNA DE RESULTADO ================= -->
+    <aside class="painel" aria-live="polite">
+      <div class="placar">
+        <div class="placar-topo">
+          <div class="placar-rot" id="rotuloPlacar">Total da nota fiscal</div>
+          <div class="placar-valor" id="valorPlacar">R$ 0,00</div>
+          <div class="placar-sub" id="subPlacar">Preencha o valor da peça.</div>
+        </div>
+        <div class="tabela-rolagem">
+          <table class="detalhe" id="tabelaDetalhe">
+            <caption>Composição</caption>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="cartao">
+        <h3>Quem recolhe o quê</h3>
+        <div class="quem" id="quemRecolhe"></div>
+      </div>
+
+      <div class="cartao" id="cartaoMargem">
+        <h3>Efeito no seu preço</h3>
+        <div id="corpoMargem"></div>
+      </div>
+
+      <div class="linha-botoes">
+        <button type="button" class="btn btn-principal" id="btnCopiar" style="flex:1;justify-content:center;">Copiar resumo</button>
+      </div>
+
+      <div class="cartao">
+        <h3>Como cada número saiu</h3>
+        <div id="explicacao"></div>
+      </div>
+    </aside>
+  </div>
+
+  <footer class="rodape">
+    <h4>O que esta página faz e o que não faz</h4>
+    <p>Ela aplica as regras gerais de ICMS de operação interestadual destinada a São Paulo: alíquota interestadual de 12% (ou 4% para importado com conteúdo de importação acima de 40%), alíquota interna de SP de 18%, ICMS-ST com IVA-ST ajustado, e DIFAL pela Emenda Constitucional 87/2015 com a Lei Complementar 190/2022. É uma ferramenta de apoio a orçamento, não substitui a apuração da sua contabilidade nem a conferência do NCM, do CEST e do benefício fiscal de cada item.</p>
+    <p>Ela nunca afirma que uma peça serve em um veículo. Código de peça e NCM são campos que você preenche ou confirma; a página só facilita a busca.</p>
+
+    <h4>Base das regras usadas</h4>
+    <p>
+      Alíquotas interestaduais: Resolução do Senado 22/1989 e 13/2012.
+      DIFAL: Emenda Constitucional 87/2015, Lei Complementar 190/2022, Convênio ICMS 236/2021.
+      DIFAL de contribuinte em SP: artigo 117 do RICMS-SP.
+      Substituição tributária de autopeças: Protocolo ICMS 41/2008, artigos 313-O e 313-P do RICMS-SP.
+      IVA-ST de 72,15% e 47,19%: <a href="https://www.legisweb.com.br/legislacao/?id=443109" target="_blank" rel="noopener noreferrer">Portaria SRE 16/2023</a>, com vigência prorrogada até 30/09/2026.
+      Fim da ST de autopeças em SP: Portaria SRE 34/2026, a partir de 01/10/2026.
+      MVA original para remetente do Simples: Convênio ICMS 35/2011.
+      DIFAL não exigido de remetente do Simples: ADI 5464 do STF.
+    </p>
+
+    <h4>Seus dados</h4>
+    <p>Nada do que você digita é gravado ou enviado para nós. A única chamada externa é a consulta de CNPJ e de NCM na BrasilAPI, feita direto do seu navegador quando você clica no botão.</p>
+  </footer>
+</main>
+
+<script src="/imposto.js" defer></script>
+</body>
+</html>

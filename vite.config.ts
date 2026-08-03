@@ -31,6 +31,9 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,jpg,ico,webmanifest}'],
         navigateFallback: 'index.html',
+        // /imposto.html é uma página estática independente do app. Sem esta
+        // exceção o service worker devolveria o index.html no lugar dela.
+        navigateFallbackDenylist: [/^\/imposto/],
         cleanupOutdatedCaches: true,
       },
     }),

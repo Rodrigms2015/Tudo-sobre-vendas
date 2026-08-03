@@ -1,5 +1,9 @@
+# `connect-src` libera brasilapi.com.br apenas para a calculadora de imposto
+# (/imposto.html), que consulta CNPJ e NCM em bases públicas. O BRUTO OS em si
+# continua sem nenhuma chamada de rede — isso é verificado por
+# src/test/security.test.ts, que varre src/ atrás de fetch, XHR e WebSocket.
 /*
-  Content-Security-Policy: default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'
+  Content-Security-Policy: default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' https://brasilapi.com.br; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'
   X-Content-Type-Options: nosniff
   Referrer-Policy: no-referrer
   X-Frame-Options: DENY

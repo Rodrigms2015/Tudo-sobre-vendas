@@ -18,6 +18,22 @@
   // A partir desta data autopeças deixam a ST em São Paulo (Portaria SRE 34/2026).
   var FIM_ST_AUTOPECAS = '2026-10-01';
 
+  // Protocolo ICMS 41/2008 — autopeças. Só quem é signatário junto com SP retém
+  // a ST na nota; vindo dos demais, quem recolhe é o comprador paulista, na
+  // entrada, pelo artigo 426-A do RICMS-SP. A lista tem rotatividade: Goiás
+  // denunciou o protocolo em 2017 e o Rio Grande do Sul saiu em 01/11/2024.
+  // Por isso 'confirmar' é um estado legítimo — melhor pedir conferência do
+  // que afirmar errado.
+  var PROTOCOLO_ST = {
+    AL: 'sim', AP: 'sim', AM: 'sim', BA: 'sim', DF: 'sim', ES: 'sim',
+    MA: 'sim', MG: 'sim', MT: 'sim', PA: 'sim', PI: 'sim', PR: 'sim',
+    RJ: 'sim', SC: 'sim', SP: 'sim',
+    GO: 'saiu', RS: 'saiu',
+    AC: 'confirmar', CE: 'confirmar', MS: 'confirmar', PB: 'confirmar',
+    PE: 'confirmar', RN: 'confirmar', RO: 'confirmar', RR: 'confirmar',
+    SE: 'confirmar', TO: 'confirmar'
+  };
+
   var NCM_COMUNS = [
     ['8708.30.90', 'Freios e servo-freios, outras partes'],
     ['8708.30.11', 'Guarnições de freios montadas'],
@@ -102,11 +118,22 @@
   function calcular(e) {
     var r = { entradas: e, fatores: [], avisos: [] };
 
-    var interna = e.aliquotaInterna;
+    // Uma alíquota de 100% zeraria o divisor (1 - interna) e faria a conta
+    // explodir em infinito. Nenhuma alíquota real chega perto disso.
+    var interna = Math.min(Math.max(e.aliquotaInterna, 0), 0.9);
+    r.internaLimitada = interna !== e.aliquotaInterna;
+
     var operacaoInterna = e.uf === 'SP';
     var ai = operacaoInterna ? interna : (e.importada ? 0.04 : 0.12);
     r.aliquotaOrigem = ai;
     r.operacaoInterna = operacaoInterna;
+
+    if (r.internaLimitada) {
+      r.avisos.push({
+        tipo: 'aviso',
+        texto: 'A alíquota interna foi limitada a 90% para a conta não estourar. Em São Paulo a alíquota geral é 18%.'
+      });
+    }
 
     var liquido = Math.max(0, e.valor - e.desconto);
     var ipi = liquido * e.ipiPercentual;
@@ -138,7 +165,7 @@
     r.ivaAjustado = 0;
     r.stAplica = false;
 
-    if (e.perfil === 'REVENDA' && e.temST && stVigente && !operacaoInterna) {
+    if (e.perfil === 'REVENDA' && e.temST && e.retemST && stVigente && !operacaoInterna) {
       r.stAplica = true;
       // Convênio ICMS 35/2011: remetente do Simples usa a MVA original, sem ajuste.
       r.ivaAjustado = e.simples
@@ -152,6 +179,14 @@
       r.avisos.push({
         tipo: 'ok',
         texto: 'Nesta data autopeças já saíram da substituição tributária em São Paulo. Não há ICMS-ST a reter: o cliente passa a apurar o ICMS normalmente na revenda dele.'
+      });
+    } else if (e.perfil === 'REVENDA' && e.temST && !e.retemST && stVigente && !operacaoInterna) {
+      // Sem protocolo, o remetente não retém: quem paga é o comprador paulista,
+      // na entrada da mercadoria (art. 426-A do RICMS-SP).
+      r.antecipacao426A = true;
+      r.avisos.push({
+        tipo: 'aviso',
+        texto: 'O estado de origem não tem protocolo de ST com São Paulo. Você não retém nada na nota — mas o seu cliente vai pagar a antecipação do artigo 426-A na entrada da mercadoria. Avise antes de fechar, porque para o bolso dele o custo é praticamente o mesmo.'
       });
     }
 
@@ -172,7 +207,17 @@
         r.difalTipo = 'base única';
         r.baseDifal = bc;
       }
-      if (e.temST && stVigente) {
+      // Diferencial de alíquotas nunca é negativo: se a alíquota interna de SP
+      // for menor ou igual à interestadual, simplesmente não há o que recolher.
+      if (r.difal <= 0) {
+        r.difal = 0;
+        r.difalTipo = null;
+        r.difalResponsavel = null;
+        r.avisos.push({
+          tipo: 'ok',
+          texto: 'A alíquota interna de São Paulo não é maior que a interestadual nesta operação, então não há diferencial a recolher. Confira se a alíquota interna que você informou é mesmo a do produto.'
+        });
+      } else if (e.temST && e.retemST && stVigente) {
         // Protocolo ICMS 41/2008: mercadoria em ST destinada a uso e consumo de
         // contribuinte tem o diferencial retido pelo remetente, dentro da nota.
         r.difalResponsavel = 'remetente';
@@ -201,8 +246,18 @@
         var bcDest = (bc - icmsOrigem) / (1 - interna);
         r.baseDifal = bcDest;
         r.difal = bcDest * interna - icmsOrigem;
-        r.difalTipo = 'base dupla';
-        r.difalResponsavel = 'remetente';
+        if (r.difal <= 0) {
+          r.difal = 0;
+          r.difalTipo = null;
+          r.difalResponsavel = null;
+          r.avisos.push({
+            tipo: 'ok',
+            texto: 'A alíquota interna de São Paulo não é maior que a interestadual nesta operação, então não há diferencial a recolher. Confira se a alíquota interna que você informou é mesmo a do produto.'
+          });
+        } else {
+          r.difalTipo = 'base dupla';
+          r.difalResponsavel = 'remetente';
+        }
       }
     }
 
@@ -298,6 +353,7 @@
 
   var perfilSugerido = null;
   var perfilTocadoPeloUsuario = false;
+  var retemTocado = false;
   var ultimoResultado = null;
   var dadosCnpj = null;
 
@@ -318,6 +374,7 @@
       aliquotaInterna: num('interna') / 100,
       iva: num('iva') / 100,
       temST: $('temST').checked,
+      retemST: $('retemST').checked,
       importada: $('importada').checked,
       simples: $('simples').checked,
       baseDupla: $('baseDupla').checked
@@ -339,10 +396,51 @@
     return tr;
   }
 
+  // O estado de origem quase nunca muda o número, porque a alíquota para São
+  // Paulo é 12% vindo de qualquer lugar. Sem dizer isso na tela, o campo parece
+  // quebrado. Esta função existe para o vendedor ver o que o estado decide.
+  function renderizarNotaUf(e, r) {
+    var caixa = $('notaUf');
+    limpar(caixa);
+    var nomeUf = e.uf;
+    var i;
+    for (i = 0; i < UFS.length; i++) if (UFS[i][0] === e.uf) nomeUf = UFS[i][1];
+
+    if (r.operacaoInterna) {
+      caixa.appendChild(el('div',
+        'São Paulo para São Paulo: operação interna, alíquota de ' + pct(r.aliquotaOrigem) +
+        '. Não há alíquota interestadual nem diferencial.', 'nota'));
+      return;
+    }
+
+    var cabeca = el('div', null, 'nota');
+    cabeca.appendChild(el('span',
+      nomeUf + ' → São Paulo: alíquota interestadual de ' + pct(r.aliquotaOrigem) + '. ' +
+      (e.importada
+        ? 'São 4% porque a mercadoria é importada com conteúdo de importação acima de 40%.'
+        : 'É a mesma alíquota de qualquer estado para São Paulo — por isso trocar o estado não muda o valor do imposto. Só muda se a origem for São Paulo.')));
+    caixa.appendChild(cabeca);
+
+    var protocolo = PROTOCOLO_ST[e.uf] || 'confirmar';
+    var texto, classe;
+    if (protocolo === 'sim') {
+      texto = nomeUf + ' é signatário do Protocolo ICMS 41/2008 com São Paulo: em venda para revenda, quem retém a ST na nota é você.';
+      classe = 'nota ok';
+    } else if (protocolo === 'saiu') {
+      texto = 'Atenção: ' + nomeUf + ' saiu do Protocolo ICMS 41/2008 (Goiás denunciou em 2017, o Rio Grande do Sul saiu em 01/11/2024). Você não retém ST na nota — o seu cliente paga a antecipação do artigo 426-A na entrada.';
+      classe = 'nota aviso';
+    } else {
+      texto = 'Não tenho confirmação de que ' + nomeUf + ' seja signatário do Protocolo ICMS 41/2008 com São Paulo. Confirme com o fiscal e ajuste a caixa abaixo — ela decide se a ST sai na sua nota ou se o cliente paga na entrada.';
+      classe = 'nota aviso';
+    }
+    caixa.appendChild(el('div', texto, classe));
+  }
+
   function renderizar() {
     var e = lerEntradas();
     var r = calcular(e);
     ultimoResultado = r;
+    renderizarNotaUf(e, r);
 
     var tbody = $('tabelaDetalhe').querySelector('tbody');
     limpar(tbody);
@@ -440,7 +538,9 @@
     if (r.difal === 0 && e.perfil === 'CF_NAO_CONTRIBUINTE' && e.simples) {
       item(cssOk, 'Nenhum DIFAL nesta operação, por ser remetente do Simples Nacional.');
     }
-    if (!r.stAplica && e.perfil === 'REVENDA' && !r.operacaoInterna) {
+    if (r.antecipacao426A) {
+      item(cssAl, 'Você não retém ST. O cliente paga a antecipação do artigo 426-A na entrada da mercadoria em São Paulo — some isso ao preço quando ele comparar com um fornecedor paulista.');
+    } else if (!r.stAplica && e.perfil === 'REVENDA' && !r.operacaoInterna) {
       item(cssOk, 'Sem ICMS-ST. O cliente credita o ICMS próprio e apura o imposto na revenda dele.');
     }
 
@@ -453,7 +553,7 @@
     // --- efeito no preço --------------------------------------------------
     var margem = $('corpoMargem');
     limpar(margem);
-    if (r.custoRemetente > 0 && r.precoRecomposto) {
+    if (r.custoRemetente > 0 && r.precoRecomposto && e.valor > 0) {
       margem.appendChild(el('p',
         'O DIFAL de ' + moeda(r.custoRemetente) + ' sai da sua margem, não da nota. Para chegar líquido no mesmo valor de hoje, o preço dos produtos precisa ir de ' +
         moeda(e.valor) + ' para ' + moeda(r.precoRecomposto) + ' — ' + pct(r.precoRecomposto / e.valor - 1) + ' a mais.'));
@@ -863,11 +963,20 @@
 
     // Recalcular a cada mudança
     var campos = ['valor', 'desconto', 'ipi', 'frete', 'seguro', 'outras', 'freteCif',
-                  'uf', 'data', 'interna', 'temST', 'importada', 'simples', 'baseDupla'];
+                  'uf', 'data', 'interna', 'temST', 'retemST', 'importada', 'simples', 'baseDupla'];
     campos.forEach(function (id) {
       var n = $(id);
       n.addEventListener('input', renderizar);
       n.addEventListener('change', renderizar);
+    });
+
+    // Trocar o estado reposiciona a caixa do protocolo, até o vendedor decidir
+    // por conta própria — a partir daí a escolha dele manda.
+    $('retemST').addEventListener('change', function () { retemTocado = true; });
+    $('uf').addEventListener('change', function () {
+      if (retemTocado) return;
+      $('retemST').checked = PROTOCOLO_ST[this.value] !== 'saiu';
+      renderizar();
     });
 
     $('btnCopiar').addEventListener('click', copiarResumo);

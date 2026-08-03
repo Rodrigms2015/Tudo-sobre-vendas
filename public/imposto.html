@@ -482,9 +482,14 @@ table.detalhe caption {
             </div>
             <div class="campo">
               <label for="interna">Alíquota interna SP (%)</label>
-              <input type="number" id="interna" step="0.01" min="0" value="18" />
+              <input type="number" id="interna" step="0.01" min="0" max="100" value="18" />
             </div>
           </div>
+
+          <div id="notaUf"></div>
+
+          <label class="check"><input type="checkbox" id="temST" checked /> Peça está na lista da substituição tributária de autopeças</label>
+          <label class="check"><input type="checkbox" id="retemST" checked /> Estado de origem tem protocolo de ST com São Paulo</label>
 
           <div class="grade">
             <div class="campo">
@@ -501,7 +506,6 @@ table.detalhe caption {
             </div>
           </div>
 
-          <label class="check"><input type="checkbox" id="temST" checked /> Peça está na lista da substituição tributária de autopeças</label>
           <label class="check"><input type="checkbox" id="importada" /> Mercadoria importada com conteúdo de importação acima de 40% (alíquota de 4%)</label>
           <label class="check"><input type="checkbox" id="simples" /> Quem vende é optante pelo Simples Nacional</label>
           <label class="check"><input type="checkbox" id="baseDupla" /> Calcular o DIFAL do contribuinte por base dupla</label>

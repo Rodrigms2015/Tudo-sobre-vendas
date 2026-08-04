@@ -3,29 +3,62 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<meta name="theme-color" content="#0A0A0B" />
+<meta name="theme-color" content="#FFFFFF" />
 <title>PAINEL CARPA — Acesso x Compra</title>
 <meta name="description" content="Quem acessa a plataforma e compra, quem so consulta preco. Painel offline, um arquivo so." />
 <style>
+/* ---------------------------------------------------------------
+   Paleta Pacaembu. Navy #00387E e laranja #FF841B são a marca e são
+   usados como marca: logo, régua do topo, botão principal.
+
+   As cores das SÉRIES do gráfico são degraus derivados, não a marca
+   crua: navy puro fica escuro demais para preencher forma no tema
+   claro, e o laranja da marca dá só 2,45:1 sobre branco. Os degraus
+   abaixo passaram nos seis testes de paleta contra cada superfície.
+   Por isso a marca nunca vira tinta de dado, e o dado nunca vira marca.
+   --------------------------------------------------------------- */
 :root{
-  --preto:#0A0A0B; --carbono:#121316; --grafite:#1C1E23; --aco:#2A2D34; --aco2:#3A3E47;
-  --cinza:#8A9099; --branco:#F5F6F7; --amarelo:#F2B705; --ambar:#D98C00;
-  --vermelho:#D64545; --verde:#3E9E6A; --azul:#4A7FB5;
-  /* series validadas contra o fundo --carbono */
-  --s-sala:#5B8FD4; --s-ecom:#BC7F26;
+  --marca:#00387E; --acento:#FF841B;
+
+  --fundo:#F3F6F9; --superficie:#FFFFFF; --superficie2:#EAEFF6;
+  --borda:#D9E1EC; --borda2:#B5C5DA;
+  --texto:#0E1B2E; --texto2:#5A6B84;
+  --realce:#F3F6F9; --veu:rgba(14,27,46,.45);
+
+  --verde:#15794A; --vermelho:#C0322F; --ambar:#9A5B00;
+  --primario-bg:#FF841B; --primario-fg:#0E1B2E; --primario-hover:#FF9540;
+  --sobre-status:#FFFFFF;
+
+  --s-sala:#1F5AAE; --s-ecom:#E06A00;
+
+  --sombra:0 1px 2px rgba(14,27,46,.06), 0 1px 3px rgba(14,27,46,.04);
   --r:6px;
+}
+[data-tema="escuro"]{
+  --fundo:#0E141C; --superficie:#141A24; --superficie2:#1C2431;
+  --borda:#28313F; --borda2:#3A4553;
+  --texto:#EEF2F8; --texto2:#93A2B8;
+  --realce:#1A2230; --veu:rgba(0,0,0,.72);
+
+  --verde:#4FB07A; --vermelho:#E86B6B; --ambar:#E0A030;
+  --primario-fg:#14202E;
+  --sobre-status:#0E141C;
+
+  --s-sala:#5B8FD4; --s-ecom:#C87A22;
+
+  --sombra:0 1px 2px rgba(0,0,0,.4);
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html{-webkit-text-size-adjust:100%}
 body{
-  background:var(--preto); color:var(--branco); font-size:15px; line-height:1.5;
+  background:var(--fundo); color:var(--texto); font-size:15px; line-height:1.5;
   font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
   padding-bottom:env(safe-area-inset-bottom,0px);
 }
 .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-variant-numeric:tabular-nums}
 h1,h2,h3{line-height:1.15;font-weight:700}
-a{color:var(--azul)}
-:focus-visible{outline:2px solid var(--amarelo);outline-offset:2px;border-radius:3px}
+a{color:var(--marca)}
+:focus-visible{outline:2px solid var(--acento);outline-offset:2px;border-radius:3px}
 button,input,select,textarea{font:inherit;color:inherit}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 
@@ -33,183 +66,213 @@ button,input,select,textarea{font:inherit;color:inherit}
 .casca{max-width:1600px;margin:0 auto;padding:0 16px}
 /* Cabecalho e abas grudam juntos: assim nao existe constante de altura
    para desalinhar quando o conteudo do topo quebra em duas linhas. */
-.cabecalho{position:sticky;top:0;z-index:40;background:var(--carbono)}
-header.topo{border-bottom:1px solid var(--aco);background:var(--carbono)}
-.topo-in{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:12px 0}
-.marca{display:flex;align-items:baseline;gap:10px}
-.marca b{font-size:18px;letter-spacing:.14em}
-.marca span{font-size:11px;color:var(--cinza);letter-spacing:.18em;text-transform:uppercase}
-.selo{margin-left:auto;display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:12px;color:var(--cinza)}
-.pill{border:1px solid var(--aco);border-radius:999px;padding:3px 10px;background:var(--grafite)}
+.cabecalho{position:sticky;top:0;z-index:40;background:var(--superficie)}
+header.topo{background:var(--superficie);border-bottom:3px solid var(--acento)}
+.topo-in{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:10px 0}
+/* A logo vem com fundo branco. A placa branca a acomoda nos dois temas
+   sem recortar o desenho nem repintar a marca. */
+.logo{display:block;height:26px;width:auto;background:#FFFFFF;border-radius:4px;padding:3px 5px;flex:none}
+[data-tema="escuro"] .logo{box-shadow:0 0 0 1px var(--borda2)}
+.marca{display:flex;align-items:center;gap:12px;min-width:0}
+.marca .risco{width:1px;height:26px;background:var(--borda);flex:none}
+.marca b{font-size:17px;letter-spacing:.13em;color:var(--marca);white-space:nowrap}
+[data-tema="escuro"] .marca b{color:var(--texto)}
+.marca span{font-size:10px;color:var(--texto2);letter-spacing:.16em;text-transform:uppercase;white-space:nowrap}
+.marca .nome{display:flex;flex-direction:column;gap:1px;min-width:0}
+.selo{margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;color:var(--texto2)}
+.pill{border:1px solid var(--borda);border-radius:999px;padding:3px 10px;background:var(--superficie2)}
 .pill.viva{border-color:var(--verde);color:var(--verde)}
+button.tema{border:1px solid var(--borda);background:var(--superficie2);color:var(--texto2);border-radius:999px;
+  min-height:34px;padding:0 12px;cursor:pointer;font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:6px}
+button.tema:hover{color:var(--texto);border-color:var(--borda2)}
 
-nav.abas{display:flex;gap:2px;overflow-x:auto;border-bottom:1px solid var(--aco);background:var(--carbono);scrollbar-width:thin}
+nav.abas{display:flex;gap:2px;overflow-x:auto;border-bottom:1px solid var(--borda);background:var(--superficie);scrollbar-width:thin}
 nav.abas button{
-  background:none;border:0;border-bottom:2px solid transparent;color:var(--cinza);
+  background:none;border:0;border-bottom:2px solid transparent;color:var(--texto2);
   padding:0 16px;min-height:48px;white-space:nowrap;cursor:pointer;font-size:14px;font-weight:600;letter-spacing:.02em
 }
-nav.abas button:hover{color:var(--branco);background:var(--grafite)}
-nav.abas button[aria-current="page"]{color:var(--branco);border-bottom-color:var(--amarelo)}
-nav.abas .conta{display:inline-block;margin-left:6px;font-size:11px;background:var(--aco);border-radius:999px;padding:1px 7px;color:var(--branco);font-weight:700}
-nav.abas .conta.alerta{background:var(--vermelho)}
+nav.abas button:hover{color:var(--texto);background:var(--superficie2)}
+nav.abas button[aria-current="page"]{color:var(--marca);border-bottom-color:var(--acento)}
+[data-tema="escuro"] nav.abas button[aria-current="page"]{color:var(--texto)}
+nav.abas .conta{display:inline-block;margin-left:6px;font-size:11px;background:var(--superficie2);border:1px solid var(--borda);border-radius:999px;padding:0 7px;color:var(--texto2);font-weight:700}
+nav.abas .conta.alerta{background:var(--vermelho);border-color:var(--vermelho);color:var(--sobre-status)}
 
 /* Precisa ser mais específico que .casca, senão o padding lateral dela
    zera o respiro do topo e o primeiro título encosta nas abas. */
 main.casca{padding-top:22px;padding-bottom:80px}
 .vista[hidden]{display:none}
 .secao{margin-bottom:28px}
-.secao>h2{font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--cinza);margin-bottom:12px;display:flex;align-items:center;gap:10px}
-.secao>h2::after{content:"";flex:1;height:1px;background:var(--aco)}
-.sub{color:var(--cinza);font-size:13px;margin-bottom:14px;max-width:78ch}
+.secao>h2{font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--texto2);margin-bottom:12px;display:flex;align-items:center;gap:10px}
+.secao>h2::after{content:"";flex:1;height:1px;background:var(--borda)}
+.sub{color:var(--texto2);font-size:13px;margin-bottom:14px;max-width:78ch}
 
 /* ---------- cartoes de metrica ---------- */
 .metricas{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}
-.metrica{background:var(--carbono);border:1px solid var(--aco);border-radius:var(--r);padding:14px}
-.metrica .rot{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--cinza);display:block;margin-bottom:6px}
+.metrica{background:var(--superficie);border:1px solid var(--borda);border-radius:var(--r);padding:14px;box-shadow:var(--sombra)}
+.metrica .rot{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--texto2);display:block;margin-bottom:6px}
 .metrica .val{font-size:30px;font-weight:700;line-height:1.05;letter-spacing:-.02em}
 .metrica .val.sm{font-size:22px}
-.metrica .nota{font-size:12px;color:var(--cinza);margin-top:6px;line-height:1.35}
+.metrica .nota{font-size:12px;color:var(--texto2);margin-top:6px;line-height:1.35}
 .metrica.perigo{border-color:var(--vermelho)}
 .metrica.perigo .val{color:var(--vermelho)}
 .metrica.bom .val{color:var(--verde)}
 .metrica.aviso .val{color:var(--ambar)}
 
 /* ---------- barra sala x ecom ---------- */
-.split{background:var(--carbono);border:1px solid var(--aco);border-radius:var(--r);padding:16px}
-.split .barra{display:flex;height:34px;border-radius:4px;overflow:hidden;background:var(--grafite);gap:2px}
+.split{background:var(--superficie);border:1px solid var(--borda);border-radius:var(--r);padding:16px}
+.split .barra{display:flex;height:34px;border-radius:4px;overflow:hidden;background:var(--superficie2);gap:2px}
 .split .barra i{display:block}
 .split .leg{display:flex;gap:18px;margin-top:12px;flex-wrap:wrap;font-size:13px}
-.split .leg span{display:flex;align-items:center;gap:7px;color:var(--cinza)}
-.split .leg b{color:var(--branco);font-weight:700}
+.split .leg span{display:flex;align-items:center;gap:7px;color:var(--texto2)}
+.split .leg b{color:var(--texto);font-weight:700}
 .chave{width:10px;height:10px;border-radius:2px;flex:none}
 
 /* ---------- tabela ---------- */
-.rolo{overflow-x:auto;border:1px solid var(--aco);border-radius:var(--r);background:var(--carbono)}
+.rolo{overflow-x:auto;border:1px solid var(--borda);border-radius:var(--r);background:var(--superficie);box-shadow:var(--sombra)}
 table{border-collapse:collapse;width:100%;font-size:13px}
-th,td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--aco);white-space:nowrap;vertical-align:middle}
+th,td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--borda);white-space:nowrap;vertical-align:middle}
 thead th{
-  position:sticky;top:0;background:var(--grafite);z-index:2;font-size:11px;letter-spacing:.08em;
-  text-transform:uppercase;color:var(--cinza);font-weight:700;border-bottom:1px solid var(--aco2)
+  position:sticky;top:0;background:var(--superficie2);z-index:2;font-size:11px;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--texto2);font-weight:700;border-bottom:1px solid var(--borda2)
 }
 thead th.ord{cursor:pointer;user-select:none}
-thead th.ord:hover{color:var(--branco)}
-thead th .seta{color:var(--amarelo)}
-tbody tr:hover{background:#171A1F}
+thead th.ord:hover{color:var(--texto)}
+thead th .seta{color:var(--acento)}
+tbody tr:hover{background:var(--realce)}
 td.num,th.num{text-align:right;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-variant-numeric:tabular-nums}
 td.nome{white-space:normal;min-width:210px;max-width:320px}
-td.nome small{display:block;color:var(--cinza);font-size:11px}
-.zero{color:var(--aco2)}
-tfoot td{background:var(--grafite);font-weight:700;border-bottom:0}
+td.nome small{display:block;color:var(--texto2);font-size:11px}
+.zero{color:var(--borda2)}
+tfoot td{background:var(--superficie2);font-weight:700;border-bottom:0}
 
 /* ---------- chips de estado ---------- */
 .chip{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:2px 9px;font-size:11px;font-weight:700;letter-spacing:.04em;border:1px solid;white-space:nowrap}
 .chip .pt{width:7px;height:7px;border-radius:50%;flex:none;background:currentColor}
-.c-bloq{color:var(--vermelho);border-color:var(--vermelho);background:rgba(214,69,69,.10)}
-.c-aviso{color:var(--ambar);border-color:var(--ambar);background:rgba(217,140,0,.10)}
-.c-bom{color:var(--verde);border-color:var(--verde);background:rgba(62,158,106,.10)}
-.c-neutro{color:var(--cinza);border-color:var(--aco2);background:var(--grafite)}
-.c-info{color:var(--s-sala);border-color:var(--s-sala);background:rgba(91,143,212,.10)}
+.c-bloq{color:var(--vermelho);border-color:var(--vermelho);background:color-mix(in srgb, currentColor 11%, transparent)}
+.c-aviso{color:var(--ambar);border-color:var(--ambar);background:color-mix(in srgb, currentColor 11%, transparent)}
+.c-bom{color:var(--verde);border-color:var(--verde);background:color-mix(in srgb, currentColor 11%, transparent)}
+.c-neutro{color:var(--texto2);border-color:var(--borda2);background:var(--superficie2)}
+.c-info{color:var(--s-sala);border-color:var(--s-sala);background:color-mix(in srgb, currentColor 11%, transparent)}
 
 /* ---------- fila de decisao ---------- */
 .fila{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:12px}
-.caso{background:var(--carbono);border:1px solid var(--aco);border-left:3px solid var(--aco2);border-radius:var(--r);padding:14px;display:flex;flex-direction:column;gap:10px}
+.caso{background:var(--superficie);border:1px solid var(--borda);border-left:3px solid var(--borda2);border-radius:var(--r);padding:14px;display:flex;flex-direction:column;gap:10px;box-shadow:var(--sombra)}
 .caso.g-bloq{border-left-color:var(--vermelho)}
 .caso.g-aviso{border-left-color:var(--ambar)}
-.caso.g-neutro{border-left-color:var(--cinza)}
+.caso.g-neutro{border-left-color:var(--texto2)}
 .caso.decidido{opacity:.55}
 .caso h3{font-size:15px}
-.caso h3 small{display:block;font-weight:400;color:var(--cinza);font-size:11px;margin-top:2px;letter-spacing:.06em}
-.evid{display:grid;grid-template-columns:repeat(auto-fit,minmax(88px,1fr));gap:8px;background:var(--grafite);border-radius:4px;padding:9px}
+.caso h3 small{display:block;font-weight:400;color:var(--texto2);font-size:11px;margin-top:2px;letter-spacing:.06em}
+.evid{display:grid;grid-template-columns:repeat(auto-fit,minmax(88px,1fr));gap:8px;background:var(--superficie2);border-radius:4px;padding:9px}
 .evid div{min-width:0}
-.evid .k{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--cinza);display:block}
+.evid .k{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--texto2);display:block}
 .evid .v{font-size:15px;font-weight:700;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
-.porque{font-size:13px;color:var(--branco);line-height:1.45}
-.porque b{color:var(--amarelo);font-weight:700}
-.fatores{list-style:none;font-size:12px;color:var(--cinza);display:flex;flex-direction:column;gap:3px}
+.porque{font-size:13px;color:var(--texto);line-height:1.45}
+.porque b{color:var(--marca);font-weight:700}
+[data-tema="escuro"] .porque b{color:var(--acento)}
+.fatores{list-style:none;font-size:12px;color:var(--texto2);display:flex;flex-direction:column;gap:3px}
 .fatores li{padding-left:14px;position:relative;white-space:normal}
-.fatores li::before{content:"—";position:absolute;left:0;color:var(--aco2)}
+.fatores li::before{content:"—";position:absolute;left:0;color:var(--borda2)}
 .fatores li.lacuna{color:var(--ambar)}
 .fatores li.lacuna::before{content:"?";font-weight:700}
 .acoes{display:flex;gap:6px;flex-wrap:wrap;margin-top:auto}
-.obs{width:100%;background:var(--grafite);border:1px solid var(--aco);border-radius:4px;padding:8px 10px;min-height:44px;font-size:13px;resize:vertical}
-.obs::placeholder{color:var(--aco2)}
+.obs{width:100%;background:var(--superficie2);border:1px solid var(--borda);border-radius:4px;padding:8px 10px;min-height:44px;font-size:13px;resize:vertical}
+.obs::placeholder{color:var(--borda2)}
 
 /* ---------- botoes ---------- */
-button.b{border:1px solid var(--aco2);background:var(--grafite);color:var(--branco);border-radius:4px;
+button.b{border:1px solid var(--borda2);background:var(--superficie2);color:var(--texto);border-radius:4px;
   padding:0 14px;min-height:44px;cursor:pointer;font-size:13px;font-weight:600;display:inline-flex;align-items:center;gap:7px}
-button.b:hover{background:var(--aco);border-color:var(--cinza)}
-button.b.primario{background:var(--amarelo);color:#1A1400;border-color:var(--amarelo);font-weight:700}
-button.b.primario:hover{background:#ffc71f}
-button.b.perigo[aria-pressed="true"]{background:var(--vermelho);border-color:var(--vermelho);color:#fff}
-button.b.ok[aria-pressed="true"]{background:var(--verde);border-color:var(--verde);color:#04180E}
-button.b.espera[aria-pressed="true"]{background:var(--ambar);border-color:var(--ambar);color:#1A1000}
+button.b:hover{background:var(--borda);border-color:var(--texto2)}
+button.b.primario{background:var(--primario-bg);color:var(--primario-fg);border-color:var(--primario-bg);font-weight:700}
+button.b.primario:hover{background:var(--primario-hover);border-color:var(--primario-hover)}
+button.b.perigo[aria-pressed="true"]{background:var(--vermelho);border-color:var(--vermelho);color:var(--sobre-status)}
+button.b.ok[aria-pressed="true"]{background:var(--verde);border-color:var(--verde);color:var(--sobre-status)}
+button.b.espera[aria-pressed="true"]{background:var(--ambar);border-color:var(--ambar);color:var(--sobre-status)}
 button.b.mini{min-height:34px;padding:0 10px;font-size:12px}
 button.b:disabled{opacity:.4;cursor:not-allowed}
 
 /* ---------- controles ---------- */
 .barra-ctrl{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
-.busca{flex:1;min-width:200px;background:var(--carbono);border:1px solid var(--aco);border-radius:4px;padding:0 12px;min-height:44px}
-select.sel{background:var(--carbono);border:1px solid var(--aco);border-radius:4px;padding:0 10px;min-height:44px;cursor:pointer}
-.reguas{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;background:var(--carbono);border:1px solid var(--aco);border-radius:var(--r);padding:16px}
-.regua label{display:block;font-size:12px;color:var(--cinza);margin-bottom:8px}
-.regua label b{color:var(--branco);font-size:15px;font-family:ui-monospace,monospace}
-.regua input[type=range]{width:100%;accent-color:var(--amarelo);height:28px}
-.regua .exp{font-size:11px;color:var(--aco2);margin-top:4px;line-height:1.4}
+.busca{flex:1;min-width:200px;background:var(--superficie);border:1px solid var(--borda);border-radius:4px;padding:0 12px;min-height:44px}
+select.sel{background:var(--superficie);border:1px solid var(--borda);border-radius:4px;padding:0 10px;min-height:44px;cursor:pointer}
+.reguas{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;background:var(--superficie);border:1px solid var(--borda);border-radius:var(--r);padding:16px}
+.regua label{display:block;font-size:12px;color:var(--texto2);margin-bottom:8px}
+.regua label b{color:var(--texto);font-size:15px;font-family:ui-monospace,monospace}
+.regua input[type=range]{width:100%;accent-color:var(--acento);height:28px}
+.regua .exp{font-size:11px;color:var(--borda2);margin-top:4px;line-height:1.4}
 
 /* ---------- dropzone ---------- */
-.solta{border:2px dashed var(--aco2);border-radius:var(--r);background:var(--carbono);padding:34px 20px;text-align:center;transition:border-color .15s,background .15s}
-.solta.sobre{border-color:var(--amarelo);background:#16171B}
+.solta{border:2px dashed var(--borda2);border-radius:var(--r);background:var(--superficie);padding:34px 20px;text-align:center;transition:border-color .15s,background .15s}
+.solta.sobre{border-color:var(--acento);background:var(--realce)}
 .solta h3{font-size:17px;margin-bottom:6px}
-.solta p{color:var(--cinza);font-size:13px;max-width:60ch;margin:0 auto 14px}
-.log{margin-top:14px;font-size:12px;font-family:ui-monospace,monospace;display:flex;flex-direction:column;gap:4px;max-height:280px;overflow:auto}
-.log div{padding:6px 10px;border-radius:4px;background:var(--carbono);border-left:2px solid var(--aco2);white-space:pre-wrap;word-break:break-word}
+.solta p{color:var(--texto2);font-size:13px;max-width:60ch;margin:0 auto 14px}
+.log{margin-top:14px;font-size:12px;font-family:ui-monospace,monospace;display:flex;flex-direction:column;gap:4px;max-height:280px;overflow:auto;text-align:left}
+.log div{padding:6px 10px;border-radius:4px;background:var(--superficie);border-left:2px solid var(--borda2);white-space:pre-wrap;word-break:break-word}
 .log div.ok{border-left-color:var(--verde)}
 .log div.err{border-left-color:var(--vermelho);color:var(--vermelho)}
 .log div.warn{border-left-color:var(--ambar);color:var(--ambar)}
 
+/* ---------- vagas de arquivo ---------- */
+.vagas{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px}
+.vaga{background:var(--superficie);border:2px dashed var(--borda2);border-radius:var(--r);padding:14px;
+  display:flex;flex-direction:column;gap:8px;cursor:pointer;text-align:left;min-height:150px;
+  transition:border-color .15s,background .15s}
+.vaga:hover{border-color:var(--acento);background:var(--realce)}
+.vaga.sobre{border-color:var(--acento);background:var(--realce)}
+.vaga.cheia{border-style:solid;border-color:var(--verde);cursor:default}
+.vaga .num{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--texto2);font-weight:700}
+.vaga .tit{font-size:15px;font-weight:700;line-height:1.25}
+.vaga .arq{font-size:11px;font-family:ui-monospace,monospace;color:var(--marca);word-break:break-all;line-height:1.4}
+[data-tema="escuro"] .vaga .arq{color:var(--acento)}
+.vaga .exp{font-size:12px;color:var(--texto2);line-height:1.4}
+.vaga .estado{margin-top:auto;font-size:12px;font-weight:700;display:flex;align-items:center;gap:6px}
+.vaga .estado.ok{color:var(--verde)}
+.vaga .estado.falta{color:var(--texto2);font-weight:600}
+.vaga .estado.erro{color:var(--vermelho)}
+
 /* ---------- cartoes de arquivo aceito ---------- */
 .aceitos{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;margin-top:16px}
-.aceito{background:var(--carbono);border:1px solid var(--aco);border-radius:var(--r);padding:12px}
+.aceito{background:var(--superficie);border:1px solid var(--borda);border-radius:var(--r);padding:12px}
 .aceito b{display:block;font-size:13px;margin-bottom:4px}
-.aceito code{font-size:11px;color:var(--amarelo);font-family:ui-monospace,monospace}
-.aceito p{font-size:12px;color:var(--cinza);margin-top:5px;line-height:1.4}
+.aceito code{font-size:11px;color:var(--acento);font-family:ui-monospace,monospace}
+.aceito p{font-size:12px;color:var(--texto2);margin-top:5px;line-height:1.4}
 
 /* ---------- vendedor ---------- */
 .vends{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:12px}
-.vend{background:var(--carbono);border:1px solid var(--aco);border-radius:var(--r);padding:14px;display:flex;flex-direction:column;gap:10px}
+.vend{background:var(--superficie);border:1px solid var(--borda);border-radius:var(--r);padding:14px;display:flex;flex-direction:column;gap:10px;box-shadow:var(--sombra)}
 .vend .cab{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
 .vend .cab b{font-size:16px}
-.vend .cab span{font-size:11px;color:var(--cinza);font-family:ui-monospace,monospace}
-.medidor{height:8px;border-radius:4px;background:var(--grafite);overflow:hidden;display:flex;gap:2px}
+.vend .cab span{font-size:11px;color:var(--texto2);font-family:ui-monospace,monospace}
+.medidor{height:8px;border-radius:4px;background:var(--superficie2);overflow:hidden;display:flex;gap:2px}
 .medidor i{display:block}
 .linhas{display:flex;flex-direction:column;gap:5px;font-size:12px}
-.linhas div{display:flex;justify-content:space-between;gap:10px;color:var(--cinza)}
-.linhas div b{color:var(--branco);font-family:ui-monospace,monospace}
+.linhas div{display:flex;justify-content:space-between;gap:10px;color:var(--texto2)}
+.linhas div b{color:var(--texto);font-family:ui-monospace,monospace}
 .linhas div.mal b{color:var(--vermelho)}
 
 /* ---------- linha do tempo ---------- */
 .spark{display:flex;align-items:flex-end;gap:2px;height:26px}
 .spark i{width:7px;background:var(--s-ecom);border-radius:2px 2px 0 0;min-height:2px;display:block}
-.spark i.vazio{background:var(--aco)}
+.spark i.vazio{background:var(--borda)}
 
 /* ---------- vazio ---------- */
-.vazio{border:1px solid var(--aco);border-radius:var(--r);background:var(--carbono);padding:34px 20px;text-align:center}
+.vazio{border:1px solid var(--borda);border-radius:var(--r);background:var(--superficie);padding:34px 20px;text-align:center}
 .vazio h3{font-size:16px;margin-bottom:6px}
-.vazio p{color:var(--cinza);font-size:13px;max-width:56ch;margin:0 auto 16px}
+.vazio p{color:var(--texto2);font-size:13px;max-width:56ch;margin:0 auto 16px}
 
 /* ---------- gaveta ---------- */
-.gaveta{position:fixed;inset:0;background:rgba(0,0,0,.72);display:flex;justify-content:flex-end;z-index:60}
+.gaveta{position:fixed;inset:0;background:var(--veu);display:flex;justify-content:flex-end;z-index:60}
 .gaveta[hidden]{display:none}
-.gaveta .painel{background:var(--carbono);border-left:1px solid var(--aco);width:min(560px,100%);height:100%;overflow:auto;padding:20px}
+.gaveta .painel{background:var(--superficie);border-left:1px solid var(--borda);width:min(560px,100%);height:100%;overflow:auto;padding:20px}
 .gaveta .painel h2{font-size:20px;margin-bottom:4px}
-.gaveta .painel .cod{font-family:ui-monospace,monospace;color:var(--cinza);font-size:12px;margin-bottom:16px}
-.ficha{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--aco);border:1px solid var(--aco);border-radius:var(--r);overflow:hidden;margin-bottom:16px}
-.ficha div{background:var(--carbono);padding:10px 12px}
-.ficha .k{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--cinza);display:block;margin-bottom:3px}
+.gaveta .painel .cod{font-family:ui-monospace,monospace;color:var(--texto2);font-size:12px;margin-bottom:16px}
+.ficha{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--borda);border:1px solid var(--borda);border-radius:var(--r);overflow:hidden;margin-bottom:16px}
+.ficha div{background:var(--superficie);padding:10px 12px}
+.ficha .k{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--texto2);display:block;margin-bottom:3px}
 .ficha .v{font-family:ui-monospace,monospace;font-size:14px;font-weight:700}
 
-footer{border-top:1px solid var(--aco);padding:20px 0 40px;color:var(--cinza);font-size:12px;line-height:1.6}
-footer b{color:var(--branco)}
+footer{border-top:1px solid var(--borda);padding:20px 0 40px;color:var(--texto2);font-size:12px;line-height:1.6}
+footer b{color:var(--texto)}
 
 @media (max-width:640px){
   body{font-size:15px}
@@ -218,7 +281,9 @@ footer b{color:var(--branco)}
   .casca{padding:0 12px}
 }
 @media print{
+  html{--fundo:#FFF;--superficie:#FFF;--superficie2:#F3F6F9;--texto:#000;--texto2:#444;--borda:#CCC;--borda2:#999;--sombra:none}
   body{background:#fff;color:#000}
+  .cabecalho{position:static}
   nav.abas,.barra-ctrl,.acoes,footer,.solta{display:none}
   .vista[hidden]{display:block}
 }
@@ -228,11 +293,16 @@ footer b{color:var(--branco)}
 <div class="cabecalho">
 <header class="topo">
   <div class="casca topo-in">
-    <div class="marca"><b>PAINEL CARPA</b><span>Acesso &times; Compra</span></div>
+    <div class="marca">
+      <img class="logo" alt="Pacaembu Autopeças" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAANMAAAAsCAMAAADIHX0nAAAAkFBMVEX////6+/z/+PPz9vn/69v/5M3m6/Lj6fH/2bna4uzZ4ezH0+LE0eH/zKD/voa1xdr/tXX/plj/m0b/kzf/jzD/hh//hBunutKftM+WrcmJo8ODnsBzkrhqi7RhhK//ghj/fhBUeahGbqE7ZpwwXpYnV5IcTowYSooKQIMIPoIBOX4AOH4ANXwAMnoAL3gALHYG/dbYAAAIsUlEQVR42u1Za5OiwA4FUd4IKMhbbJCn4Pz/f3eTdMOgs7t177dr1WS3aqQJTU4nOUk3kvQrv/L/Ibv9fn9YBS52n4/IOXr+VjznsPtwRN4pCG8buQSnj0a114+nS1mWl62Ut/Lk6ftPheT4ocATChGwypPzmaD2x7NAFJxPQs4BR1mej58IageQwP4yhAQ6OjqJ43i+QHX2Pg/UzkFIZRn4Rx34exFIMT9AqOCpTyOKnX5CL4XnH3Sw170zRt/lpL+BkpVVXsfkVy0V5X1wq7aZaB2V33//UJX/pUeWezekhtPxsMG5JtoJ4q+8+K9oZTNyhdjmMpXhRm5kbTFaUZJmWRLZxgaVGcGz64DqrjPBwzSq4OQRnxamgBvKu6ptKIsRxmpQ5CrfkUcBFnrYOGxktxOpRkThvDhKSepKCCtibqAS42VurjpmXFRN13VtzTJbXYbVDB9Nl2uLrTNVdUpGGahRp2SsmeNtjtX+VmUZ2K/EqBfxl6fwmxmvbsJk8rbi6Lza7jyC7B9eMF2/plWazOTW4VifLCp20Y7TA2Wa+ypeQET3J6jdbXHptt8TfTHC5NagMdcu/o4b1KYVkON2XlWHypbUHO59ZYRJBYMe/bqejqDx8E3OPi9Mex/vh84LpuKLjJ3I6C5HW9J2ht/Pq1gsm40blaGJeWDI154GUhEnbjMJtRVT0sHQ1NHikPZEDpAjeoGYcGSGkj3hMpXFIj8e7YJp5y29Q/kqSBr7FfTthc+V4olY2rbt4e9cw6qrjN41NzHPmgKcNI1d0zQd/Wpserl1n0mN2RtMA87Utnxt5IImel7BOWpN2o29Yuqbe9MNiNmW3zCNK6a9f/sTIBoKiMMpOG8n/R3TxLI0YzD/3KYQUw29/vG4isWGy/FeJHGS38d5GoeMAijvSE24gWOamgK5JMtctM9kT8KEC+WSax5DtGAamziKclyHyZXSv2HST7c/RN6FUAkgDuWb845pTjRVddsRDMwlmWGUjGgLJoKGhk1NaqqKaiT10NZVgpi0+8iRz0xbMc1VpJkoqkg4UsCFKjrufFwPxAR5pMiyzXC9/oGJp9PpTc7U7pWBR7BBpQx/YorAI1rzIEwmuGnsBUDKcxgvNMGSLI+JvpUYkEOkjWuMkp/qxEaGNsm8rBUOZ5JSc5aZmbVignLnMnSY9ffYOyKthUfnVaBJ58UWg+9wQuY7/oi93LXdtKMllbMOOK/Oe7QQkCQYiYO78PdStbRqmKaOFQB9FCSHcdTdOZXjEshMsOWzUo1OEGfjrrGXJinrprHNVOWvmDzs6c77H+0SdxRhIuYrt/0R5wgIqHvHQ19tYOnbDL02d/AaIsH1HWsVtnsKTgugP+/uhvc4K6C+QaHXjaAQgVfHHh6ZhnThiLHvegjfHuhV/R8xSfvgDdPN+4FpHIaRqk+uROQgSyp6qB21ApjA1OYdk1bgojMFYgpitPjGxKmcygBxTc86WBvGhqmra1B4FurC5aT96KAmqv+OvWCDifev3E+XrZ9+cPmEsw99W5gaFKNpYKoKdRGsdaUE46SzFnWVx57dYvJlioYx+rgbK5e3QPlA5TiQY7y1NlDO0AGwe5I8MQ4tEXv9/Q5kDvUuX+rTWjDf80lfd/AHfZNPoc+pEVu+n5g6mP9eXRNTcTFA+ipJc8Q0FEpEZSgRaWQnrgGw1BQ5uL0mKZZSoHN54fI8AUltbOIw44DdkClgxZ7MsCde9TimO3SLMa5gHynIe3P2J95DLl/aud3B8Yj3ArEdJLLTwz9y+cSSKIldyH+tQAS02gOGUmtSkZkqF5gXWtlrU+WpLdkVqvWkhklSqQuXu6qmaYYK5hmIsS8kV9TmTDI7XK985XLkUVjCr1yNoHeYKQllu3pCXCyYDlhzS9ElHLxzeVuL7iWkdnx3RI2fNXde3LA2OPM88x+xkj0wplhkmZZ77Z7z2CZKMvDcEVqPHmqs4HLLBnFNMBxCb25j0ZZMXSQZjNhckQhTbRqGmSHVXDWXPJhZhmEVmL+b3ghr7lnnPUW4PWQJfRrVEfXtpYl9xaRkM2cMkH5AayvDxtSehuZaFDV1eH1kYk/2GLgalV7IfMLU1QylSmQFSAbsBOMy6vqgMKnZiCxpSRR7bZ5nxX0iTGZDtfmaZYy6lmrty4/h0s7tvBUSdHsB7BF35KbwncrfMLkV9UFgVMUYIRgjJW55rwlCPrkqMTEamA9arIGlHlubu3jk8rzKak2lSxZVe4ZWV8ZkndtE4rw3jgNNOKaKmvYPQb841Mbr/omaI8qcA8+ikI5ZfM/hx7AOVdyz/mOv8RS9tZwNsAnoEtO0LMuIKtgBPJmlpk2/bg3GlpkQTSB1RGpmipuIOVPczQbiq4DkgVHqRNTiOUOjihULtiPzwADT83tf0mNrYVzbxzLwaHJ1c8CCSEpfhzpLuwrf0XXYPXFEO93H3q98PWZR8h42e8JPJsMLJoJZSfEKeEqLWdP1PcRZ11ZQTtwabrSZeLF55Q/Z926VPoOmFf7UEe/72uaKnYXCYLCrgDZWzbZhSJKwZbwvr+BdyLejaJ/r6zz0zjodsyxnFb4YfG0IoiLPC5tjslK4yNeNswUXeeHirjDJKR6L1IX3uRneMJfzAxcfygwtzVcpXNnGeROyTouShHoqOcJ7Kex/i0UzS/jWVzKi7EqvyFzttQ/CnuEW+KeQWrzteTOHVIbvB0cqttEChWpsLgAK9NiGibwsKYZNJxaqUIN/367GhwxF5h25ya9gXkO056gi8Cv8SRn/kB6xvlgb1cL211Lf+yAvpO3SpsxSP7E/OD4/9/M/74Bvw+FleBJnLAdxvEdh+YHnsPqmMAXeEcXzT0F4+VhICMoLLss3gIBLSNGIp7P6Z36u2R2Op2BJqfVQAv4HJ0//2C9Q/JNaeHk5OcKPap/6+Yk3sA7m0Eawlzh8+hfdve4cOUOQOPpe+pVf+ZX/Uv4DAauMU0F4yZIAAAAASUVORK5CYII=" />
+      <span class="risco" aria-hidden="true"></span>
+      <span class="nome"><b>PAINEL CARPA</b><span>Acesso &times; Compra</span></span>
+    </div>
     <div class="selo">
       <span class="pill" id="seloComp">sem competência</span>
       <span class="pill" id="seloBase">sem base</span>
       <span class="pill viva" id="seloOff">offline · sem rede</span>
+      <button class="tema" id="btnTema" type="button" aria-pressed="false">Tema escuro</button>
     </div>
   </div>
 </header>
@@ -256,9 +326,15 @@ footer b{color:var(--branco)}
     </div>
 
     <div class="secao">
-      <h2>A pergunta do mês</h2>
-      <p class="sub">Quem entra na plataforma e compra, e quem entra só para tirar preço. Todo número abaixo sai de um arquivo importado — nenhum é estimado.</p>
-      <div class="metricas" id="metricasChave"></div>
+      <h2>E-commerce — o site que vende</h2>
+      <p class="sub">No site dá para comprar <b>e</b> ver preço. Quem entra muito e nunca fecha está usando o nosso site como tabela de preço. Todo número sai de um arquivo importado — nenhum é estimado.</p>
+      <div class="metricas" id="metricasSite"></div>
+    </div>
+
+    <div class="secao">
+      <h2>Catálogo Carpa — consulta técnica</h2>
+      <p class="sub">No Carpa não se compra: ele serve para achar código de peça e informação técnica. O problema aqui é outro — quem consulta muito e não compra <b>em lugar nenhum</b> está usando a nossa engenharia de catálogo para comprar de outro.</p>
+      <div class="metricas" id="metricasCarpa"></div>
     </div>
 
     <div class="secao">
@@ -267,8 +343,8 @@ footer b{color:var(--branco)}
     </div>
 
     <div class="secao">
-      <h2>Concentração — quem sustenta o e-commerce</h2>
-      <p class="sub">Ordenado por faturamento e-commerce no mês. Se poucos nomes carregam quase tudo, a plataforma ainda não virou hábito da carteira.</p>
+      <h2>Concentração — quem sustenta o site</h2>
+      <p class="sub">Ordenado por faturamento no site. Se poucos nomes carregam quase tudo, o site ainda não virou hábito da carteira.</p>
       <div class="rolo"><table id="tbTopo"></table></div>
     </div>
 
@@ -285,9 +361,14 @@ footer b{color:var(--branco)}
 
   <div class="secao">
     <h2>Fila de decisão</h2>
-    <p class="sub">Cada caso mostra a evidência que o colocou aqui. <b>Bloquear</b> corta o acesso, <b>Manter</b> tira da fila, <b>Observar</b> deixa em quarentena até o mês que vem. A observação vai junto na exportação.</p>
+    <p class="sub">Cada caso é <b>um cliente numa plataforma</b> — são decisões separadas: dá para cortar o site e manter o catálogo, ou o contrário. Cada cartão mostra a evidência que o colocou aqui, e a observação vai junto na exportação.</p>
     <div class="barra-ctrl">
       <input class="busca" id="buscaFila" type="search" placeholder="Buscar cliente, código ou vendedor" aria-label="Buscar na fila" />
+      <select class="sel" id="filtroFilaPlat" aria-label="Filtrar por plataforma">
+        <option value="">As duas plataformas</option>
+        <option value="ECOMMERCE">Só e-commerce (site)</option>
+        <option value="CATALOGO">Só catálogo Carpa</option>
+      </select>
       <select class="sel" id="filtroFilaGrau" aria-label="Filtrar por veredito"></select>
       <select class="sel" id="filtroFilaVend" aria-label="Filtrar por vendedor"></select>
       <select class="sel" id="filtroFilaDec" aria-label="Filtrar por decisão">
@@ -307,7 +388,7 @@ footer b{color:var(--branco)}
 <section class="vista" id="v-clientes" role="tabpanel" aria-label="Clientes" hidden>
   <div class="secao">
     <h2>Todos os clientes cruzados</h2>
-    <p class="sub">Cada linha é um cliente único (código Pacaembu), com o que o relatório Sala&times;eCom, o cadastro da plataforma e a carteira dizem sobre ele. Clique para abrir a ficha.</p>
+    <p class="sub">Cada linha é um cliente único (código Pacaembu), com <b>os dois vereditos</b>: o do site e o do catálogo. Clique para abrir a ficha.</p>
     <div class="barra-ctrl">
       <input class="busca" id="buscaCli" type="search" placeholder="Buscar por nome, código, CNPJ ou vendedor" aria-label="Buscar cliente" />
       <select class="sel" id="filtroCliGrau" aria-label="Filtrar por veredito"></select>
@@ -327,7 +408,7 @@ footer b{color:var(--branco)}
 <section class="vista" id="v-vendedores" role="tabpanel" aria-label="Vendedores" hidden>
   <div class="secao">
     <h2>Placar por vendedor</h2>
-    <p class="sub">A barra mostra a carteira dividida entre quem compra pela plataforma, quem tem cadastro parado e quem só consulta preço. Ordenado por faturamento e-commerce.</p>
+    <p class="sub">A barra divide a carteira pelo comportamento no <b>site</b>: compra, vê e fecha na sala, só pega preço, não entra. Ordenado por faturamento no site.</p>
     <div class="vends" id="vends"></div>
   </div>
   <div class="secao">
@@ -339,29 +420,19 @@ footer b{color:var(--branco)}
 <!-- ====================== IMPORTAR ====================== -->
 <section class="vista" id="v-importar" role="tabpanel" aria-label="Importar" hidden>
   <div class="secao">
-    <h2>Jogue os arquivos aqui</h2>
-    <p class="sub">O painel lê o arquivo, descobre sozinho o que ele é e cruza com o que já existe. Não precisa converter nada, não precisa de internet, nada sai deste computador.</p>
+    <h2>Passo 1 — cada arquivo tem o seu lugar</h2>
+    <p class="sub">Clique no quadro do arquivo e escolha só ele. O quadro fica verde quando entrou. Se você preferir, pode arrastar tudo de uma vez no quadro grande lá embaixo — mas se deu erro antes, use os quadros: assim dá para ver exatamente qual arquivo não entrou.</p>
+    <div class="vagas" id="vagas"></div>
+  </div>
+
+  <div class="secao">
+    <h2>Passo 2 — ou jogue tudo de uma vez</h2>
     <div class="solta" id="solta">
       <h3>Arraste os arquivos para cá</h3>
-      <p>PDF do Sala&times;eCom direto do OPUSCase, planilha de cadastros da plataforma, carteira dos vendedores, ou um pacote <code>.json</code> que outro gestor te mandou.</p>
+      <p>Vale qualquer um dos quatro, o pacote <code>.json</code> de outro gestor, ou a planilha que voltou preenchida do vendedor. O painel descobre sozinho o que é cada um.</p>
       <button class="b primario" id="btnEscolher" type="button">Escolher arquivos</button>
       <input type="file" id="arquivos" multiple accept=".pdf,.xlsx,.csv,.txt,.json" hidden />
       <div class="log" id="log"></div>
-    </div>
-
-    <div class="aceitos">
-      <div class="aceito"><b>Mapa de Atend. Sala &times; eCom</b><code>PCN5I5 / PCN5I6 &middot; .pdf</code>
-        <p>Consumidor e Revenda. É daqui que saem os acessos do mês, o que foi faturado na sala e o que foi faturado no e-commerce.</p></div>
-      <div class="aceito"><b>Clientes da plataforma</b><code>Clientes_Carpa &middot; .xlsx</code>
-        <p>Cadastros, acessos dos últimos 30 dias, CNPJ, último acesso e status. É o que liga o login à conta.</p></div>
-      <div class="aceito"><b>Carteira por vendedor</b><code>C_&lt;praça&gt; &middot; .xlsx</code>
-        <p>Uma aba por vendedor, com média dos 4 meses e última compra. Dá dono a cada cliente.</p></div>
-      <div class="aceito"><b>Pacote do painel</b><code>pacote-carpa-AAAAMM.json</code>
-        <p>Estado inteiro, com decisões e observações. Abra o mesmo HTML, solte o pacote e você vê exatamente a mesma tela.</p></div>
-      <div class="aceito"><b>Planilha de volta do vendedor</b><code>Carteira_&lt;nome&gt; &middot; .xlsx / .csv</code>
-        <p>Baixe do Google Sheets depois que o vendedor preencher e solte aqui: as colunas <b>Decisão</b> e <b>Observação</b> voltam para dentro do painel.</p></div>
-      <div class="aceito"><b>Qualquer CSV</b><code>separador , ; ou tab</code>
-        <p>Reconhecido pelos nomes das colunas. Acentuação em UTF-8 ou Latin-1, tanto faz.</p></div>
     </div>
   </div>
 
@@ -397,7 +468,7 @@ footer b{color:var(--branco)}
 
   <div class="secao">
     <h2>Planilhas</h2>
-    <p class="sub">Abrem no Excel e no Google Sheets. As colunas <b>Decisão</b> e <b>Observação</b> voltam para o painel se você soltar a planilha preenchida na aba Importar.</p>
+    <p class="sub">Abrem no Excel e no Google Sheets. As quatro colunas de decisão e observação — duas do site, duas do catálogo — voltam para o painel se você soltar a planilha preenchida na aba Importar.</p>
     <div class="metricas">
       <div class="metrica">
         <span class="rot">Tudo</span><div class="val sm">Planilha geral</div>
@@ -432,7 +503,7 @@ footer b{color:var(--branco)}
 <section class="vista" id="v-historico" role="tabpanel" aria-label="Histórico" hidden>
   <div class="secao">
     <h2>Mês a mês</h2>
-    <p class="sub">Cada PDF do Sala&times;eCom que você importar entra como uma competência. Com dois ou mais meses dá para ver se a plataforma está virando hábito ou se é sempre o mesmo punhado de clientes.</p>
+    <p class="sub">Cada PDF do Sala&times;eCom que você importar entra como uma competência. Com dois ou mais meses dá para ver se o site está virando hábito ou se é sempre o mesmo punhado de clientes.</p>
     <div class="rolo"><table id="tbHist"></table></div>
   </div>
   <div class="secao">
@@ -444,6 +515,12 @@ footer b{color:var(--branco)}
 
 <!-- ====================== MÉTODO ====================== -->
 <section class="vista" id="v-metodo" role="tabpanel" aria-label="Método" hidden>
+  <div class="secao">
+    <h2>As duas plataformas não são a mesma coisa</h2>
+    <p class="sub">Este painel olha dois lugares diferentes, com regras diferentes. Confundir os dois faz bloquear a coisa errada.</p>
+    <div class="rolo"><table id="tbPlataformas"></table></div>
+  </div>
+
   <div class="secao">
     <h2>Como o veredito é montado</h2>
     <p class="sub">Nenhuma linha deste painel chega a uma conclusão sem dizer de onde ela veio. Quando falta dado, o painel diz que falta — não chuta.</p>
@@ -957,9 +1034,10 @@ function baixar(blob, nome){
 const CHAVE_ARMAZEM = 'painel-carpa-v1';
 
 const REGUAS_PADRAO = {
-  minAcessos: 5,      // a partir de quantos acessos a consulta deixa de ser eventual
-  minRetorno: 150,    // R$ faturados no e-commerce por acesso para a consulta se pagar
-  salvoConduto: true, // quem tem média nos 3 meses não cai direto no bloqueio
+  minAcessosEcom: 5,   // acessos ao SITE a partir dos quais a consulta deixa de ser eventual
+  minRetorno: 150,     // R$ faturados no site por acesso ao site
+  minAcessosCarpa: 5,  // acessos ao CATÁLOGO a partir dos quais o uso deixa de ser eventual
+  salvoConduto: true,  // quem tem média nos 3 meses não cai direto no corte do site
 };
 
 let BASE = baseVazia();
@@ -1137,9 +1215,9 @@ function absorverTabelaSalaEcom(linhas, nomeArquivo){
     aamm: acharCol(cab, 'Competência', 'AAMM'),
     canal: acharCol(cab, 'Canal'),
     vend: acharCol(cab, 'Vendedor (código)', 'Vend'),
-    acessos: acharCol(cab, 'Acessos no mês', 'Acessos'),
-    vlSala: acharCol(cab, 'R$ Sala', 'Faturamento Sala'),
-    vlEcom: acharCol(cab, 'R$ e-commerce', 'Faturamento e-commerce'),
+    acessos: acharCol(cab, 'Acessos ao site', 'Acessos no mês', 'Acessos'),
+    vlSala: acharCol(cab, 'R$ na sala', 'R$ Sala'),
+    vlEcom: acharCol(cab, 'R$ no site', 'R$ e-commerce'),
     media3m: acharCol(cab, 'Média 3 meses', 'Media 3 meses'),
   };
   const espelhos = [];
@@ -1216,7 +1294,7 @@ function absorverCadastros(linhas, nomeArquivo){
       praca: g(c.tipoC),
       nome: g(c.nome),
       empresa: g(c.empresa),
-      acessos30d: inteiro(g(c.ac30)),
+      acessosCarpa: inteiro(g(c.ac30)),
       codigo: codCliente(g(c.codPac)),
       codigoBruto: g(c.codPac),
       cnpj: soDigitos(g(c.cnpj)),
@@ -1333,22 +1411,27 @@ function absorverNomesVendedor(abas){
 function absorverRetorno(linhas){
   const cab = linhas[0];
   const iCod = acharCol(cab, 'Código', 'Codigo', 'Código Cliente');
-  const iDec = acharCol(cab, 'Decisão', 'Decisao');
-  const iObs = acharCol(cab, 'Observação', 'Observacao', 'Obs');
-  if (iCod < 0 || (iDec < 0 && iObs < 0)) return null;
+  const alvos = [
+    { plat: 'ECOMMERCE', dec: acharCol(cab, 'Decisão site', 'Decisao site'), obs: acharCol(cab, 'Observação site', 'Observacao site') },
+    { plat: 'CATALOGO', dec: acharCol(cab, 'Decisão catálogo', 'Decisao catalogo'), obs: acharCol(cab, 'Observação catálogo', 'Observacao catalogo') },
+  ].filter((a) => a.dec >= 0 || a.obs >= 0);
+
+  if (iCod < 0 || !alvos.length) return null;
 
   let dec = 0, obs = 0;
   for (const l of linhas.slice(1)){
     const cod = codCliente(l[iCod]);
     if (!cod) continue;
-    if (iDec >= 0){
-      const d = semAcento(String(l[iDec] ?? '')).trim().toUpperCase();
-      if (d === 'BLOQUEAR' || d === 'MANTER' || d === 'OBSERVAR'){ BASE.decisoes[cod] = d; dec++; }
-      else if (d === '' && BASE.decisoes[cod] && iObs < 0){ /* vazio não apaga */ }
-    }
-    if (iObs >= 0){
-      const o = String(l[iObs] ?? '').trim();
-      if (o){ BASE.observacoes[cod] = o; obs++; }
+    for (const a of alvos){
+      const k = chaveDecisao(cod, a.plat);
+      if (a.dec >= 0){
+        const d = semAcento(String(l[a.dec] ?? '')).trim().toUpperCase();
+        if (d === 'BLOQUEAR' || d === 'MANTER' || d === 'OBSERVAR'){ BASE.decisoes[k] = d; dec++; }
+      }
+      if (a.obs >= 0){
+        const o = String(l[a.obs] ?? '').trim();
+        if (o){ BASE.observacoes[k] = o; obs++; }
+      }
     }
   }
   return { dec, obs };
@@ -1368,8 +1451,8 @@ function classificarTabela(linhas){
   const { primeiras } = assinatura(linhas);
   if (/codigodecadastro/.test(primeiras) && /tipodeusuario|acessosultimos30dias/.test(primeiras)) return 'CADASTROS';
   if (/^vend\|/m.test(primeiras) && /clientenome|cliente/.test(primeiras)) return 'CARTEIRA';
-  if (/decisao/.test(primeiras) && /codigo/.test(primeiras)) return 'RETORNO';
-  if (/acessosnomes/.test(primeiras) && /rsecommerce|recommerce/.test(primeiras)) return 'SALAECOM_TAB';
+  if (/decisaosite|decisaocatalogo/.test(primeiras) && /codigo/.test(primeiras)) return 'RETORNO';
+  if (/acessosaosite/.test(primeiras) && /rnosite/.test(primeiras)) return 'SALAECOM_TAB';
   return null;
 }
 
@@ -1399,7 +1482,7 @@ function cruzar(){
         codigo, nome: '', vend: '', canais: [],
         espelho: null, espelhosCanal: [],
         cadastros: [], carteira: null,
-        acessosMes: null, acessos30d: null,
+        acessosEcom: null, acessosCarpa: null,
         vlSala: null, vlEcom: null, vlTotal: null, media3m: null, fat90d: null,
         cnpj: '', raiz: '',
       });
@@ -1423,7 +1506,7 @@ function cruzar(){
     const s = (f) => c.espelhosCanal.reduce((a, e) => (e[f] === null ? a : val(a) + e[f]), null);
     c.vlSala = s('vlSala'); c.vlEcom = s('vlEcom'); c.vlTotal = s('vlTotal'); c.media3m = s('media3m');
     const acs = c.espelhosCanal.map((e) => e.acessos).filter((x) => x !== null);
-    c.acessosMes = acs.length ? Math.max(...acs) : null;
+    c.acessosEcom = acs.length ? Math.max(...acs) : null;
     c.espelho = c.espelhosCanal[0];
   }
 
@@ -1438,8 +1521,8 @@ function cruzar(){
     if (cad.fat90d !== null) c.fat90d = cad.fat90d;
   }
   for (const c of clientes.values()){
-    const a = c.cadastros.map((x) => x.acessos30d).filter((x) => x !== null);
-    c.acessos30d = a.length ? a.reduce((s, x) => s + x, 0) : null;
+    const a = c.cadastros.map((x) => x.acessosCarpa).filter((x) => x !== null);
+    c.acessosCarpa = a.length ? a.reduce((s, x) => s + x, 0) : null;
   }
 
   // 3) carteira
@@ -1472,146 +1555,223 @@ function cruzar(){
 
 /* =====================================================================
    VEREDITO
+
+   São DUAS plataformas diferentes e duas decisões diferentes:
+
+   CATÁLOGO CARPA — o cliente entra para ver código de peça e informação
+   técnica. Não se compra ali. Usar muito o catálogo e não comprar nada
+   em lugar nenhum significa que ele se serve da nossa engenharia de
+   catálogo e fecha o pedido com outro. Aí sim é caso de cortar o Carpa.
+
+   E-COMMERCE — o nosso site, onde dá para comprar e também consultar
+   preço. Entrar muito, ver preço e nunca fechar é o garimpo clássico.
+   Aí o corte é no site, não no catálogo.
+
+   Por isso cada cliente recebe dois vereditos independentes, cada um
+   com a sua evidência e a sua decisão. Misturar os dois faz bloquear
+   a coisa errada.
    ===================================================================== */
 
 const VEREDITOS = {
-  COMPRA_PLATAFORMA: { rotulo: 'Compra pela plataforma', grau: 'bom',    fila: false, acao: 'Nada a fazer. Este é o comportamento que se quer.' },
-  CONSULTA_CARA:     { rotulo: 'Compra pouco pra tanto acesso', grau: 'aviso', fila: true,  acao: 'Ver o que ele consulta e não fecha. Falta preço, prazo ou estoque.' },
-  COTA_E_BALCAO:     { rotulo: 'Consulta e fecha fora da plataforma', grau: 'aviso', fila: true, acao: 'Não bloquear. Puxar o pedido para a plataforma com o vendedor.' },
-  COTA_E_SUMIU:      { rotulo: 'Consulta, já comprou, parou', grau: 'bloq', fila: true, acao: 'Vendedor liga antes. Se não voltar a comprar, bloquear.' },
-  SO_CONSULTA:       { rotulo: 'Só consulta preço', grau: 'bloq', fila: true, acao: 'Bloquear o acesso. Não comprou nada e usa a plataforma como tabela.' },
-  POUCO_ACESSO:      { rotulo: 'Acesso eventual', grau: 'neutro', fila: false, acao: 'Abaixo da régua de acessos. Nada a decidir.' },
-  CADASTRO_PARADO:   { rotulo: 'Compra, mas não usa o cadastro', grau: 'neutro', fila: false, acao: 'Tem login e não entra. Vale sentar com ele e fazer o primeiro pedido pelo canal.' },
-  SEM_CADASTRO:      { rotulo: 'Compra e nem tem cadastro', grau: 'neutro', fila: false, acao: 'Cliente ativo fora da plataforma. É a lista mais curta para crescer o canal: abrir o acesso.' },
-  CADASTRO_OCIOSO:   { rotulo: 'Cadastro sem uso', grau: 'neutro', fila: true, acao: 'Tem login, nunca entra e não compra. Limpar o cadastro ou entender por que existe.' },
-  INATIVO:           { rotulo: 'Cliente parado', grau: 'neutro', fila: false, acao: 'Sem compra e sem cadastro na plataforma. É assunto do vendedor, não da plataforma.' },
-  SEM_ESPELHO:       { rotulo: 'Fora do relatório do mês', grau: 'neutro', fila: false, acao: 'Não apareceu no Sala x eCom. Conferir filial e cadastro antes de concluir.' },
+  /* ---- e-commerce: o site que vende ---- */
+  ECOM_COMPRA:       { plat: 'ECOMMERCE', rotulo: 'Compra pelo site', grau: 'bom', fila: false,
+    acao: 'Nada a fazer. É exatamente o que se quer do site.' },
+  ECOM_POUCO_RETORNO:{ plat: 'ECOMMERCE', rotulo: 'Consulta muito, compra pouco', grau: 'aviso', fila: true,
+    acao: 'Compra, mas garimpa muito preço antes. Ver o que ele consulta e não fecha: falta preço, prazo ou estoque.' },
+  ECOM_FECHA_SALA:   { plat: 'ECOMMERCE', rotulo: 'Vê preço no site, fecha na sala', grau: 'aviso', fila: true,
+    acao: 'Não cortar o site. O pedido é nosso, só entrou pelo caminho mais caro — o vendedor puxa para o site.' },
+  ECOM_PAROU:        { plat: 'ECOMMERCE', rotulo: 'Vê preço, já comprou, parou', grau: 'bloq', fila: true,
+    acao: 'O vendedor liga antes. Continua vendo preço e não compra em lugar nenhum: está comprando de outro. Se não voltar, cortar o site.' },
+  ECOM_SO_PRECO:     { plat: 'ECOMMERCE', rotulo: 'Só pega preço no site', grau: 'bloq', fila: true,
+    acao: 'Cortar o acesso ao site. Entra, vê preço e nunca comprou nada — usa o nosso site como tabela.' },
+  ECOM_EVENTUAL:     { plat: 'ECOMMERCE', rotulo: 'Entra no site de vez em quando', grau: 'neutro', fila: false,
+    acao: 'Abaixo da régua de acessos. Nada a decidir.' },
+  ECOM_NAO_ENTRA:    { plat: 'ECOMMERCE', rotulo: 'Não entra no site', grau: 'neutro', fila: false,
+    acao: 'Compra por fora do site. É oportunidade de vendedor, não de bloqueio.' },
+  ECOM_SEM_DADO:     { plat: 'ECOMMERCE', rotulo: 'Fora do relatório do mês', grau: 'neutro', fila: false,
+    acao: 'Não apareceu no Sala x eCom. Conferir filial e cadastro antes de concluir qualquer coisa.' },
+
+  /* ---- catálogo Carpa: consulta técnica, não vende ---- */
+  CARPA_CONSULTA_COMPRA: { plat: 'CATALOGO', rotulo: 'Consulta o catálogo e compra', grau: 'bom', fila: false,
+    acao: 'Uso legítimo. O catálogo está fazendo o trabalho dele.' },
+  CARPA_SO_CONSULTA:     { plat: 'CATALOGO', rotulo: 'Usa o catálogo e não compra nada', grau: 'bloq', fila: true,
+    acao: 'Cortar o Carpa. Ele tira código e informação técnica da gente e compra em outro lugar.' },
+  CARPA_EVENTUAL:        { plat: 'CATALOGO', rotulo: 'Consulta o catálogo pouco', grau: 'neutro', fila: false,
+    acao: 'Abaixo da régua de acessos ao catálogo. Nada a decidir.' },
+  CARPA_PARADO:          { plat: 'CATALOGO', rotulo: 'Tem catálogo e não entra', grau: 'neutro', fila: false,
+    acao: 'O acesso existe e não é usado. Vale mostrar o catálogo ao cliente — ou recolher o login.' },
+  CARPA_SEM_ACESSO:      { plat: 'CATALOGO', rotulo: 'Sem acesso ao catálogo', grau: 'neutro', fila: false,
+    acao: 'Cliente sem login no Carpa. Se ele compra, dar acesso costuma aumentar o giro.' },
 };
 
-/**
- * Devolve { chave, rotulo, grau, acao, fila, fatores[], lacunas[], retorno }.
- * Sempre com pelo menos um fator ou uma lacuna — nunca os dois vazios.
- */
-function avaliar(c, reguas){
-  const R = reguas || BASE.reguas;
+const PLATAFORMAS = {
+  ECOMMERCE: { rotulo: 'e-commerce', curto: 'Site', explica: 'nosso site: compra e consulta de preço' },
+  CATALOGO:  { rotulo: 'catálogo Carpa', curto: 'Carpa', explica: 'catálogo de código e informação técnica; não vende' },
+};
+
+const dinheiro = (n) => 'R$ ' + (n === null || n === undefined
+  ? '—'
+  : n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+
+/** Comprou alguma coisa da gente, por qualquer caminho? */
+function temHistorico(c){
+  return val(c.vlTotal) > 0 || val(c.media3m) > 0 || val(c.fat90d) > 0;
+}
+
+/* ---------------------------------------------------------------------
+   Veredito do E-COMMERCE — acessos vindos do Mapa Sala x eCom.
+   --------------------------------------------------------------------- */
+function avaliarEcom(c, R){
   const fatores = [];
   const lacunas = [];
-  const dinheiro = (n) => 'R$ ' + (n === null || n === undefined ? '—' : n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+  const acessos = c.acessosEcom;
 
-  const temEspelho = !!c.espelhosCanal.length;
-  const acessos = c.acessosMes;
-  const acessos30 = c.acessos30d;
-
-  if (!temEspelho){
-    lacunas.push('Não há linha deste cliente no relatório Sala x eCom da competência carregada.');
-    if (acessos30 !== null) fatores.push(`A plataforma registra ${acessos30} acesso(s) nos últimos 30 dias.`);
+  if (!c.espelhosCanal.length){
+    lacunas.push('Este cliente não aparece no relatório Sala x eCom da competência carregada — sem ele não dá para saber o que ele fez no site.');
     if (c.carteira) fatores.push(`Está na carteira de ${nomeVend(c.vend)}.`);
-    return montar('SEM_ESPELHO', fatores, lacunas, null, c);
+    if (c.acessosCarpa !== null) fatores.push(`No catálogo Carpa, ${c.acessosCarpa} acesso(s) em 30 dias.`);
+    return montar('ECOM_SEM_DADO', fatores, lacunas, null, c);
   }
-
   if (acessos === null){
-    lacunas.push('O relatório não trouxe o total de acessos deste cliente.');
-    fatores.push(`Faturou ${dinheiro(c.vlTotal)} no mês (${dinheiro(c.vlSala)} sala, ${dinheiro(c.vlEcom)} e-commerce).`);
-    return montar('SEM_ESPELHO', fatores, lacunas, null, c);
+    lacunas.push('O relatório não trouxe o total de acessos ao site para este cliente.');
+    fatores.push(`Faturou ${dinheiro(c.vlTotal)} no mês: ${dinheiro(c.vlSala)} na sala e ${dinheiro(c.vlEcom)} pelo site.`);
+    return montar('ECOM_SEM_DADO', fatores, lacunas, null, c);
   }
 
   const retorno = acessos > 0 && c.vlEcom !== null ? c.vlEcom / acessos : null;
-  fatores.push(`${acessos} acesso(s) à plataforma no mês.`);
-  if (acessos30 !== null && acessos30 !== acessos){
-    fatores.push(`A plataforma conta ${acessos30} acesso(s) nos últimos 30 dias — janelas diferentes, os dois ficam à vista.`);
+
+  if (acessos === 0){
+    fatores.push('Não entrou no site nenhuma vez no mês.');
+    if (val(c.vlSala) > 0) fatores.push(`Comprou ${dinheiro(c.vlSala)} na sala, com o vendedor.`);
+    else if (val(c.media3m) > 0) fatores.push(`Média dos 3 últimos meses: ${dinheiro(c.media3m)}.`);
+    else fatores.push('E também não comprou nada no mês.');
+    return montar('ECOM_NAO_ENTRA', fatores, lacunas, retorno, c);
   }
 
-  // 1. Não bateu a régua de acessos.
-  if (acessos < R.minAcessos){
+  fatores.push(`${acessos} acesso(s) ao site no mês.`);
+
+  if (acessos < R.minAcessosEcom){
     if (val(c.vlEcom) > 0){
-      fatores.push(`Faturou ${dinheiro(c.vlEcom)} pelo e-commerce.`);
-      return montar('COMPRA_PLATAFORMA', fatores, lacunas, retorno, c);
+      fatores.push(`Faturou ${dinheiro(c.vlEcom)} pelo site.`);
+      return montar('ECOM_COMPRA', fatores, lacunas, retorno, c);
     }
-    if (acessos === 0){
-      // Só faz sentido falar em bloquear quem tem login. Sem cadastro na
-      // plataforma não há acesso a cortar — é conversa de vendedor.
-      const temLogin = c.cadastros.length > 0;
-
-      if (val(c.vlTotal) > 0 || val(c.media3m) > 0){
-        fatores.push(`Comprou ${dinheiro(c.vlTotal)} no mês, tudo na sala.`);
-        if (val(c.media3m) > 0) fatores.push(`Média dos 3 últimos meses: ${dinheiro(c.media3m)}.`);
-        if (temLogin){
-          fatores.push(`Tem ${c.cadastros.length} login(s) na plataforma e não entrou nenhuma vez no mês.`);
-          return montar('CADASTRO_PARADO', fatores, lacunas, retorno, c);
-        }
-        fatores.push('Não tem cadastro na plataforma — comprando só pelo caminho antigo.');
-        return montar('SEM_CADASTRO', fatores, lacunas, retorno, c);
-      }
-
-      fatores.push('Sem faturamento no mês e sem acesso à plataforma.');
-      if (c.media3m === null) lacunas.push('Sem média dos 3 meses no relatório.');
-      else if (ehZero(c.media3m)) fatores.push('Média dos 3 últimos meses também zerada.');
-      if (temLogin){
-        fatores.push(`Mesmo assim mantém ${c.cadastros.length} login(s) ativo(s).`);
-        return montar('CADASTRO_OCIOSO', fatores, lacunas, retorno, c);
-      }
-      return montar('INATIVO', fatores, lacunas, retorno, c);
-    }
-    fatores.push(`Abaixo da régua de ${R.minAcessos} acessos.`);
-    return montar('POUCO_ACESSO', fatores, lacunas, retorno, c);
+    fatores.push(`Abaixo da régua de ${R.minAcessosEcom} acessos ao site.`);
+    return montar('ECOM_EVENTUAL', fatores, lacunas, retorno, c);
   }
 
-  // 2. Bateu a régua e comprou pelo canal.
   if (val(c.vlEcom) > 0){
-    fatores.push(`Faturou ${dinheiro(c.vlEcom)} pelo e-commerce — ${dinheiro(retorno)} por acesso.`);
+    fatores.push(`Faturou ${dinheiro(c.vlEcom)} pelo site — ${dinheiro(retorno)} por acesso.`);
     if (retorno !== null && retorno < R.minRetorno){
       fatores.push(`Abaixo dos ${dinheiro(R.minRetorno)} por acesso que você definiu como retorno mínimo.`);
       if (val(c.vlSala) > 0) fatores.push(`Ainda deixa ${dinheiro(c.vlSala)} na sala.`);
-      return montar('CONSULTA_CARA', fatores, lacunas, retorno, c);
+      return montar('ECOM_POUCO_RETORNO', fatores, lacunas, retorno, c);
     }
-    return montar('COMPRA_PLATAFORMA', fatores, lacunas, retorno, c);
+    return montar('ECOM_COMPRA', fatores, lacunas, retorno, c);
   }
 
-  // 3. Bateu a régua, nada pelo canal.
-  fatores.push('Nenhum centavo faturado pelo e-commerce no mês.');
+  fatores.push('Nenhum centavo faturado pelo site no mês.');
 
   if (val(c.vlSala) > 0){
     fatores.push(`Mas comprou ${dinheiro(c.vlSala)} na sala, com o vendedor.`);
-    fatores.push('Ou seja: usa a plataforma para ver preço e fecha por fora.');
-    return montar('COTA_E_BALCAO', fatores, lacunas, retorno, c);
+    fatores.push('Ou seja: usa o site para ver o preço e fecha pelo balcão.');
+    return montar('ECOM_FECHA_SALA', fatores, lacunas, retorno, c);
   }
 
   fatores.push('E também não comprou nada na sala no mês.');
 
-  const grupoCompra = c.grupo && c.grupo.ecomGrupo > 0;
-  if (grupoCompra){
-    fatores.push(`Atenção: outro código do mesmo CNPJ faturou ${dinheiro(c.grupo.ecomGrupo)} pelo e-commerce. Pode ser cadastro duplicado.`);
-    return montar('COTA_E_SUMIU', fatores, lacunas, retorno, c);
+  if (c.grupo && c.grupo.ecomGrupo > 0){
+    fatores.push(`Atenção: outro código do mesmo CNPJ faturou ${dinheiro(c.grupo.ecomGrupo)} pelo site. Pode ser cadastro duplicado.`);
+    return montar('ECOM_PAROU', fatores, lacunas, retorno, c);
   }
 
   const historico = val(c.media3m) > 0 || val(c.fat90d) > 0;
   if (historico && R.salvoConduto){
     if (val(c.media3m) > 0) fatores.push(`Já comprou: média de ${dinheiro(c.media3m)} nos 3 últimos meses.`);
-    if (val(c.fat90d) > 0) fatores.push(`A plataforma registra ${dinheiro(c.fat90d)} faturados em 90 dias.`);
-    return montar('COTA_E_SUMIU', fatores, lacunas, retorno, c);
+    if (val(c.fat90d) > 0) fatores.push(`Registro de ${dinheiro(c.fat90d)} faturados em 90 dias.`);
+    return montar('ECOM_PAROU', fatores, lacunas, retorno, c);
   }
-  if (historico && !R.salvoConduto){
-    fatores.push('Tem histórico de compra, mas o salvo-conduto está desligado na régua.');
+  if (historico) fatores.push('Tem histórico de compra, mas o salvo-conduto está desligado na régua.');
+  else if (c.media3m === null && c.fat90d === null){
+    lacunas.push('Sem média dos 3 meses e sem faturamento de 90 dias para conferir — o veredito se apoia só no mês.');
+  } else {
+    fatores.push('Sem histórico de compra: média dos 3 meses e faturamento de 90 dias zerados.');
   }
-  if (!historico){
-    if (c.media3m === null && c.fat90d === null){
-      lacunas.push('Sem média dos 3 meses e sem faturamento de 90 dias para conferir — o veredito se apoia só no mês.');
-    } else {
-      fatores.push('Sem histórico de compra: média dos 3 meses e faturamento de 90 dias zerados.');
-    }
-  }
-  return montar('SO_CONSULTA', fatores, lacunas, retorno, c);
+  return montar('ECOM_SO_PRECO', fatores, lacunas, retorno, c);
 }
+
+/* ---------------------------------------------------------------------
+   Veredito do CATÁLOGO CARPA — acessos vindos da planilha de cadastros.
+   Aqui não existe "comprou pelo catálogo": o catálogo não vende. O que
+   se pergunta é se quem consulta compra em ALGUM lugar nosso.
+   --------------------------------------------------------------------- */
+function avaliarCarpa(c, R){
+  const fatores = [];
+  const lacunas = [];
+
+  if (!c.cadastros.length){
+    if (temHistorico(c)) fatores.push(`Compra da gente (${dinheiro(c.vlTotal)} no mês) sem nenhum login no catálogo.`);
+    else fatores.push('Não tem login no catálogo Carpa.');
+    return montar('CARPA_SEM_ACESSO', fatores, lacunas, null, c);
+  }
+
+  const acessos = c.acessosCarpa;
+  const logins = c.cadastros.length;
+  fatores.push(`${logins} login(s) no catálogo Carpa.`);
+
+  if (acessos === null){
+    lacunas.push('A planilha de cadastros não trouxe os acessos ao catálogo deste cliente.');
+    return montar('CARPA_PARADO', fatores, lacunas, null, c);
+  }
+
+  if (acessos === 0){
+    fatores.push('Não abriu o catálogo nenhuma vez nos últimos 30 dias.');
+    if (temHistorico(c)) fatores.push(`Mesmo comprando ${dinheiro(c.vlTotal)} no mês.`);
+    return montar('CARPA_PARADO', fatores, lacunas, null, c);
+  }
+
+  fatores.push(`${acessos} acesso(s) ao catálogo nos últimos 30 dias.`);
+
+  if (temHistorico(c)){
+    if (val(c.vlTotal) > 0) fatores.push(`Comprou ${dinheiro(c.vlTotal)} no mês (${dinheiro(c.vlSala)} sala, ${dinheiro(c.vlEcom)} site).`);
+    else if (val(c.media3m) > 0) fatores.push(`Média de ${dinheiro(c.media3m)} nos 3 últimos meses.`);
+    else fatores.push(`Registro de ${dinheiro(c.fat90d)} faturados em 90 dias.`);
+    return montar('CARPA_CONSULTA_COMPRA', fatores, lacunas, null, c);
+  }
+
+  if (acessos < R.minAcessosCarpa){
+    fatores.push(`Abaixo da régua de ${R.minAcessosCarpa} acessos ao catálogo.`);
+    return montar('CARPA_EVENTUAL', fatores, lacunas, null, c);
+  }
+
+  fatores.push('E não comprou nada: nem no site, nem na sala, nem nos 3 meses anteriores.');
+  if (c.media3m === null && c.fat90d === null){
+    lacunas.push('Sem média dos 3 meses e sem faturamento de 90 dias para confirmar — confira antes de cortar.');
+  }
+  if (c.grupo && c.grupo.ecomGrupo > 0){
+    fatores.push(`Atenção: outro código do mesmo CNPJ compra pelo site (${dinheiro(c.grupo.ecomGrupo)}). Pode ser cadastro duplicado.`);
+  }
+  return montar('CARPA_SO_CONSULTA', fatores, lacunas, null, c);
+}
+
+/** Os dois vereditos de um cliente, cada um com a sua decisão gravada. */
+function avaliar(c, reguas){
+  const R = reguas || BASE.reguas;
+  return { ecom: avaliarEcom(c, R), carpa: avaliarCarpa(c, R) };
+}
+
+function chaveDecisao(codigo, plat){ return `${codigo}|${plat}`; }
 
 function montar(chave, fatores, lacunas, retorno, c){
   const d = VEREDITOS[chave];
   if (!fatores.length && !lacunas.length){
     lacunas.push('Sem evidência suficiente para explicar este veredito.');
   }
-  const decisao = BASE.decisoes[c.codigo] || null;
   return {
-    chave, rotulo: d.rotulo, grau: d.grau, acao: d.acao,
-    fila: d.fila, fatores, lacunas, retorno, decisao,
+    chave, plat: d.plat, plataforma: PLATAFORMAS[d.plat].rotulo,
+    rotulo: d.rotulo, grau: d.grau, acao: d.acao, fila: d.fila,
+    fatores, lacunas, retorno,
+    decisao: BASE.decisoes[chaveDecisao(c.codigo, d.plat)] || null,
+    codigo: c.codigo,
   };
 }
 
@@ -1721,32 +1881,53 @@ function recalcular(){
   AVAL = new Map(CLIENTES.map((c) => [c.codigo, avaliar(c, BASE.reguas)]));
 }
 
+/** Um caso da fila é um par (cliente, plataforma) — são decisões diferentes. */
 function filaCasos(){
-  return CLIENTES
-    .map((c) => ({ c, aval: AVAL.get(c.codigo) }))
-    .filter((x) => x.aval.fila)
-    .sort((a, b) => {
-      const peso = { bloq: 0, aviso: 1, neutro: 2 };
-      const p = peso[a.aval.grau] - peso[b.aval.grau];
-      if (p) return p;
-      return val(b.c.acessosMes) - val(a.c.acessosMes);
-    });
+  const casos = [];
+  for (const c of CLIENTES){
+    const a = AVAL.get(c.codigo);
+    for (const v of [a.ecom, a.carpa]){
+      if (v.fila) casos.push({ c, aval: v, plat: v.plat });
+    }
+  }
+  const peso = { bloq: 0, aviso: 1, neutro: 2, bom: 3 };
+  return casos.sort((x, y) => {
+    const p = peso[x.aval.grau] - peso[y.aval.grau];
+    if (p) return p;
+    const ax = x.plat === 'ECOMMERCE' ? val(x.c.acessosEcom) : val(x.c.acessosCarpa);
+    const ay = y.plat === 'ECOMMERCE' ? val(y.c.acessosEcom) : val(y.c.acessosCarpa);
+    return ay - ax;
+  });
 }
 
+function decisaoDe(cod, plat){ return BASE.decisoes[chaveDecisao(cod, plat)] || null; }
+
 function totais(){
-  const t = { sala: 0, ecom: 0, clientes: CLIENTES.length, comAcesso: 0, comprando: 0, acessosSemPedido: 0,
-    semPedido: 0, cadastrados: 0, ociosos: 0, parados: 0, semCadastro: 0, inativos: 0 };
+  const t = { sala: 0, ecom: 0, clientes: CLIENTES.length,
+    // site
+    entramNoSite: 0, compramNoSite: 0, siteSemPedido: 0, acessosSiteSemPedido: 0, veemEFecham: 0,
+    // catálogo
+    comCarpa: 0, usamCarpa: 0, carpaSemCompra: 0, acessosCarpaSemCompra: 0, carpaParado: 0,
+    // base
+    semCarpa: 0, compramSemSite: 0 };
   for (const c of CLIENTES){
     t.sala += val(c.vlSala); t.ecom += val(c.vlEcom);
-    if (c.cadastros.length) t.cadastrados++;
-    if (val(c.acessosMes) > 0) t.comAcesso++;
-    if (val(c.vlEcom) > 0) t.comprando++;
-    if (val(c.acessosMes) > 0 && !(val(c.vlEcom) > 0)){ t.semPedido++; t.acessosSemPedido += val(c.acessosMes); }
     const a = AVAL.get(c.codigo);
-    if (a.chave === 'CADASTRO_OCIOSO') t.ociosos++;
-    if (a.chave === 'CADASTRO_PARADO') t.parados++;
-    if (a.chave === 'SEM_CADASTRO') t.semCadastro++;
-    if (a.chave === 'INATIVO') t.inativos++;
+
+    if (val(c.acessosEcom) > 0) t.entramNoSite++;
+    if (val(c.vlEcom) > 0) t.compramNoSite++;
+    if (val(c.acessosEcom) > 0 && !(val(c.vlEcom) > 0)){
+      t.siteSemPedido++; t.acessosSiteSemPedido += val(c.acessosEcom);
+    }
+    if (a.ecom.chave === 'ECOM_FECHA_SALA') t.veemEFecham++;
+    if (a.ecom.chave === 'ECOM_NAO_ENTRA' && temHistorico(c)) t.compramSemSite++;
+
+    if (c.cadastros.length) t.comCarpa++; else t.semCarpa++;
+    if (val(c.acessosCarpa) > 0) t.usamCarpa++;
+    if (a.carpa.chave === 'CARPA_SO_CONSULTA'){
+      t.carpaSemCompra++; t.acessosCarpaSemCompra += val(c.acessosCarpa);
+    }
+    if (a.carpa.chave === 'CARPA_PARADO') t.carpaParado++;
   }
   t.total = t.sala + t.ecom;
   t.pctEcom = t.total > 0 ? (t.ecom / t.total) * 100 : null;
@@ -1757,22 +1938,24 @@ function placarVendedores(){
   const p = {};
   for (const c of CLIENTES){
     const v = c.vend || 'sem';
-    p[v] ||= { vend: v, nome: BASE.vendNomes[v] || '', carteira: 0, cadastrados: 0, comprando: 0, garimpo: 0, balcao: 0, parado: 0, ecom: 0, sala: 0, acessosSemPedido: 0 };
+    p[v] ||= { vend: v, nome: BASE.vendNomes[v] || '', carteira: 0, comCarpa: 0,
+      compramNoSite: 0, garimpoSite: 0, veemEFecham: 0, garimpoCarpa: 0, foraDoSite: 0,
+      ecom: 0, sala: 0, acessosSiteSemPedido: 0 };
     const x = p[v];
-    x.carteira++;
-    if (c.cadastros.length) x.cadastrados++;
-    x.ecom += val(c.vlEcom); x.sala += val(c.vlSala);
     const a = AVAL.get(c.codigo);
-    if (a.chave === 'COMPRA_PLATAFORMA' || a.chave === 'CONSULTA_CARA') x.comprando++;
-    if (a.chave === 'SO_CONSULTA' || a.chave === 'COTA_E_SUMIU') x.garimpo++;
-    if (a.chave === 'COTA_E_BALCAO') x.balcao++;
-    if (a.chave === 'CADASTRO_PARADO' || a.chave === 'CADASTRO_OCIOSO' || a.chave === 'SEM_CADASTRO') x.parado++;
-    if (val(c.acessosMes) > 0 && !(val(c.vlEcom) > 0)) x.acessosSemPedido += val(c.acessosMes);
+    x.carteira++;
+    if (c.cadastros.length) x.comCarpa++;
+    x.ecom += val(c.vlEcom); x.sala += val(c.vlSala);
+    if (a.ecom.chave === 'ECOM_COMPRA' || a.ecom.chave === 'ECOM_POUCO_RETORNO') x.compramNoSite++;
+    if (a.ecom.chave === 'ECOM_SO_PRECO' || a.ecom.chave === 'ECOM_PAROU') x.garimpoSite++;
+    if (a.ecom.chave === 'ECOM_FECHA_SALA') x.veemEFecham++;
+    if (a.ecom.chave === 'ECOM_NAO_ENTRA' || a.ecom.chave === 'ECOM_EVENTUAL') x.foraDoSite++;
+    if (a.carpa.chave === 'CARPA_SO_CONSULTA') x.garimpoCarpa++;
+    if (val(c.acessosEcom) > 0 && !(val(c.vlEcom) > 0)) x.acessosSiteSemPedido += val(c.acessosEcom);
   }
   for (const x of Object.values(p)){
     x.total = x.ecom + x.sala;
     x.pctEcom = x.total > 0 ? (x.ecom / x.total) * 100 : null;
-    x.digital = x.cadastrados > 0 ? (x.comprando / x.cadastrados) * 100 : null;
   }
   return p;
 }
@@ -1789,7 +1972,7 @@ function pintar(){
   if (ABA === 'clientes') pintarClientes();
   if (ABA === 'vendedores') pintarVendedores();
   if (ABA === 'historico') pintarHistorico();
-  if (ABA === 'importar') pintarFontes();
+  if (ABA === 'importar') { pintarFontes(); pintarVagas(); }
   if (ABA === 'exportar') pintarCiclo();
   if (ABA === 'metodo') pintarMetodo();
 }
@@ -1807,41 +1990,47 @@ function pintarPainel(){
   $('#painelVazio').innerHTML = temDados ? '' : `
     <div class="vazio">
       <h3>Nenhum arquivo carregado ainda</h3>
-      <p>Este painel não vem com dado nenhum dentro. Solte na aba Importar o PDF do Sala&times;eCom, a planilha de cadastros da plataforma e a carteira dos vendedores — ele cruza os três e monta tudo.</p>
+      <p>Vá em <b>Importar</b>: lá tem um lugar certo para cada um dos quatro arquivos, com o nome exato de cada um.</p>
       <button class="b primario" type="button" onclick="irPara('importar')">Ir para Importar</button>
     </div>`;
   if (!temDados) return;
 
   const t = totais();
 
-  // barra sala x e-commerce
   const larguraSala = t.total > 0 ? (t.sala / t.total) * 100 : 50;
   $('#barraCanal').innerHTML =
     `<i style="width:${larguraSala}%;background:var(--s-sala)"></i>` +
     `<i style="width:${100 - larguraSala}%;background:var(--s-ecom)"></i>`;
   $('#legCanal').innerHTML =
     `<span><i class="chave" style="background:var(--s-sala)"></i>Sala <b>${moedaCurta(t.sala)}</b> · ${pct(t.total > 0 ? (t.sala / t.total) * 100 : null)}</span>` +
-    `<span><i class="chave" style="background:var(--s-ecom)"></i>e-commerce <b>${moedaCurta(t.ecom)}</b> · ${pct(t.pctEcom)}</span>` +
+    `<span><i class="chave" style="background:var(--s-ecom)"></i>Site <b>${moedaCurta(t.ecom)}</b> · ${pct(t.pctEcom)}</span>` +
     `<span>Total do mês <b>${moedaCurta(t.total)}</b></span>`;
 
   const fila = filaCasos();
-  const bloq = fila.filter((x) => x.aval.grau === 'bloq');
-  const pend = fila.filter((x) => !x.aval.decisao).length;
+  const cortarSite = fila.filter((x) => x.plat === 'ECOMMERCE' && x.aval.grau === 'bloq').length;
+  const cortarCarpa = fila.filter((x) => x.plat === 'CATALOGO' && x.aval.grau === 'bloq').length;
+  const pendentes = fila.filter((x) => !x.aval.decisao).length;
 
-  $('#metricasChave').innerHTML = [
-    cartao(String(t.comprando), 'Compram pela plataforma', `de ${t.comAcesso} que acessaram no mês`, 'bom'),
-    cartao(String(t.semPedido), 'Acessam e não compram', `somam ${inteiroFmt(t.acessosSemPedido)} acessos sem gerar um pedido`, 'perigo'),
-    cartao(String(bloq.length), 'Sugeridos para bloqueio', 'só consultam preço, ou consultavam e pararam', 'perigo'),
-    cartao(String(pend), 'Casos sem decisão', 'esperando você marcar bloquear, manter ou observar', pend > 0 ? 'aviso' : 'bom'),
-    cartao(pct(t.pctEcom), 'Do faturamento veio do canal', `${moedaCurta(t.ecom)} de ${moedaCurta(t.total)}`),
+  $('#metricasSite').innerHTML = [
+    cartao(String(t.compramNoSite), 'Compram pelo site', `de ${t.entramNoSite} que entraram no mês`, 'bom'),
+    cartao(String(t.siteSemPedido), 'Entram e não compram', `${inteiroFmt(t.acessosSiteSemPedido)} acessos ao site sem gerar um pedido`, 'perigo'),
+    cartao(String(cortarSite), 'Sugeridos para cortar o site', cortarSite ? 'só veem preço, ou viam e pararam de comprar' : 'ninguém: todo mundo que entra no site compra ou já comprou', 'perigo'),
+    cartao(String(t.veemEFecham), 'Veem no site, fecham na sala', 'não é corte: é pedido para puxar para o site', 'aviso'),
+    cartao(pct(t.pctEcom), 'Do faturamento veio do site', `${moedaCurta(t.ecom)} de ${moedaCurta(t.total)}`),
+  ].join('');
+
+  $('#metricasCarpa').innerHTML = [
+    cartao(String(t.comCarpa), 'Têm login no catálogo', t.clientes ? `${pct((t.comCarpa / t.clientes) * 100, 0)} da base cruzada` : ''),
+    cartao(String(t.usamCarpa), 'Usaram o catálogo em 30 dias', 'abriram o Carpa ao menos uma vez'),
+    cartao(String(cortarCarpa), 'Sugeridos para cortar o Carpa', cortarCarpa ? 'consultam código e informação técnica e não compram nada' : 'ninguém: todo mundo que usa o catálogo compra da gente', 'perigo'),
+    cartao(String(t.carpaParado), 'Têm catálogo e não abrem', 'login existe e não é usado'),
+    cartao(String(pendentes), 'Casos sem decisão', 'somando as duas plataformas', pendentes > 0 ? 'aviso' : 'bom'),
   ].join('');
 
   $('#metricasBase').innerHTML = [
-    cartao(String(t.clientes), 'Clientes cruzados', 'soma das três fontes, sem repetir'),
-    cartao(String(t.cadastrados), 'Com cadastro na plataforma', t.clientes ? `${pct((t.cadastrados / t.clientes) * 100, 0)} da base` : ''),
-    cartao(String(t.semCadastro), 'Compram e nem têm cadastro', 'a lista mais curta para crescer o canal: é só abrir o acesso'),
-    cartao(String(t.parados), 'Têm login e não entram', 'o cadastro já existe — falta o primeiro pedido pelo canal'),
-    cartao(String(t.ociosos), 'Logins sem uso nenhum', 'sem acesso e sem compra — cadastro para limpar'),
+    cartao(String(t.clientes), 'Clientes cruzados', 'códigos únicos nas três fontes, sem repetir'),
+    cartao(String(t.compramSemSite), 'Compram e não entram no site', 'é a lista mais curta para crescer o site'),
+    cartao(String(t.semCarpa), 'Sem login no catálogo', 'não conseguem consultar código nem informação técnica'),
     (() => {
       const todos = Object.keys(placarVendedores());
       const reais = todos.filter(ehVendedorReal);
@@ -1851,7 +2040,6 @@ function pintarPainel(){
     })(),
   ].join('');
 
-  // concentração
   const topo = [...CLIENTES].filter((c) => val(c.vlEcom) > 0).sort((a, b) => val(b.vlEcom) - val(a.vlEcom));
   const somaEcom = topo.reduce((s, c) => s + val(c.vlEcom), 0);
   let acum = 0;
@@ -1861,20 +2049,23 @@ function pintarPainel(){
     return `<tr data-cod="${c.codigo}" style="cursor:pointer">
       <td class="num">${i + 1}</td>
       <td class="nome"><b>${esc(c.nome)}</b><small>${esc(c.codigo)} · ${esc(nomeVend(c.vend))}</small></td>
-      <td class="num">${inteiroFmt(c.acessosMes)}</td>
+      <td class="num">${inteiroFmt(c.acessosEcom)}</td>
       <td class="num">${moeda(c.vlEcom)}</td>
       <td class="num">${moeda(c.vlSala)}</td>
-      <td class="num">${a.retorno === null ? '—' : moeda(a.retorno)}</td>
+      <td class="num">${a.ecom.retorno === null ? '—' : moeda(a.ecom.retorno)}</td>
       <td class="num">${somaEcom > 0 ? pct((acum / somaEcom) * 100, 0) : '—'}</td>
-      <td>${chip(a)}</td></tr>`;
+      <td>${chip(a.ecom)}</td></tr>`;
   }).join('');
   $('#tbTopo').innerHTML =
-    `<thead><tr><th class="num">#</th><th>Cliente</th><th class="num">Acessos</th><th class="num">e-commerce</th><th class="num">Sala</th><th class="num">R$/acesso</th><th class="num">Acumulado</th><th>Veredito</th></tr></thead>` +
-    `<tbody>${linhas || '<tr><td colspan="8">Nenhum cliente faturou pelo e-commerce nesta competência.</td></tr>'}</tbody>`;
+    `<thead><tr><th class="num">#</th><th>Cliente</th><th class="num">Acessos ao site</th><th class="num">Faturou no site</th><th class="num">Sala</th><th class="num">R$/acesso</th><th class="num">Acumulado</th><th>Veredito do site</th></tr></thead>` +
+    `<tbody>${linhas || '<tr><td colspan="8">Nenhum cliente faturou pelo site nesta competência.</td></tr>'}</tbody>`;
   $$('#tbTopo tbody tr').forEach((tr) => tr.onclick = () => abrirFicha(tr.dataset.cod));
 }
 
 function cartao(valor, rotulo, nota, tom){
+  // Moldura de alerta só quando existe alerta: vermelho em cima de zero
+  // treina o olho a ignorar o vermelho.
+  if ((tom === 'perigo' || tom === 'aviso') && (valor === '0' || valor === 0)) tom = 'bom';
   return `<div class="metrica${tom ? ' ' + tom : ''}"><span class="rot">${esc(rotulo)}</span>
     <div class="val">${esc(valor)}</div>${nota ? `<p class="nota">${esc(nota)}</p>` : ''}</div>`;
 }
@@ -1885,39 +2076,44 @@ function pintarReguas(){
   const R = BASE.reguas;
   $('#reguas').innerHTML = `
     <div class="regua">
-      <label for="rAc">Acesso vira consulta a partir de <b id="vAc">${R.minAcessos}</b> vezes no mês</label>
-      <input type="range" id="rAc" min="1" max="40" step="1" value="${R.minAcessos}" />
-      <p class="exp">Abaixo disso o painel trata como visita eventual e não coloca ninguém na fila.</p>
+      <label for="rAcE">Site: consulta a partir de <b id="vAcE">${R.minAcessosEcom}</b> acessos no mês</label>
+      <input type="range" id="rAcE" min="1" max="40" step="1" value="${R.minAcessosEcom}" />
+      <p class="exp">Abaixo disso, entrar no site é visita eventual e ninguém entra na fila.</p>
     </div>
     <div class="regua">
-      <label for="rRet">Retorno mínimo de <b id="vRet">${moeda(R.minRetorno)}</b> por acesso</label>
+      <label for="rRet">Site: retorno mínimo de <b id="vRet">${moeda(R.minRetorno)}</b> por acesso</label>
       <input type="range" id="rRet" min="0" max="1000" step="25" value="${R.minRetorno}" />
-      <p class="exp">Quem compra pelo canal mas rende menos que isto por acesso aparece como consulta cara — compra, mas garimpa muito.</p>
+      <p class="exp">Quem compra pelo site mas rende menos que isto por acesso entra como “consulta muito, compra pouco”.</p>
+    </div>
+    <div class="regua">
+      <label for="rAcC">Catálogo: uso a partir de <b id="vAcC">${R.minAcessosCarpa}</b> acessos em 30 dias</label>
+      <input type="range" id="rAcC" min="1" max="40" step="1" value="${R.minAcessosCarpa}" />
+      <p class="exp">Só entra na fila do Carpa quem passa disto <b>e</b> não comprou nada, em canal nenhum.</p>
     </div>
     <div class="regua">
       <label for="rSalvo">Salvo-conduto para quem já comprou <b id="vSalvo">${R.salvoConduto ? 'ligado' : 'desligado'}</b></label>
       <input type="range" id="rSalvo" min="0" max="1" step="1" value="${R.salvoConduto ? 1 : 0}" />
-      <p class="exp">Ligado: quem tem média nos 3 meses vai para “consulta e parou”, com ligação antes do corte. Desligado: cai direto em “só consulta preço”.</p>
+      <p class="exp">Ligado: quem tem média nos 3 meses vai para “viu preço e parou”, com ligação antes do corte. Desligado: cai direto em “só pega preço”.</p>
     </div>`;
   const liga = (id, campo, mostra) => {
     $(id).oninput = (e) => {
       const v = +e.target.value;
       BASE.reguas[campo] = campo === 'salvoConduto' ? !!v : v;
       mostra(BASE.reguas[campo]);
-      recalcular(); salvar();
-      pintarFila(); pintarAbas();
+      recalcular(); salvar(); pintarFila(); pintarAbas();
     };
   };
-  liga('#rAc', 'minAcessos', (v) => $('#vAc').textContent = v);
+  liga('#rAcE', 'minAcessosEcom', (v) => $('#vAcE').textContent = v);
   liga('#rRet', 'minRetorno', (v) => $('#vRet').textContent = moeda(v));
+  liga('#rAcC', 'minAcessosCarpa', (v) => $('#vAcC').textContent = v);
   liga('#rSalvo', 'salvoConduto', (v) => $('#vSalvo').textContent = v ? 'ligado' : 'desligado');
 }
 
 function pintarBloqueio(){
   pintarReguas();
-  const graus = [...new Set(filaCasos().map((x) => x.aval.chave))];
+  const chaves = [...new Set(filaCasos().map((x) => x.aval.chave))];
   $('#filtroFilaGrau').innerHTML = `<option value="">Todos os vereditos</option>` +
-    graus.map((g) => `<option value="${g}">${esc(VEREDITOS[g].rotulo)}</option>`).join('');
+    chaves.map((g) => `<option value="${g}">${esc(PLATAFORMAS[VEREDITOS[g].plat].curto)} · ${esc(VEREDITOS[g].rotulo)}</option>`).join('');
   const vends = [...new Set(CLIENTES.map((c) => c.vend).filter(Boolean))].sort();
   $('#filtroFilaVend').innerHTML = `<option value="">Todos os vendedores</option>` +
     vends.map((v) => `<option value="${v}">${esc(nomeVend(v))}</option>`).join('');
@@ -1929,8 +2125,10 @@ function pintarFila(){
   const fg = $('#filtroFilaGrau').value;
   const fv = $('#filtroFilaVend').value;
   const fd = $('#filtroFilaDec').value;
+  const fp = $('#filtroFilaPlat').value;
 
   let casos = filaCasos();
+  if (fp) casos = casos.filter((x) => x.plat === fp);
   if (fg) casos = casos.filter((x) => x.aval.chave === fg);
   if (fv) casos = casos.filter((x) => x.c.vend === fv);
   if (fd === 'pendente') casos = casos.filter((x) => !x.aval.decisao);
@@ -1940,37 +2138,40 @@ function pintarFila(){
 
   if (!casos.length){
     $('#fila').innerHTML = `<div class="vazio" style="grid-column:1/-1"><h3>Fila vazia</h3>
-      <p>Com a régua atual e os filtros escolhidos não sobrou nenhum caso. Afrouxe a régua de acessos ou troque o filtro de decisão para ver o que já foi decidido.</p></div>`;
+      <p>Com a régua atual e os filtros escolhidos não sobrou nenhum caso. Afrouxe a régua ou troque o filtro de decisão para ver o que já foi decidido.</p></div>`;
     return;
   }
 
-  $('#fila').innerHTML = casos.map(({ c, aval }) => {
-    const obs = BASE.observacoes[c.codigo] || '';
-    const bt = (v, cls, rot) => `<button type="button" class="b mini ${cls}" data-dec="${v}" data-cod="${c.codigo}" aria-pressed="${aval.decisao === v}">${rot}</button>`;
+  $('#fila').innerHTML = casos.map(({ c, aval, plat }) => {
+    const k = chaveDecisao(c.codigo, plat);
+    const obs = BASE.observacoes[k] || '';
+    const bt = (v, cls, rot) => `<button type="button" class="b mini ${cls}" data-dec="${v}" data-k="${k}" aria-pressed="${aval.decisao === v}">${rot}</button>`;
+    const cortar = plat === 'ECOMMERCE' ? 'Cortar site' : 'Cortar Carpa';
+    const evid = plat === 'ECOMMERCE'
+      ? [['Acessos ao site', inteiroFmt(c.acessosEcom)], ['Faturou no site', moedaCurta(c.vlEcom)],
+         ['Sala', moedaCurta(c.vlSala)], ['Média 3M', moedaCurta(c.media3m)]]
+      : [['Acessos ao Carpa', inteiroFmt(c.acessosCarpa)], ['Logins', String(c.cadastros.length)],
+         ['Comprou no mês', moedaCurta(c.vlTotal)], ['Média 3M', moedaCurta(c.media3m)]];
     return `<article class="caso g-${aval.grau}${aval.decisao ? ' decidido' : ''}">
-      <h3>${esc(c.nome)}<small>${esc(c.codigo)} · ${esc(nomeVend(c.vend))}${c.canais.length ? ' · ' + esc(c.canais.join('/')) : ''}</small></h3>
-      <div>${chip(aval)}${aval.decisao ? ` <span class="chip c-info"><span class="pt"></span>marcado: ${esc(aval.decisao.toLowerCase())}</span>` : ''}</div>
-      <div class="evid">
-        <div><span class="k">Acessos mês</span><span class="v">${inteiroFmt(c.acessosMes)}</span></div>
-        <div><span class="k">e-commerce</span><span class="v">${moedaCurta(c.vlEcom)}</span></div>
-        <div><span class="k">Sala</span><span class="v">${moedaCurta(c.vlSala)}</span></div>
-        <div><span class="k">Média 3M</span><span class="v">${moedaCurta(c.media3m)}</span></div>
-      </div>
+      <h3>${esc(c.nome)}<small>${esc(c.codigo)} · ${esc(nomeVend(c.vend))}</small></h3>
+      <div><span class="chip ${plat === 'ECOMMERCE' ? 'c-info' : 'c-neutro'}"><span class="pt"></span>${esc(PLATAFORMAS[plat].rotulo)}</span>
+        ${chip(aval)}${aval.decisao ? ` <span class="chip c-info"><span class="pt"></span>marcado: ${esc(aval.decisao.toLowerCase())}</span>` : ''}</div>
+      <div class="evid">${evid.map(([k2, v]) => `<div><span class="k">${esc(k2)}</span><span class="v">${esc(v)}</span></div>`).join('')}</div>
       <p class="porque"><b>O que fazer:</b> ${esc(aval.acao)}</p>
       <ul class="fatores">
         ${aval.fatores.map((f) => `<li>${esc(f)}</li>`).join('')}
         ${aval.lacunas.map((f) => `<li class="lacuna">${esc(f)}</li>`).join('')}
       </ul>
-      <textarea class="obs" data-obs="${c.codigo}" placeholder="Observação — vai junto na exportação e volta se o vendedor preencher na planilha">${esc(obs)}</textarea>
-      <div class="acoes">${bt('BLOQUEAR', 'perigo', 'Bloquear')}${bt('MANTER', 'ok', 'Manter')}${bt('OBSERVAR', 'espera', 'Observar')}
+      <textarea class="obs" data-obs="${k}" placeholder="Observação — vai junto na exportação e volta se o vendedor preencher na planilha">${esc(obs)}</textarea>
+      <div class="acoes">${bt('BLOQUEAR', 'perigo', cortar)}${bt('MANTER', 'ok', 'Manter')}${bt('OBSERVAR', 'espera', 'Observar')}
         <button type="button" class="b mini" data-ficha="${c.codigo}">Ficha</button></div>
     </article>`;
   }).join('');
 
   $$('#fila [data-dec]').forEach((b) => b.onclick = () => {
-    const cod = b.dataset.cod;
-    BASE.decisoes[cod] = BASE.decisoes[cod] === b.dataset.dec ? undefined : b.dataset.dec;
-    if (!BASE.decisoes[cod]) delete BASE.decisoes[cod];
+    const k = b.dataset.k;
+    if (BASE.decisoes[k] === b.dataset.dec) delete BASE.decisoes[k];
+    else BASE.decisoes[k] = b.dataset.dec;
     recalcular(); salvar(); pintarFila(); pintarAbas();
   });
   $$('#fila [data-obs]').forEach((t) => t.onchange = () => {
@@ -1986,23 +2187,25 @@ function pintarFila(){
 const COLS_CLI = [
   { k: 'nome', rot: 'Cliente', tipo: 'nome' },
   { k: 'vend', rot: 'Vendedor', get: (c) => nomeVend(c.vend) },
-  { k: 'canal', rot: 'Canal', get: (c) => c.canais.join('/') || '—' },
-  { k: 'acessosMes', rot: 'Acessos mês', num: true },
-  { k: 'acessos30d', rot: 'Acessos 30d', num: true },
-  { k: 'vlEcom', rot: 'e-commerce', num: true, moeda: true },
+  { k: 'acessosEcom', rot: 'Acessos site', num: true },
+  { k: 'vlEcom', rot: 'Faturou no site', num: true, moeda: true },
   { k: 'vlSala', rot: 'Sala', num: true, moeda: true },
+  { k: 'retorno', rot: 'R$/acesso site', num: true, moeda: true, get: (c) => AVAL.get(c.codigo).ecom.retorno },
+  { k: 'vEcom', rot: 'Veredito · site', get: (c) => AVAL.get(c.codigo).ecom.rotulo },
+  { k: 'acessosCarpa', rot: 'Acessos Carpa', num: true },
+  { k: 'logins', rot: 'Logins Carpa', num: true, get: (c) => c.cadastros.length },
+  { k: 'vCarpa', rot: 'Veredito · catálogo', get: (c) => AVAL.get(c.codigo).carpa.rotulo },
   { k: 'media3m', rot: 'Média 3M', num: true, moeda: true },
-  { k: 'retorno', rot: 'R$/acesso', num: true, moeda: true, get: (c) => AVAL.get(c.codigo).retorno },
-  { k: 'veredito', rot: 'Veredito', get: (c) => AVAL.get(c.codigo).rotulo },
-  { k: 'decisao', rot: 'Decisão', get: (c) => BASE.decisoes[c.codigo] || '' },
+  { k: 'decisao', rot: 'Decisões', get: (c) => [decisaoDe(c.codigo, 'ECOMMERCE'), decisaoDe(c.codigo, 'CATALOGO')].filter(Boolean).join(' / ') },
 ];
 
 function pintarClientes(){
-  const graus = [...new Set(CLIENTES.map((c) => AVAL.get(c.codigo).chave))];
-  const sel = $('#filtroCliGrau');
-  const antes = sel.value;
+  const chaves = [...new Set(CLIENTES.flatMap((c) => {
+    const a = AVAL.get(c.codigo); return [a.ecom.chave, a.carpa.chave];
+  }))];
+  const sel = $('#filtroCliGrau'); const antes = sel.value;
   sel.innerHTML = `<option value="">Todos os vereditos</option>` +
-    graus.map((g) => `<option value="${g}">${esc(VEREDITOS[g].rotulo)}</option>`).join('');
+    chaves.map((g) => `<option value="${g}">${esc(PLATAFORMAS[VEREDITOS[g].plat].curto)} · ${esc(VEREDITOS[g].rotulo)}</option>`).join('');
   sel.value = antes;
   const vends = [...new Set(CLIENTES.map((c) => c.vend).filter(Boolean))].sort();
   const sv = $('#filtroCliVend'); const antesV = sv.value;
@@ -2019,14 +2222,14 @@ function pintarTabelaClientes(){
   const fc = $('#filtroCliCanal').value;
 
   let lista = [...CLIENTES];
-  if (fg) lista = lista.filter((c) => AVAL.get(c.codigo).chave === fg);
+  if (fg) lista = lista.filter((c) => { const a = AVAL.get(c.codigo); return a.ecom.chave === fg || a.carpa.chave === fg; });
   if (fv) lista = lista.filter((c) => c.vend === fv);
   if (fc) lista = lista.filter((c) => c.canais.includes(fc));
   if (busca) lista = lista.filter((c) =>
     (c.nome + ' ' + c.codigo + ' ' + c.cnpj + ' ' + nomeVend(c.vend)).toLowerCase().includes(busca));
 
   const o = ORDEM.clientes;
-  const col = COLS_CLI.find((x) => x.k === o.col) || COLS_CLI[5];
+  const col = COLS_CLI.find((x) => x.k === o.col) || COLS_CLI[3];
   lista.sort((a, b) => {
     const va = col.get ? col.get(a) : a[col.k];
     const vb = col.get ? col.get(b) : b[col.k];
@@ -2043,10 +2246,13 @@ function pintarTabelaClientes(){
     const a = AVAL.get(c.codigo);
     const cel = COLS_CLI.map((col) => {
       if (col.tipo === 'nome') return `<td class="nome"><b>${esc(c.nome)}</b><small>${esc(c.codigo)}${c.cnpj ? ' · ' + esc(c.cnpj) : ''}</small></td>`;
-      if (col.k === 'veredito') return `<td>${chip(a)}</td>`;
+      if (col.k === 'vEcom') return `<td>${chip(a.ecom)}</td>`;
+      if (col.k === 'vCarpa') return `<td>${chip(a.carpa)}</td>`;
       if (col.k === 'decisao'){
-        const d = BASE.decisoes[c.codigo];
-        return `<td>${d ? `<span class="chip ${d === 'BLOQUEAR' ? 'c-bloq' : d === 'MANTER' ? 'c-bom' : 'c-aviso'}"><span class="pt"></span>${esc(d.toLowerCase())}</span>` : '<span class="zero">—</span>'}</td>`;
+        const ds = [['ECOMMERCE', 'site'], ['CATALOGO', 'Carpa']]
+          .map(([pl, rot]) => { const d = decisaoDe(c.codigo, pl); return d ? `<span class="chip ${d === 'BLOQUEAR' ? 'c-bloq' : d === 'MANTER' ? 'c-bom' : 'c-aviso'}"><span class="pt"></span>${rot}: ${esc(d.toLowerCase())}</span>` : ''; })
+          .filter(Boolean).join(' ');
+        return `<td>${ds || '<span class="zero">—</span>'}</td>`;
       }
       const v = col.get ? col.get(c) : c[col.k];
       if (col.num){
@@ -2058,7 +2264,7 @@ function pintarTabelaClientes(){
     return `<tr data-cod="${c.codigo}" style="cursor:pointer">${cel}</tr>`;
   }).join('');
 
-  const corte = lista.length > 600 ? `<tfoot><tr><td colspan="${COLS_CLI.length}">Mostrando os 600 primeiros de ${lista.length}. Use a busca ou os filtros para estreitar — a exportação leva todos.</td></tr></tfoot>` : '';
+  const corte = lista.length > 600 ? `<tfoot><tr><td colspan="${COLS_CLI.length}">Mostrando os 600 primeiros de ${lista.length}. Use a busca ou os filtros — a exportação leva todos.</td></tr></tfoot>` : '';
   $('#tbClientes').innerHTML = `<thead><tr>${cab}</tr></thead><tbody>${corpo || `<tr><td colspan="${COLS_CLI.length}">Nada encontrado com estes filtros.</td></tr>`}</tbody>${corte}`;
 
   $$('#tbClientes thead th.ord').forEach((th) => th.onclick = () => {
@@ -2080,17 +2286,18 @@ function pintarVendedores(){
     const seg = (q, cor) => `<i style="width:${(q / n) * 100}%;background:${cor}"></i>`;
     return `<article class="vend">
       <div class="cab"><b>${esc(x.nome || 'Sem vendedor')}</b><span>${esc(x.vend)}</span></div>
-      <div class="medidor" role="img" aria-label="Carteira: ${x.comprando} comprando pela plataforma, ${x.balcao} consultando e fechando fora, ${x.garimpo} só consultando, ${x.parado} sem usar o canal">
-        ${seg(x.comprando, 'var(--verde)')}${seg(x.balcao, 'var(--ambar)')}${seg(x.garimpo, 'var(--vermelho)')}${seg(x.parado, 'var(--aco2)')}
+      <div class="medidor" role="img" aria-label="Carteira: ${x.compramNoSite} compram pelo site, ${x.veemEFecham} veem no site e fecham na sala, ${x.garimpoSite} só pegam preço, ${x.foraDoSite} não entram no site">
+        ${seg(x.compramNoSite, 'var(--verde)')}${seg(x.veemEFecham, 'var(--ambar)')}${seg(x.garimpoSite, 'var(--vermelho)')}${seg(x.foraDoSite, 'var(--borda2)')}
       </div>
       <div class="linhas">
         <div><span>Clientes na base</span><b>${x.carteira}</b></div>
-        <div><span>Com cadastro na plataforma</span><b>${x.cadastrados}</b></div>
-        <div><span>Comprando pelo canal</span><b>${x.comprando}</b></div>
-        <div${x.garimpo ? ' class="mal"' : ''}><span>Só consultando preço</span><b>${x.garimpo}</b></div>
-        <div${x.balcao ? ' class="mal"' : ''}><span>Consulta e fecha fora</span><b>${x.balcao}</b></div>
-        <div><span>e-commerce no mês</span><b>${moedaCurta(x.ecom)}</b></div>
-        <div><span>Parte do canal no faturamento</span><b>${pct(x.pctEcom)}</b></div>
+        <div><span>Compram pelo site</span><b>${x.compramNoSite}</b></div>
+        <div${x.garimpoSite ? ' class="mal"' : ''}><span>Só pegam preço no site</span><b>${x.garimpoSite}</b></div>
+        <div${x.veemEFecham ? ' class="mal"' : ''}><span>Veem no site, fecham na sala</span><b>${x.veemEFecham}</b></div>
+        <div><span>Com login no catálogo</span><b>${x.comCarpa}</b></div>
+        <div${x.garimpoCarpa ? ' class="mal"' : ''}><span>Usam o Carpa e não compram</span><b>${x.garimpoCarpa}</b></div>
+        <div><span>Faturamento pelo site</span><b>${moedaCurta(x.ecom)}</b></div>
+        <div><span>Parte do site no faturamento</span><b>${pct(x.pctEcom)}</b></div>
       </div>
       <div class="acoes"><button class="b mini" type="button" data-vend="${x.vend}">Ver carteira</button>
       <button class="b mini" type="button" data-exp="${x.vend}">Planilha</button></div>
@@ -2098,28 +2305,25 @@ function pintarVendedores(){
   }).join('');
 
   $$('#vends [data-vend]').forEach((b) => b.onclick = () => {
-    $('#filtroCliVend').value = b.dataset.vend;
     irPara('clientes');
     $('#filtroCliVend').value = b.dataset.vend;
     pintarTabelaClientes();
   });
-  $$('#vends [data-exp]').forEach((b) => b.onclick = () => exportarCarteira(b.dataset.vend));
+  $$('#vends [data-exp]').forEach((b) => b.onclick = () => exportarCarteira(b.dataset.exp));
 
   const cols = [
     ['Vendedor', (x) => x.nome || 'Sem vendedor'], ['Código', (x) => x.vend],
-    ['Clientes', (x) => x.carteira, 1], ['Cadastrados', (x) => x.cadastrados, 1],
-    ['Comprando', (x) => x.comprando, 1], ['Só consulta', (x) => x.garimpo, 1],
-    ['Fecha fora', (x) => x.balcao, 1], ['Sem usar canal', (x) => x.parado, 1],
-    ['Acessos sem pedido', (x) => x.acessosSemPedido, 1],
-    ['e-commerce', (x) => x.ecom, 2], ['Sala', (x) => x.sala, 2],
-    ['% do canal', (x) => x.pctEcom, 3],
+    ['Clientes', (x) => x.carteira, 1], ['Compram pelo site', (x) => x.compramNoSite, 1],
+    ['Só preço no site', (x) => x.garimpoSite, 1], ['Veem e fecham na sala', (x) => x.veemEFecham, 1],
+    ['Login no Carpa', (x) => x.comCarpa, 1], ['Carpa sem compra', (x) => x.garimpoCarpa, 1],
+    ['Acessos ao site sem pedido', (x) => x.acessosSiteSemPedido, 1],
+    ['Faturou no site', (x) => x.ecom, 2], ['Sala', (x) => x.sala, 2],
+    ['% do site', (x) => x.pctEcom, 3],
   ];
-  const tot = lista.reduce((s, x) => ({
-    carteira: s.carteira + x.carteira, cadastrados: s.cadastrados + x.cadastrados,
-    comprando: s.comprando + x.comprando, garimpo: s.garimpo + x.garimpo, balcao: s.balcao + x.balcao,
-    parado: s.parado + x.parado, acessosSemPedido: s.acessosSemPedido + x.acessosSemPedido,
-    ecom: s.ecom + x.ecom, sala: s.sala + x.sala,
-  }), { carteira: 0, cadastrados: 0, comprando: 0, garimpo: 0, balcao: 0, parado: 0, acessosSemPedido: 0, ecom: 0, sala: 0 });
+  const tot = lista.reduce((s, x) => {
+    for (const k of ['carteira', 'compramNoSite', 'garimpoSite', 'veemEFecham', 'comCarpa', 'garimpoCarpa', 'acessosSiteSemPedido', 'ecom', 'sala']) s[k] += x[k];
+    return s;
+  }, { carteira: 0, compramNoSite: 0, garimpoSite: 0, veemEFecham: 0, comCarpa: 0, garimpoCarpa: 0, acessosSiteSemPedido: 0, ecom: 0, sala: 0 });
   tot.nome = 'TOTAL'; tot.vend = '';
   tot.pctEcom = (tot.ecom + tot.sala) > 0 ? (tot.ecom / (tot.ecom + tot.sala)) * 100 : null;
 
@@ -2170,8 +2374,8 @@ function pintarHistorico(){
   const maxEcom = Math.max(...res.map((r) => r.ecom), 1);
 
   $('#tbHist').innerHTML =
-    `<thead><tr><th>Competência</th><th class="num">Clientes</th><th class="num">Acessaram</th><th class="num">Compraram</th>
-      <th class="num">Acessam sem comprar</th><th class="num">e-commerce</th><th class="num">Sala</th><th class="num">% do canal</th><th>Peso</th></tr></thead>` +
+    `<thead><tr><th>Competência</th><th class="num">Clientes</th><th class="num">Entraram no site</th><th class="num">Compraram</th>
+      <th class="num">Entram no site sem comprar</th><th class="num">e-commerce</th><th class="num">Sala</th><th class="num">% do canal</th><th>Peso</th></tr></thead>` +
     `<tbody>${res.map((r) => `<tr>
       <td><b>${esc(r.rotulo)}</b></td>
       <td class="num">${inteiroFmt(r.clientes)}</td>
@@ -2198,10 +2402,10 @@ function pintarHistorico(){
     const dEcom = a.ecom - b.ecom;
     const dAc = a.acessos - b.acessos;
     let mov = null;
-    if (b.ecom === 0 && a.ecom > 0) mov = ['Entrou no canal', 'c-bom'];
-    else if (b.ecom > 0 && a.ecom === 0 && a.acessos > 0) mov = ['Parou de comprar e continua acessando', 'c-bloq'];
-    else if (b.ecom > 0 && a.ecom === 0) mov = ['Parou de comprar pelo canal', 'c-aviso'];
-    else if (b.acessos === 0 && a.acessos > 0 && a.ecom === 0) mov = ['Começou a consultar sem comprar', 'c-aviso'];
+    if (b.ecom === 0 && a.ecom > 0) mov = ['Passou a comprar pelo site', 'c-bom'];
+    else if (b.ecom > 0 && a.ecom === 0 && a.acessos > 0) mov = ['Parou de comprar e continua entrando no site', 'c-bloq'];
+    else if (b.ecom > 0 && a.ecom === 0) mov = ['Parou de comprar pelo site', 'c-aviso'];
+    else if (b.acessos === 0 && a.acessos > 0 && a.ecom === 0) mov = ['Começou a ver preço sem comprar', 'c-aviso'];
     if (mov) linhas.push({ cod, nome: nomes[cod] || cod, mov, dEcom, dAc, a, b });
   }
   linhas.sort((x, y) => Math.abs(y.dEcom) - Math.abs(x.dEcom));
@@ -2212,7 +2416,7 @@ function pintarHistorico(){
       <td><span class="chip ${l.mov[1]}"><span class="pt"></span>${esc(l.mov[0])}</span></td>
       <td class="num">${moeda(l.b.ecom)}</td><td class="num">${moeda(l.a.ecom)}</td>
       <td class="num">${inteiroFmt(l.b.acessos)}</td><td class="num">${inteiroFmt(l.a.acessos)}</td></tr>`).join('')}</tbody></table></div>`
-    : `<div class="vazio"><h3>Ninguém mudou de comportamento</h3><p>Entre ${esc(antes.rotulo)} e ${esc(atual.rotulo)} nenhum cliente entrou no canal, saiu dele ou começou a consultar sem comprar.</p></div>`;
+    : `<div class="vazio"><h3>Ninguém mudou de comportamento</h3><p>Entre ${esc(antes.rotulo)} e ${esc(atual.rotulo)} ninguém passou a comprar pelo site, parou de comprar ou começou a só ver preço.</p></div>`;
   $$('#mudancas tbody tr[data-cod]').forEach((tr) => tr.onclick = () => abrirFicha(tr.dataset.cod));
 }
 
@@ -2225,52 +2429,60 @@ function abrirFicha(cod){
   const comps = competenciasOrdenadas();
   const serie = comps.map((k) => {
     const es = Object.values(k.espelhos).filter((e) => e.codigo === cod);
-    return { rotulo: k.rotulo, ecom: es.reduce((s, e) => s + val(e.vlEcom), 0), acessos: es.length ? Math.max(...es.map((e) => val(e.acessos))) : 0 };
+    return { rotulo: k.rotulo, ecom: es.reduce((s, e) => s + val(e.vlEcom), 0) };
   });
   const maxE = Math.max(...serie.map((s) => s.ecom), 1);
+
+  const bloco = (v) => `
+    <div style="border:1px solid var(--borda);border-radius:var(--r);padding:12px;margin-bottom:12px">
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
+        <span class="chip ${v.plat === 'ECOMMERCE' ? 'c-info' : 'c-neutro'}"><span class="pt"></span>${esc(PLATAFORMAS[v.plat].rotulo)}</span>
+        ${chip(v)}
+      </div>
+      <p class="porque" style="margin-bottom:8px"><b>O que fazer:</b> ${esc(v.acao)}</p>
+      <ul class="fatores">${v.fatores.map((f) => `<li>${esc(f)}</li>`).join('')}${v.lacunas.map((f) => `<li class="lacuna">${esc(f)}</li>`).join('')}</ul>
+      <div class="acoes" style="margin-top:10px">
+        ${['BLOQUEAR', 'MANTER', 'OBSERVAR'].map((d) => `<button type="button" class="b mini ${d === 'BLOQUEAR' ? 'perigo' : d === 'MANTER' ? 'ok' : 'espera'}" data-fdec="${d}" data-fplat="${v.plat}" aria-pressed="${v.decisao === d}">${d === 'BLOQUEAR' ? (v.plat === 'ECOMMERCE' ? 'Cortar site' : 'Cortar Carpa') : d[0] + d.slice(1).toLowerCase()}</button>`).join('')}
+      </div>
+      <textarea class="obs" style="margin-top:8px" data-fobs="${v.plat}" placeholder="Observação sobre ${esc(PLATAFORMAS[v.plat].rotulo)}">${esc(BASE.observacoes[chaveDecisao(cod, v.plat)] || '')}</textarea>
+    </div>`;
 
   $('#gavetaPainel').innerHTML = `
     <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start">
       <div><h2 id="gavetaTit">${esc(c.nome)}</h2><p class="cod">${esc(c.codigo)}${c.cnpj ? ' · CNPJ ' + esc(c.cnpj) : ''} · ${esc(nomeVend(c.vend))}</p></div>
       <button class="b mini" type="button" id="fechaGaveta">Fechar</button>
     </div>
-    <div style="margin-bottom:14px">${chip(a)}</div>
-    <p class="porque" style="margin-bottom:14px"><b>O que fazer:</b> ${esc(a.acao)}</p>
-    <ul class="fatores" style="margin-bottom:16px">
-      ${a.fatores.map((f) => `<li>${esc(f)}</li>`).join('')}
-      ${a.lacunas.map((f) => `<li class="lacuna">${esc(f)}</li>`).join('')}</ul>
+    ${bloco(a.ecom)}
+    ${bloco(a.carpa)}
     <div class="ficha">
-      ${[['Acessos no mês', inteiroFmt(c.acessosMes)], ['Acessos 30 dias (plataforma)', inteiroFmt(c.acessos30d)],
-         ['Faturamento e-commerce', moeda(c.vlEcom)], ['Faturamento sala', moeda(c.vlSala)],
-         ['Média 3 últimos meses', moeda(c.media3m)], ['Faturamento 90 dias (plataforma)', moeda(c.fat90d)],
-         ['R$ por acesso', a.retorno === null ? '—' : moeda(a.retorno)], ['Canais no relatório', c.canais.join(' / ') || '—'],
-         ['Cadastros na plataforma', String(c.cadastros.length)], ['Último acesso', dataBr(c.cadastros.map((x) => x.ultimoAcesso).filter(Boolean).sort().pop())],
+      ${[['Acessos ao site (mês)', inteiroFmt(c.acessosEcom)], ['Acessos ao Carpa (30 dias)', inteiroFmt(c.acessosCarpa)],
+         ['Faturou pelo site', moeda(c.vlEcom)], ['Faturou na sala', moeda(c.vlSala)],
+         ['Média 3 últimos meses', moeda(c.media3m)], ['Faturamento 90 dias', moeda(c.fat90d)],
+         ['R$ por acesso ao site', a.ecom.retorno === null ? '—' : moeda(a.ecom.retorno)], ['Canais no relatório', c.canais.join(' / ') || '—'],
+         ['Logins no Carpa', String(c.cadastros.length)], ['Último acesso ao Carpa', dataBr(c.cadastros.map((x) => x.ultimoAcesso).filter(Boolean).sort().pop())],
          ['Última compra', c.carteira ? dataBr(c.carteira.ultimaCompraDt) : '—'], ['Valor da última compra', c.carteira ? moeda(c.carteira.ultimaCompraVl) : '—'],
          ['Frota declarada', c.carteira ? inteiroFmt(c.carteira.frota) : '—'], ['Média 4 meses (carteira)', c.carteira ? moeda(c.carteira.media4m) : '—'],
       ].map(([k, v]) => `<div><span class="k">${esc(k)}</span><span class="v">${esc(v)}</span></div>`).join('')}
     </div>
-    ${serie.length > 1 ? `<h3 style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--cinza);margin-bottom:8px">e-commerce mês a mês</h3>
+    ${serie.length > 1 ? `<h3 style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--texto2);margin-bottom:8px">Faturamento pelo site, mês a mês</h3>
       <div class="spark" style="height:44px;margin-bottom:6px">${serie.map((s) => `<i style="height:${Math.max(2, (s.ecom / maxE) * 44)}px;width:16px" title="${esc(s.rotulo)}: ${moeda(s.ecom)}" class="${s.ecom ? '' : 'vazio'}"></i>`).join('')}</div>
-      <p style="font-size:11px;color:var(--cinza);margin-bottom:16px">${serie.map((s) => esc(s.rotulo)).join(' · ')}</p>` : ''}
-    ${c.cadastros.length ? `<h3 style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--cinza);margin-bottom:8px">Logins deste cliente</h3>
+      <p style="font-size:11px;color:var(--texto2);margin-bottom:16px">${serie.map((s) => esc(s.rotulo)).join(' · ')}</p>` : ''}
+    ${c.cadastros.length ? `<h3 style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--texto2);margin-bottom:8px">Logins deste cliente no catálogo Carpa</h3>
       <div class="rolo" style="margin-bottom:16px"><table><thead><tr><th>Nome</th><th class="num">Acessos 30d</th><th>Último acesso</th><th>Status</th></tr></thead>
-      <tbody>${c.cadastros.map((x) => `<tr><td class="nome">${esc(x.nome)}<small>${esc(x.email)}</small></td><td class="num">${inteiroFmt(x.acessos30d)}</td><td>${dataBr(x.ultimoAcesso)}</td><td>${esc(x.status)}</td></tr>`).join('')}</tbody></table></div>` : ''}
-    <label style="display:block;font-size:12px;color:var(--cinza);margin-bottom:6px" for="obsFicha">Observação</label>
-    <textarea class="obs" id="obsFicha" placeholder="Fica gravada e vai junto em toda exportação">${esc(BASE.observacoes[cod] || '')}</textarea>
-    <div class="acoes" style="margin-top:12px">
-      ${['BLOQUEAR', 'MANTER', 'OBSERVAR'].map((d) => `<button type="button" class="b ${d === 'BLOQUEAR' ? 'perigo' : d === 'MANTER' ? 'ok' : 'espera'}" data-fdec="${d}" aria-pressed="${BASE.decisoes[cod] === d}">${d[0] + d.slice(1).toLowerCase()}</button>`).join('')}
-    </div>`;
+      <tbody>${c.cadastros.map((x) => `<tr><td class="nome">${esc(x.nome)}<small>${esc(x.email)}</small></td><td class="num">${inteiroFmt(x.acessosCarpa)}</td><td>${dataBr(x.ultimoAcesso)}</td><td>${esc(x.status)}</td></tr>`).join('')}</tbody></table></div>` : ''}`;
 
   $('#gaveta').hidden = false;
   $('#fechaGaveta').onclick = fecharGaveta;
-  $('#obsFicha').onchange = (e) => {
-    const v = e.target.value.trim();
-    if (v) BASE.observacoes[cod] = v; else delete BASE.observacoes[cod];
+  $$('#gavetaPainel [data-fobs]').forEach((t) => t.onchange = () => {
+    const k = chaveDecisao(cod, t.dataset.fobs);
+    const v = t.value.trim();
+    if (v) BASE.observacoes[k] = v; else delete BASE.observacoes[k];
     salvar(); pintar();
-  };
+  });
   $$('#gavetaPainel [data-fdec]').forEach((b) => b.onclick = () => {
-    BASE.decisoes[cod] = BASE.decisoes[cod] === b.dataset.fdec ? undefined : b.dataset.fdec;
-    if (!BASE.decisoes[cod]) delete BASE.decisoes[cod];
+    const k = chaveDecisao(cod, b.dataset.fplat);
+    if (BASE.decisoes[k] === b.dataset.fdec) delete BASE.decisoes[k];
+    else BASE.decisoes[k] = b.dataset.fdec;
     recalcular(); salvar(); abrirFicha(cod); pintar();
   });
   $('#fechaGaveta').focus();
@@ -2302,7 +2514,7 @@ async function receber(arquivos){
     try { await receberUm(f); }
     catch (e){ anotar(`✕ ${f.name} — ${e.message}`, 'err'); }
   }
-  recalcular(); salvar(); pintar(); pintarFontes();
+  recalcular(); salvar(); pintar(); pintarFontes(); pintarVagas();
 }
 
 function registrarFonte(arquivo, tipo, detalhe){
@@ -2393,6 +2605,93 @@ function aplicarPacote(b){
   };
 }
 
+/* ---------- as vagas: um lugar nomeado para cada arquivo ---------- */
+
+const VAGAS = [
+  { id: 'ECOM_REVENDA', num: 'Arquivo 1', tit: 'Sala × eCom — Revenda',
+    arq: 'Revenda_ SALA e Ecommerce mes ______.pdf', ext: '.pdf',
+    exp: 'Sai do OPUSCase (PCN5I5). Traz os acessos ao site e o que cada revenda faturou na sala e no site.',
+    conta: () => contaEspelho('REVENDA') },
+  { id: 'ECOM_CONSUMIDOR', num: 'Arquivo 2', tit: 'Sala × eCom — Consumidor',
+    arq: 'Consumidor_ SALA e Ecommerce mes ______.pdf', ext: '.pdf',
+    exp: 'Sai do OPUSCase (PCN5I6). Mesma coisa do anterior, para os clientes consumidor final.',
+    conta: () => contaEspelho('CONSUMIDOR') },
+  { id: 'CARPA', num: 'Arquivo 3', tit: 'Cadastros do catálogo Carpa',
+    arq: 'Clientes_Carpa_______.xlsx', ext: '.xlsx',
+    exp: 'Sai do Carpa. Quem tem login no catálogo, quantas vezes abriu em 30 dias e o CNPJ que liga ao código do cliente.',
+    conta: () => BASE.cadastros.length },
+  { id: 'CARTEIRA', num: 'Arquivo 4', tit: 'Carteira dos vendedores',
+    arq: 'C_Ribeirão Preto ______.xlsx', ext: '.xlsx',
+    exp: 'Uma aba por vendedor. É o que dá dono a cada cliente e traz a média dos 4 meses.',
+    conta: () => Object.values(BASE.carteira).reduce((s, v) => s + v.clientes.length, 0) },
+];
+
+function contaEspelho(canal){
+  const c = competenciaAtual();
+  if (!c) return 0;
+  return Object.values(c.espelhos).filter((e) => e.canal === canal).length;
+}
+
+const ESTADO_VAGA = {};   // id -> 'erro' com a mensagem, quando falhou
+
+function pintarVagas(){
+  $('#vagas').innerHTML = VAGAS.map((v) => {
+    const n = v.conta();
+    const erro = ESTADO_VAGA[v.id];
+    const estado = n > 0
+      ? `<span class="estado ok">✓ ${fmtInt.format(n)} linha(s) carregada(s)</span>`
+      : (erro ? `<span class="estado erro">✕ ${esc(erro)}</span>` : `<span class="estado falta">Clique para escolher este arquivo</span>`);
+    return `<button type="button" class="vaga${n > 0 ? ' cheia' : ''}" data-vaga="${v.id}">
+      <span class="num">${esc(v.num)} · ${esc(v.ext)}</span>
+      <span class="tit">${esc(v.tit)}</span>
+      <span class="arq">${esc(v.arq)}</span>
+      <span class="exp">${esc(v.exp)}</span>
+      ${estado}
+    </button>`;
+  }).join('');
+
+  $$('#vagas [data-vaga]').forEach((b) => {
+    b.onclick = () => {
+      const ent = document.createElement('input');
+      ent.type = 'file';
+      ent.accept = VAGAS.find((v) => v.id === b.dataset.vaga).ext;
+      ent.onchange = () => { if (ent.files.length) receberNaVaga(b.dataset.vaga, ent.files[0]); };
+      ent.click();
+    };
+    ['dragenter', 'dragover'].forEach((ev) => b.addEventListener(ev, (e) => { e.preventDefault(); b.classList.add('sobre'); }));
+    ['dragleave', 'drop'].forEach((ev) => b.addEventListener(ev, (e) => { e.preventDefault(); b.classList.remove('sobre'); }));
+    b.addEventListener('drop', (e) => {
+      const f = e.dataTransfer?.files?.[0];
+      if (f) receberNaVaga(b.dataset.vaga, f);
+    });
+  });
+}
+
+/**
+ * Recebe um arquivo numa vaga específica. Se o conteúdo não bate com o que
+ * a vaga espera, diz exatamente o que veio e o que era esperado — em vez de
+ * um erro genérico que não ajuda ninguém.
+ */
+async function receberNaVaga(idVaga, arquivo){
+  const vaga = VAGAS.find((v) => v.id === idVaga);
+  delete ESTADO_VAGA[idVaga];
+  const antes = vaga.conta();
+  try {
+    await receberUm(arquivo);
+    const depois = vaga.conta();
+    if (depois <= antes){
+      const outra = VAGAS.find((v) => v.id !== idVaga && v.conta() > 0 && v.conta() !== antes);
+      ESTADO_VAGA[idVaga] = outra
+        ? `Este arquivo é o "${outra.tit}", não este. Carreguei no lugar certo.`
+        : 'O arquivo foi lido, mas não trouxe o conteúdo esperado nesta vaga.';
+    }
+  } catch (e){
+    ESTADO_VAGA[idVaga] = e.message;
+    anotar(`✕ ${arquivo.name} — ${e.message}`, 'err');
+  }
+  recalcular(); salvar(); pintar(); pintarFontes(); pintarVagas();
+}
+
 function pintarFontes(){
   const f = [...BASE.fontes].sort((a, b) => b.quando.localeCompare(a.quando));
   $('#tbFontes').innerHTML = f.length
@@ -2411,91 +2710,124 @@ function nomeArquivo(prefixo, ext){
 
 function linhaCliente(c){
   const a = AVAL.get(c.codigo);
+  const dE = decisaoDe(c.codigo, 'ECOMMERCE');
+  const dC = decisaoDe(c.codigo, 'CATALOGO');
   return [
     c.codigo, c.nome, c.cnpj || '', nomeVend(c.vend), c.canais.join('/'),
-    c.acessosMes, c.acessos30d, c.vlEcom, c.vlSala, c.vlTotal, c.media3m, c.fat90d,
-    a.retorno === null ? null : Math.round(a.retorno * 100) / 100,
-    a.rotulo, a.acao,
-    a.fatores.join(' | '), a.lacunas.join(' | '),
-    c.cadastros.length, c.cadastros.map((x) => x.ultimoAcesso).filter(Boolean).sort().pop() || '',
-    c.carteira ? c.carteira.ultimaCompraDt || '' : '',
-    BASE.decisoes[c.codigo] || '', BASE.observacoes[c.codigo] || '',
+    c.acessosEcom, c.vlEcom, c.vlSala, c.vlTotal, c.media3m,
+    a.ecom.retorno === null ? null : Math.round(a.ecom.retorno * 100) / 100,
+    a.ecom.rotulo, a.ecom.acao, a.ecom.fatores.join(' | '), dE || '', BASE.observacoes[chaveDecisao(c.codigo, 'ECOMMERCE')] || '',
+    c.cadastros.length, c.acessosCarpa,
+    c.cadastros.map((x) => x.ultimoAcesso).filter(Boolean).sort().pop() || '',
+    a.carpa.rotulo, a.carpa.acao, a.carpa.fatores.join(' | '), dC || '', BASE.observacoes[chaveDecisao(c.codigo, 'CATALOGO')] || '',
+    c.fat90d, c.carteira ? c.carteira.ultimaCompraDt || '' : '',
+    [a.ecom.lacunas.join(' | '), a.carpa.lacunas.join(' | ')].filter(Boolean).join(' || '),
   ];
 }
-const CAB_CLIENTE = ['Código', 'Cliente', 'CNPJ/CPF', 'Vendedor', 'Canal', 'Acessos no mês', 'Acessos 30d',
-  'R$ e-commerce', 'R$ Sala', 'R$ Total', 'Média 3 meses', 'Faturamento 90 dias', 'R$ por acesso',
-  'Veredito', 'O que fazer', 'Evidência', 'Lacunas', 'Logins', 'Último acesso', 'Última compra',
-  'Decisão', 'Observação'];
+const CAB_CLIENTE = ['Código', 'Cliente', 'CNPJ/CPF', 'Vendedor', 'Canal',
+  'Acessos ao site', 'R$ no site', 'R$ na sala', 'R$ total', 'Média 3 meses', 'R$ por acesso ao site',
+  'Veredito SITE', 'O que fazer no site', 'Evidência site', 'Decisão site', 'Observação site',
+  'Logins Carpa', 'Acessos ao Carpa 30d', 'Último acesso ao Carpa',
+  'Veredito CATÁLOGO', 'O que fazer no catálogo', 'Evidência catálogo', 'Decisão catálogo', 'Observação catálogo',
+  'Faturamento 90 dias', 'Última compra', 'Lacunas'];
 
 function abaResumo(){
   const t = totais();
   const c = competenciaAtual();
+  const fila = filaCasos();
   const l = [['Indicador', 'Valor', 'De onde vem']];
   const p = (k, v, o) => l.push([k, v, o]);
   p('Competência', c ? c.rotulo : '—', 'AAMM das linhas do Sala x eCom');
   p('Praça', c && c.praca ? c.praca : '—', 'cabeçalho do relatório');
   p('Gerado em', new Date().toLocaleString('pt-BR'), 'relógio deste computador');
   p('Clientes cruzados', t.clientes, 'códigos únicos nas três fontes');
-  p('Com cadastro na plataforma', t.cadastrados, 'planilha de cadastros, só usuários externos');
-  p('Acessaram no mês', t.comAcesso, 'coluna Total Acessos do Sala x eCom');
-  p('Compraram pelo e-commerce', t.comprando, 'coluna VALOR NFs FAT eCOM');
-  p('Acessaram e não compraram', t.semPedido, 'acessos > 0 e e-commerce = 0');
-  p('Acessos que não viraram pedido', t.acessosSemPedido, 'soma dos acessos desses clientes');
-  p('Sugeridos para bloqueio', filaCasos().filter((x) => x.aval.grau === 'bloq').length, 'régua atual do painel');
-  p('Marcados para bloquear', Object.values(BASE.decisoes).filter((d) => d === 'BLOQUEAR').length, 'decisão humana');
-  p('Marcados para manter', Object.values(BASE.decisoes).filter((d) => d === 'MANTER').length, 'decisão humana');
-  p('Marcados para observar', Object.values(BASE.decisoes).filter((d) => d === 'OBSERVAR').length, 'decisão humana');
-  p('Faturamento sala', t.sala, 'Sala x eCom');
-  p('Faturamento e-commerce', t.ecom, 'Sala x eCom');
-  p('Parte do e-commerce (%)', t.pctEcom === null ? null : Math.round(t.pctEcom * 10) / 10, 'calculado');
   l.push([]);
-  l.push(['Régua usada nesta exportação', '', '']);
-  p('Acessos mínimos para virar consulta', BASE.reguas.minAcessos, 'ajustável na aba Bloqueio');
-  p('Retorno mínimo por acesso (R$)', BASE.reguas.minRetorno, 'ajustável na aba Bloqueio');
+  l.push(['E-COMMERCE — o site que vende', '', '']);
+  p('Entraram no site no mês', t.entramNoSite, 'coluna Total Acessos do Sala x eCom');
+  p('Compraram pelo site', t.compramNoSite, 'coluna VALOR NFs FAT eCOM');
+  p('Entraram e não compraram', t.siteSemPedido, 'acessos ao site > 0 e faturamento no site = 0');
+  p('Acessos ao site sem pedido', t.acessosSiteSemPedido, 'soma dos acessos desses clientes');
+  p('Veem no site e fecham na sala', t.veemEFecham, 'sem faturamento no site, com faturamento na sala');
+  p('Sugeridos para cortar o site', fila.filter((x) => x.plat === 'ECOMMERCE' && x.aval.grau === 'bloq').length, 'régua atual do painel');
+  p('Faturamento no site', t.ecom, 'Sala x eCom');
+  p('Faturamento na sala', t.sala, 'Sala x eCom');
+  p('Parte do site (%)', t.pctEcom === null ? null : Math.round(t.pctEcom * 10) / 10, 'calculado');
+  l.push([]);
+  l.push(['CATÁLOGO CARPA — consulta técnica, não vende', '', '']);
+  p('Clientes com login no catálogo', t.comCarpa, 'planilha de cadastros do Carpa, só usuários externos');
+  p('Usaram o catálogo em 30 dias', t.usamCarpa, 'coluna Acessos Últimos 30 Dias');
+  p('Usam o catálogo e não compram nada', t.carpaSemCompra, 'sem compra no mês, na média 3M e em 90 dias');
+  p('Acessos ao catálogo sem compra', t.acessosCarpaSemCompra, 'soma dos acessos desses clientes');
+  p('Têm catálogo e não abrem', t.carpaParado, 'login existe, zero acesso em 30 dias');
+  p('Sem login no catálogo', t.semCarpa, 'não aparecem na planilha de cadastros');
+  l.push([]);
+  l.push(['DECISÕES MARCADAS', '', '']);
+  const conta = (plat, d) => Object.entries(BASE.decisoes).filter(([k, v]) => k.endsWith('|' + plat) && v === d).length;
+  p('Cortar o site', conta('ECOMMERCE', 'BLOQUEAR'), 'decisão humana');
+  p('Manter o site', conta('ECOMMERCE', 'MANTER'), 'decisão humana');
+  p('Observar no site', conta('ECOMMERCE', 'OBSERVAR'), 'decisão humana');
+  p('Cortar o catálogo', conta('CATALOGO', 'BLOQUEAR'), 'decisão humana');
+  p('Manter o catálogo', conta('CATALOGO', 'MANTER'), 'decisão humana');
+  p('Observar no catálogo', conta('CATALOGO', 'OBSERVAR'), 'decisão humana');
+  l.push([]);
+  l.push(['RÉGUA USADA NESTA EXPORTAÇÃO', '', '']);
+  p('Acessos ao site para virar consulta', BASE.reguas.minAcessosEcom, 'ajustável na aba Bloqueio');
+  p('Retorno mínimo por acesso ao site (R$)', BASE.reguas.minRetorno, 'ajustável na aba Bloqueio');
+  p('Acessos ao catálogo para virar uso', BASE.reguas.minAcessosCarpa, 'ajustável na aba Bloqueio');
   p('Salvo-conduto para quem já comprou', BASE.reguas.salvoConduto ? 'ligado' : 'desligado', 'ajustável na aba Bloqueio');
   return { nome: 'Resumo', linhas: l };
 }
 
-function abaFila(){
-  const l = [['Código', 'Cliente', 'Vendedor', 'Veredito', 'Acessos no mês', 'R$ e-commerce', 'R$ Sala',
-    'Média 3 meses', 'O que fazer', 'Evidência', 'Lacunas', 'Decisão', 'Observação']];
-  for (const { c, aval } of filaCasos()){
-    l.push([c.codigo, c.nome, nomeVend(c.vend), aval.rotulo, c.acessosMes, c.vlEcom, c.vlSala, c.media3m,
+function abaFila(plat){
+  const l = [['Plataforma', 'Onde cortar', 'Código', 'Cliente', 'Vendedor', 'Veredito',
+    'Acessos ao site', 'R$ no site', 'R$ na sala', 'Acessos ao Carpa 30d', 'Média 3 meses',
+    'O que fazer', 'Evidência', 'Lacunas', 'Decisão', 'Observação']];
+  for (const { c, aval, plat: pl } of filaCasos()){
+    if (plat && pl !== plat) continue;
+    l.push([PLATAFORMAS[pl].rotulo, pl === 'ECOMMERCE' ? 'site pabu.com.br' : 'catálogo Carpa',
+      c.codigo, c.nome, nomeVend(c.vend), aval.rotulo,
+      c.acessosEcom, c.vlEcom, c.vlSala, c.acessosCarpa, c.media3m,
       aval.acao, aval.fatores.join(' | '), aval.lacunas.join(' | '),
-      BASE.decisoes[c.codigo] || '', BASE.observacoes[c.codigo] || '']);
+      aval.decisao || '', BASE.observacoes[chaveDecisao(c.codigo, pl)] || '']);
   }
-  return { nome: 'Fila de bloqueio', linhas: l };
+  return { nome: plat === 'ECOMMERCE' ? 'Cortar site' : (plat === 'CATALOGO' ? 'Cortar Carpa' : 'Fila de decisão'), linhas: l };
 }
 
 function abaVendedores(){
-  const l = [['Código', 'Vendedor', 'Clientes', 'Com cadastro', 'Comprando pelo canal', 'Só consulta preço',
-    'Consulta e fecha fora', 'Sem usar o canal', 'Acessos sem pedido', 'R$ e-commerce', 'R$ Sala', '% do canal']];
+  const l = [['Código', 'Vendedor', 'Clientes', 'Compram pelo site', 'Só pegam preço no site',
+    'Veem no site e fecham na sala', 'Não entram no site', 'Com login no Carpa',
+    'Usam o Carpa e não compram', 'Acessos ao site sem pedido', 'R$ no site', 'R$ na sala', '% do site']];
   for (const x of Object.values(placarVendedores()).sort((a, b) => b.ecom - a.ecom)){
-    l.push([x.vend, x.nome || 'Sem vendedor', x.carteira, x.cadastrados, x.comprando, x.garimpo, x.balcao,
-      x.parado, x.acessosSemPedido, x.ecom, x.sala, x.pctEcom === null ? null : Math.round(x.pctEcom * 10) / 10]);
+    l.push([x.vend, x.nome || 'Sem vendedor', x.carteira, x.compramNoSite, x.garimpoSite, x.veemEFecham,
+      x.foraDoSite, x.comCarpa, x.garimpoCarpa, x.acessosSiteSemPedido, x.ecom, x.sala,
+      x.pctEcom === null ? null : Math.round(x.pctEcom * 10) / 10]);
   }
   return { nome: 'Por vendedor', linhas: l };
 }
 
 function abaCadastros(){
-  const l = [['Cadastro', 'Tipo', 'Nome', 'Empresa', 'Código Pacaembu', 'CNPJ/CPF', 'Acessos 30d',
-    'Último acesso', 'Status', 'E-mail', 'E-mail do pedido', 'Faturamento 90 dias', 'Marca original', 'Veredito do painel', 'Decisão']];
+  const l = [['Cadastro', 'Tipo', 'Nome', 'Empresa', 'Código Pacaembu', 'CNPJ/CPF', 'Acessos ao Carpa 30d',
+    'Último acesso', 'Status', 'E-mail', 'E-mail do pedido', 'Faturamento 90 dias', 'Marca original',
+    'Veredito do catálogo', 'Decisão catálogo', 'Veredito do site', 'Decisão site']];
   for (const x of BASE.cadastros){
-    const a = x.codigo ? AVAL.get(x.codigo) : null;
-    l.push([x.cadastro, x.tipoUsuario, x.nome, x.empresa, x.codigoBruto, x.cnpj, x.acessos30d,
+    const a = x.codigo && AVAL.has(x.codigo) ? AVAL.get(x.codigo) : null;
+    l.push([x.cadastro, x.tipoUsuario, x.nome, x.empresa, x.codigoBruto, x.cnpj, x.acessosCarpa,
       x.ultimoAcesso || '', x.status, x.email, x.emailPedido, x.fat90d, x.marcaOriginal || '',
-      a ? a.rotulo : 'sem cruzamento', x.codigo ? (BASE.decisoes[x.codigo] || '') : '']);
+      a ? a.carpa.rotulo : 'sem cruzamento', x.codigo ? (decisaoDe(x.codigo, 'CATALOGO') || '') : '',
+      a ? a.ecom.rotulo : 'sem cruzamento', x.codigo ? (decisaoDe(x.codigo, 'ECOMMERCE') || '') : '']);
   }
-  return { nome: 'Cadastros da plataforma', linhas: l };
+  return { nome: 'Cadastros do Carpa', linhas: l };
 }
 
 function abaLacunas(){
-  const l = [['Código', 'Cliente', 'Vendedor', 'Veredito', 'Lacuna']];
+  const l = [['Código', 'Cliente', 'Vendedor', 'Plataforma', 'Veredito', 'Lacuna']];
   for (const c of CLIENTES){
     const a = AVAL.get(c.codigo);
-    for (const g of a.lacunas) l.push([c.codigo, c.nome, nomeVend(c.vend), a.rotulo, g]);
+    for (const v of [a.ecom, a.carpa]){
+      for (const g of v.lacunas) l.push([c.codigo, c.nome, nomeVend(c.vend), PLATAFORMAS[v.plat].rotulo, v.rotulo, g]);
+    }
   }
-  if (l.length === 1) l.push(['—', 'Nenhuma lacuna: todos os clientes tinham dado suficiente.', '', '', '']);
+  if (l.length === 1) l.push(['—', 'Nenhuma lacuna: todos os clientes tinham dado suficiente.', '', '', '', '']);
   return { nome: 'Lacunas', linhas: l };
 }
 
@@ -2504,12 +2836,12 @@ function abaClientes(lista){
 }
 
 function linhasCarteira(vend){
-  const lista = CLIENTES.filter((c) => c.vend === vend)
-    .sort((a, b) => {
-      const peso = { bloq: 0, aviso: 1, neutro: 2, bom: 3 };
-      const d = peso[AVAL.get(a.codigo).grau] - peso[AVAL.get(b.codigo).grau];
-      return d || val(b.vlEcom) - val(a.vlEcom);
-    });
+  const peso = { bloq: 0, aviso: 1, neutro: 2, bom: 3 };
+  const lista = CLIENTES.filter((c) => c.vend === vend).sort((a, b) => {
+    const pa = Math.min(peso[AVAL.get(a.codigo).ecom.grau], peso[AVAL.get(a.codigo).carpa.grau]);
+    const pb = Math.min(peso[AVAL.get(b.codigo).ecom.grau], peso[AVAL.get(b.codigo).carpa.grau]);
+    return (pa - pb) || (val(b.vlEcom) - val(a.vlEcom));
+  });
   return [CAB_CLIENTE, ...lista.map(linhaCliente)];
 }
 
@@ -2519,7 +2851,7 @@ function exportarCarteira(vend){
     nomeArquivo(`Carteira_${nome}`, 'xlsx'));
 }
 
-/** Vendedores na ordem do placar: quem move mais e-commerce primeiro. */
+/** Vendedores na ordem do placar: quem move mais faturamento no site primeiro. */
 function vendedoresPorPlacar(somenteReais){
   return Object.values(placarVendedores())
     .filter((x) => !somenteReais || ehVendedorReal(x.vend))
@@ -2529,8 +2861,7 @@ function vendedoresPorPlacar(somenteReais){
 
 function exportarPacote(){
   salvar();
-  const texto = JSON.stringify(BASE);
-  baixar(new Blob([texto], { type: 'application/json' }), nomeArquivo('pacote-carpa', 'json'));
+  baixar(new Blob([JSON.stringify(BASE)], { type: 'application/json' }), nomeArquivo('pacote-carpa', 'json'));
 }
 
 function exportarHtmlCompleto(){
@@ -2549,53 +2880,68 @@ function exportarHtmlCompleto(){
 /* ===================== MÉTODO ===================== */
 
 function pintarMetodo(){
-  const linhas = Object.entries(VEREDITOS).map(([k, v]) => {
-    const quando = {
-      COMPRA_PLATAFORMA: 'Faturou pelo e-commerce no mês e o retorno por acesso passa da régua.',
-      CONSULTA_CARA: 'Faturou pelo e-commerce, mas rende menos por acesso do que a régua pede.',
-      COTA_E_BALCAO: 'Bateu a régua de acessos, nada pelo e-commerce, mas comprou na sala no mesmo mês.',
-      COTA_E_SUMIU: 'Bateu a régua de acessos, nada pelo e-commerce, nada na sala — mas já comprou antes (média dos 3 meses, 90 dias, ou outro código do mesmo CNPJ compra).',
-      SO_CONSULTA: 'Bateu a régua de acessos e não há nenhuma compra: nem no mês, nem na média dos 3 meses, nem nos 90 dias.',
-      POUCO_ACESSO: 'Acessou, mas menos vezes que a régua. Visita eventual.',
-      CADASTRO_PARADO: 'Zero acesso no mês, o cliente compra, e existe login na plataforma parado.',
-      SEM_CADASTRO: 'O cliente compra, mas não há nenhum login dele na planilha de cadastros.',
-      CADASTRO_OCIOSO: 'Zero acesso e zero compra, no mês e na média — mas com login ativo na plataforma.',
-      INATIVO: 'Zero acesso, zero compra e nenhum login na plataforma. Não há acesso a cortar.',
-      SEM_ESPELHO: 'O cliente não apareceu no relatório Sala x eCom da competência carregada.',
-    }[k];
-    const cls = { bloq: 'c-bloq', aviso: 'c-aviso', bom: 'c-bom', neutro: 'c-neutro' }[v.grau];
-    return `<tr><td><span class="chip ${cls}"><span class="pt"></span>${esc(v.rotulo)}</span></td>
-      <td style="white-space:normal;max-width:420px">${esc(quando)}</td>
-      <td style="white-space:normal;max-width:320px">${esc(v.acao)}</td>
+  const quando = {
+    ECOM_COMPRA: 'Faturou pelo site no mês e o retorno por acesso passa da régua.',
+    ECOM_POUCO_RETORNO: 'Faturou pelo site, mas rende menos por acesso do que a régua pede.',
+    ECOM_FECHA_SALA: 'Bateu a régua de acessos ao site, nada faturado pelo site, mas comprou na sala no mesmo mês.',
+    ECOM_PAROU: 'Bateu a régua de acessos ao site, nada pelo site, nada na sala — mas já comprou antes (média 3 meses, 90 dias, ou outro código do mesmo CNPJ compra).',
+    ECOM_SO_PRECO: 'Bateu a régua de acessos ao site e não há compra nenhuma: nem no mês, nem na média 3 meses, nem nos 90 dias.',
+    ECOM_EVENTUAL: 'Entrou no site, mas menos vezes que a régua.',
+    ECOM_NAO_ENTRA: 'Zero acesso ao site no mês.',
+    ECOM_SEM_DADO: 'O cliente não apareceu no relatório Sala x eCom da competência carregada.',
+    CARPA_CONSULTA_COMPRA: 'Tem login no Carpa, abriu o catálogo, e compra da gente por algum caminho.',
+    CARPA_SO_CONSULTA: 'Abriu o catálogo acima da régua e não comprou nada — nem site, nem sala, nem média 3 meses, nem 90 dias.',
+    CARPA_EVENTUAL: 'Abriu o catálogo abaixo da régua e não comprou.',
+    CARPA_PARADO: 'Tem login no Carpa e não abriu nenhuma vez nos últimos 30 dias.',
+    CARPA_SEM_ACESSO: 'Não há login deste cliente na planilha de cadastros do Carpa.',
+  };
+  const cls = { bloq: 'c-bloq', aviso: 'c-aviso', bom: 'c-bom', neutro: 'c-neutro' };
+  const linha = ([k, v]) => `<tr>
+      <td><span class="chip ${v.plat === 'ECOMMERCE' ? 'c-info' : 'c-neutro'}"><span class="pt"></span>${esc(PLATAFORMAS[v.plat].curto)}</span></td>
+      <td><span class="chip ${cls[v.grau]}"><span class="pt"></span>${esc(v.rotulo)}</span></td>
+      <td style="white-space:normal;max-width:430px">${esc(quando[k])}</td>
+      <td style="white-space:normal;max-width:330px">${esc(v.acao)}</td>
       <td>${v.fila ? 'sim' : 'não'}</td></tr>`;
-  }).join('');
-  $('#tbMetodo').innerHTML = `<thead><tr><th>Veredito</th><th>Quando aparece</th><th>O que fazer</th><th>Entra na fila</th></tr></thead><tbody>${linhas}</tbody>`;
+  const ent = Object.entries(VEREDITOS);
+  $('#tbMetodo').innerHTML =
+    `<thead><tr><th>Onde</th><th>Veredito</th><th>Quando aparece</th><th>O que fazer</th><th>Entra na fila</th></tr></thead><tbody>` +
+    ent.filter(([, v]) => v.plat === 'ECOMMERCE').map(linha).join('') +
+    ent.filter(([, v]) => v.plat === 'CATALOGO').map(linha).join('') + '</tbody>';
+
+  const plats = [
+    ['e-commerce', 'pabu.com.br — o nosso site', 'Dá para <b>comprar</b> e também consultar preço. Quem entra muito e nunca fecha está usando o site como tabela de preço: aí o corte é no site.', 'Total Acessos, no Mapa Sala x eCom'],
+    ['catálogo Carpa', 'catálogo de peças', 'Serve para achar <b>código de peça e informação técnica</b>. Não se compra ali. O problema é quem consulta muito e não compra em <b>lugar nenhum</b> — está usando a nossa engenharia de catálogo e fechando com outro fornecedor.', 'Acessos Últimos 30 Dias, na planilha de cadastros'],
+  ];
+  $('#tbPlataformas').innerHTML = `<thead><tr><th>Plataforma</th><th>O que é</th><th>Por que alguém seria cortado</th><th>De onde vem o acesso</th></tr></thead><tbody>` +
+    plats.map(([a, b, c, d]) => `<tr><td><b>${esc(a)}</b></td><td>${esc(b)}</td><td style="white-space:normal;max-width:560px">${c}</td><td style="white-space:normal">${esc(d)}</td></tr>`).join('') + '</tbody>';
 
   const regras = [
-    ['Falta de dado não vira zero', 'Quando o relatório não traz um número, o painel mostra “—” e registra uma lacuna. Zero vendido é um fato; dado ausente não é, e confundir os dois faz inventar conclusão.'],
-    ['Nenhum veredito sem evidência', 'Todo cartão lista os fatores que o produziram. Se não houve evidência suficiente, a lacuna aparece no lugar — nunca os dois vazios.'],
-    ['Duas janelas nunca viram uma', 'Os acessos do mês vêm do relatório; os acessos de 30 dias vêm da plataforma. Medem períodos diferentes, então andam lado a lado e nunca são somados.'],
-    ['O mesmo CNPJ é olhado junto', 'Antes de sugerir bloqueio, o painel confere se outro código da mesma raiz de CNPJ compra pelo canal. Se compra, o caso vira “consulta e parou” e pede ligação — não corte.'],
-    ['Quem compra na sala não é bloqueado', 'Consultar preço e fechar com o vendedor não é motivo de corte. Vira ação comercial: puxar o pedido para o canal.'],
-    ['A decisão é humana', 'O painel ordena e explica. Bloquear, manter ou observar é você que marca, e é isso que fica gravado — não o veredito.'],
+    ['As duas plataformas nunca se misturam', 'Carpa é catálogo e não vende; o e-commerce vende. Um cliente pode merecer corte no site e não no catálogo, ou o contrário. Por isso cada um recebe dois vereditos, com evidência e decisão separadas.'],
+    ['Falta de dado não vira zero', 'Quando o relatório não traz um número, o painel mostra “—” e registra uma lacuna. Zero vendido é um fato; dado ausente não é.'],
+    ['Nenhum veredito sem evidência', 'Todo cartão lista os fatores que o produziram. Sem evidência suficiente, aparece a lacuna no lugar — nunca os dois vazios.'],
+    ['Duas janelas nunca viram uma', 'Os acessos ao site são do mês (relatório); os acessos ao catálogo são de 30 dias (Carpa). Medem períodos e plataformas diferentes, então nunca são somados.'],
+    ['O mesmo CNPJ é olhado junto', 'Antes de sugerir corte, o painel confere se outro código da mesma raiz de CNPJ compra. Se compra, o caso muda de tom e pede ligação — não corte.'],
+    ['Quem compra na sala não perde o site', 'Ver preço no site e fechar com o vendedor não é motivo de corte: o pedido é nosso. Vira ação comercial — puxar o pedido para o site.'],
+    ['A decisão é humana', 'O painel ordena e explica. Cortar, manter ou observar é você que marca, e é isso que fica gravado — não o veredito.'],
     ['Nada sai deste computador', 'Não há nenhuma chamada de rede neste arquivo. Leitura, cruzamento e exportação acontecem no navegador.'],
   ];
   $('#tbRegras').innerHTML = `<thead><tr><th>Regra</th><th>Por quê</th></tr></thead><tbody>` +
-    regras.map(([a, b]) => `<tr><td style="white-space:normal;min-width:220px"><b>${esc(a)}</b></td><td style="white-space:normal;max-width:640px">${esc(b)}</td></tr>`).join('') + '</tbody>';
+    regras.map(([a, b]) => `<tr><td style="white-space:normal;min-width:230px"><b>${esc(a)}</b></td><td style="white-space:normal;max-width:640px">${esc(b)}</td></tr>`).join('') + '</tbody>';
 
   const origem = [
-    ['Acessos no mês', 'Sala x eCom (PDF)', 'Coluna “Total Acessos”'],
-    ['R$ e-commerce', 'Sala x eCom (PDF)', 'VALOR NFs FAT · eCOM'],
-    ['R$ Sala', 'Sala x eCom (PDF)', 'VALOR NFs FAT · SALA'],
+    ['Acessos ao site', 'Sala x eCom (PDF)', 'Coluna “Total Acessos”'],
+    ['R$ no site', 'Sala x eCom (PDF)', 'VALOR NFs FAT · eCOM'],
+    ['R$ na sala', 'Sala x eCom (PDF)', 'VALOR NFs FAT · SALA'],
     ['Média 3 meses', 'Sala x eCom (PDF)', 'MEDIA 3 U.MESES'],
     ['Canal', 'Sala x eCom (PDF)', 'Qual dos dois relatórios trouxe a linha: Consumidor ou Revenda'],
-    ['Acessos 30 dias', 'Cadastros (planilha)', 'Coluna “Acessos Últimos 30 Dias”, somando os logins do mesmo cliente'],
-    ['CNPJ/CPF', 'Cadastros (planilha)', 'Coluna “CNPJ/CPF” — é o que permite agrupar cadastro duplicado'],
-    ['Faturamento 90 dias', 'Cadastros (planilha)', 'Coluna “Faturamento 90 dias”'],
-    ['Vendedor', 'Carteira (planilha)', 'Coluna “Vend”, com o nome vindo da aba ou do resumo'],
+    ['Acessos ao catálogo Carpa', 'Cadastros do Carpa (planilha)', '“Acessos Últimos 30 Dias”, somando os logins do mesmo cliente'],
+    ['Logins no Carpa', 'Cadastros do Carpa (planilha)', 'Quantas linhas de cadastro apontam para o mesmo código de cliente'],
+    ['CNPJ/CPF', 'Cadastros do Carpa (planilha)', 'É o que permite agrupar cadastro duplicado'],
+    ['Faturamento 90 dias', 'Cadastros do Carpa (planilha)', 'Coluna “Faturamento 90 dias”'],
+    ['Vendedor', 'Carteira (planilha)', 'Coluna “Vend”, com o nome vindo da aba'],
     ['Última compra', 'Carteira (planilha)', 'Colunas “Vl U.Com” e “Dt U.Com”'],
-    ['R$ por acesso', 'calculado', 'R$ e-commerce ÷ acessos no mês. Fica “—” quando não houve acesso'],
-    ['Decisão e observação', 'você', 'Marcadas na aba Bloqueio ou na ficha do cliente'],
+    ['R$ por acesso ao site', 'calculado', 'R$ no site ÷ acessos ao site. Fica “—” quando não houve acesso'],
+    ['Decisão e observação', 'você', 'Marcadas por plataforma, na aba Bloqueio ou na ficha do cliente'],
   ];
   $('#tbOrigem').innerHTML = `<thead><tr><th>Número</th><th>Arquivo</th><th>Coluna</th></tr></thead><tbody>` +
     origem.map(([a, b, c]) => `<tr><td><b>${esc(a)}</b></td><td>${esc(b)}</td><td style="white-space:normal">${esc(c)}</td></tr>`).join('') + '</tbody>';
@@ -2603,22 +2949,50 @@ function pintarMetodo(){
 
 function pintarCiclo(){
   const passos = [
-    ['1', 'Você recebe os arquivos do mês', 'PDF do Sala x eCom (Consumidor e Revenda), planilha de cadastros da plataforma, carteira dos vendedores.'],
-    ['2', 'Solta tudo na aba Importar', 'O painel reconhece cada arquivo sozinho, cruza pelo código do cliente e monta a fila de decisão.'],
-    ['3', 'Decide a fila', 'Bloquear, manter ou observar — com observação escrita. Fica gravado neste navegador.'],
+    ['1', 'Você recebe os arquivos do mês', 'Os dois PDF do Sala x eCom (Revenda e Consumidor), a planilha de cadastros do Carpa e a carteira dos vendedores.'],
+    ['2', 'Solta cada um no seu quadro, na aba Importar', 'Tem um quadro nomeado por arquivo. Ele fica verde quando entrou — e diz o que houve quando não entra.'],
+    ['3', 'Decide a fila', 'Cada caso é um cliente numa plataforma. Dá para cortar o site e manter o catálogo, ou o contrário.'],
     ['4', 'Manda a carteira para cada vendedor', 'Exportar → um arquivo por vendedor. Sobe no Google Sheets e compartilha com cada um.'],
-    ['5', 'O vendedor preenche Decisão e Observação', 'As duas últimas colunas da planilha já vão prontas para isso.'],
-    ['6', 'Você baixa a planilha do Sheets e solta aqui de novo', 'O painel reconhece o retorno e traz as decisões e observações do vendedor para dentro.'],
+    ['5', 'O vendedor preenche as colunas de decisão e observação', 'São quatro colunas: decisão e observação do site, decisão e observação do catálogo.'],
+    ['6', 'Você baixa do Sheets e solta aqui de novo', 'O painel reconhece o retorno e traz as marcações do vendedor para dentro.'],
     ['7', 'Manda para o outro gestor', 'Exportar → Gerar HTML completo. Um arquivo só, que abre com dois cliques e mostra exatamente esta tela.'],
-    ['8', 'No mês que vem, repete', 'Importe o novo PDF: ele entra como nova competência e a aba Histórico passa a mostrar quem mudou de comportamento.'],
+    ['8', 'No mês que vem, repete', 'O novo PDF entra como nova competência e a aba Histórico passa a mostrar quem mudou de comportamento.'],
   ];
   $('#tbCiclo').innerHTML = `<thead><tr><th class="num">Passo</th><th>O quê</th><th>Como</th></tr></thead><tbody>` +
-    passos.map(([n, a, b]) => `<tr><td class="num">${n}</td><td style="white-space:normal;min-width:230px"><b>${esc(a)}</b></td><td style="white-space:normal;max-width:620px">${esc(b)}</td></tr>`).join('') + '</tbody>';
+    passos.map(([n, a, b]) => `<tr><td class="num">${n}</td><td style="white-space:normal;min-width:240px"><b>${esc(a)}</b></td><td style="white-space:normal;max-width:620px">${esc(b)}</td></tr>`).join('') + '</tbody>';
 }
 
 /* ===================== PARTIDA ===================== */
 
+/* ===================== TEMA ===================== */
+
+const CHAVE_TEMA = 'painel-carpa-tema';
+
+function aplicarTema(tema){
+  const escuro = tema === 'escuro';
+  document.documentElement.setAttribute('data-tema', escuro ? 'escuro' : 'claro');
+  const b = $('#btnTema');
+  if (b){
+    b.textContent = escuro ? 'Tema claro' : 'Tema escuro';
+    b.setAttribute('aria-pressed', String(escuro));
+  }
+  const m = document.querySelector('meta[name="theme-color"]');
+  if (m) m.setAttribute('content', escuro ? '#0E141C' : '#FFFFFF');
+  try { localStorage.setItem(CHAVE_TEMA, escuro ? 'escuro' : 'claro'); } catch { /* sem memória, tudo bem */ }
+}
+
+function temaInicial(){
+  try {
+    const t = localStorage.getItem(CHAVE_TEMA);
+    if (t === 'escuro' || t === 'claro') return t;
+  } catch { /* segue com o padrão */ }
+  return 'claro';
+}
+
 function ligarEventos(){
+  $('#btnTema').onclick = () =>
+    aplicarTema(document.documentElement.getAttribute('data-tema') === 'escuro' ? 'claro' : 'escuro');
+
   $('#abas').addEventListener('click', (e) => {
     const b = e.target.closest('button[data-aba]');
     if (b) irPara(b.dataset.aba);
@@ -2662,9 +3036,10 @@ function ligarEventos(){
   $('#expJson').onclick = exportarPacote;
   $('#expHtml').onclick = exportarHtmlCompleto;
   $('#expGeral').onclick = () => baixar(escreverXlsx([
-    abaResumo(), abaClientes(), abaFila(), abaVendedores(), abaCadastros(), abaLacunas(),
+    abaResumo(), abaClientes(), abaFila('ECOMMERCE'), abaFila('CATALOGO'), abaVendedores(), abaCadastros(), abaLacunas(),
   ]), nomeArquivo('PainelCarpa', 'xlsx'));
-  $('#expFila').onclick = () => baixar(escreverXlsx([abaResumo(), abaFila()]), nomeArquivo('FilaBloqueio', 'xlsx'));
+  $('#expFila').onclick = () => baixar(escreverXlsx([abaResumo(), abaFila('ECOMMERCE'), abaFila('CATALOGO')]),
+    nomeArquivo('FilaBloqueio', 'xlsx'));
   $('#expCarteiras').onclick = () => {
     const vs = vendedoresPorPlacar(false);
     if (!vs.length) return;
@@ -2684,8 +3059,11 @@ function ligarEventos(){
 }
 
 function partir(){
+  // O molde é tirado antes de qualquer pintura e antes de marcar o tema,
+  // para que o HTML gerado saia limpo e respeite a escolha de quem abrir.
   MOLDE = document.documentElement.outerHTML;
   ligarEventos();
+  aplicarTema(temaInicial());
 
   const tinha = carregar();
   const embutido = window.__PACOTE_CARPA__;

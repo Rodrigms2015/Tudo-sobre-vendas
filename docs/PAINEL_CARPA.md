@@ -42,26 +42,48 @@ código — se o layout mudar de largura, o leitor acompanha.
 O `.xlsx` é lido pelo mesmo caminho: ZIP aberto na mão, XML pelo `DOMParser`.
 Nenhuma biblioteca, nenhuma rede.
 
-## 3. Os vereditos
+## 3. Duas plataformas, duas decisões
 
-Precedência de cima para baixo. Cada um carrega os fatores que o produziram.
+Este é o ponto que não pode ser confundido:
+
+| | **Catálogo Carpa** | **E-commerce** |
+|---|---|---|
+| O que é | catálogo de peças: código e informação técnica | pabu.com.br, o nosso site |
+| Dá para comprar? | **não** | **sim** |
+| Mostra preço? | não | sim |
+| De onde vem o acesso | `Acessos Últimos 30 Dias`, na planilha de cadastros | `Total Acessos`, no Mapa Sala × eCom |
+| Por que cortar alguém | consulta muito e **não compra em lugar nenhum** — usa a nossa engenharia de catálogo e fecha com outro | entra, vê preço e nunca fecha — usa o site como tabela de preço |
+
+Cada cliente recebe **dois vereditos independentes**, cada um com a sua evidência e
+a sua decisão gravada. Dá para cortar o site e manter o catálogo, ou o contrário.
+Misturar os dois faz bloquear a coisa errada.
+
+### Vereditos do e-commerce
 
 | Veredito | Condição | Ação |
 |---|---|---|
-| **Só consulta preço** | bateu a régua de acessos, zero e-commerce, zero sala, zero histórico | bloquear |
-| **Consulta, já comprou, parou** | idem, mas com média nos 3 meses, 90 dias, ou outro código do mesmo CNPJ comprando | vendedor liga **antes** do corte |
-| **Consulta e fecha fora** | bateu a régua, zero e-commerce, mas faturou na sala | não bloquear — puxar o pedido para o canal |
-| **Compra pouco pra tanto acesso** | compra pelo canal, mas rende menos que a régua por acesso | entender o que consulta e não fecha |
-| **Compra pela plataforma** | fatura pelo canal com retorno acima da régua | nada a fazer |
-| **Acesso eventual** | acessou abaixo da régua | nada a decidir |
-| **Compra, mas não usa o cadastro** | zero acesso, compra, **tem login** | ativar o login que já existe |
-| **Compra e nem tem cadastro** | zero acesso, compra, **sem login** | abrir o acesso — lista mais curta para crescer o canal |
-| **Cadastro sem uso** | zero acesso, zero compra, **tem login** | limpar o cadastro |
-| **Cliente parado** | zero acesso, zero compra, **sem login** | assunto do vendedor, não da plataforma |
+| **Só pega preço no site** | bateu a régua de acessos ao site, zero no site, zero na sala, zero histórico | cortar o site |
+| **Vê preço, já comprou, parou** | idem, mas com média 3 meses, 90 dias, ou outro código do mesmo CNPJ comprando | vendedor liga **antes** do corte |
+| **Vê preço no site, fecha na sala** | bateu a régua, zero no site, mas faturou na sala | não cortar — puxar o pedido para o site |
+| **Consulta muito, compra pouco** | compra pelo site, mas rende menos que a régua por acesso | entender o que consulta e não fecha |
+| **Compra pelo site** | fatura no site com retorno acima da régua | nada a fazer |
+| **Entra de vez em quando** | acessos abaixo da régua | nada a decidir |
+| **Não entra no site** | zero acesso ao site no mês | oportunidade de vendedor |
 | **Fora do relatório do mês** | não apareceu no Sala × eCom | conferir filial e cadastro |
 
-Três réguas ajustáveis na tela recalculam a fila ao vivo: acessos mínimos,
-retorno mínimo por acesso e o salvo-conduto de quem já comprou.
+### Vereditos do catálogo Carpa
+
+| Veredito | Condição | Ação |
+|---|---|---|
+| **Usa o catálogo e não compra nada** | acessos acima da régua e zero compra em qualquer canal, no mês e no histórico | cortar o Carpa |
+| **Consulta o catálogo e compra** | usa o catálogo e compra da gente por algum caminho | uso legítimo |
+| **Consulta pouco** | acessos abaixo da régua, sem compra | nada a decidir |
+| **Tem catálogo e não entra** | login existe, zero acesso em 30 dias | mostrar o catálogo, ou recolher o login |
+| **Sem acesso ao catálogo** | nenhum login na planilha de cadastros | se compra, dar acesso costuma aumentar o giro |
+
+Quatro réguas ajustáveis na tela recalculam as duas filas ao vivo: acessos mínimos
+ao site, retorno mínimo por acesso ao site, acessos mínimos ao catálogo e o
+salvo-conduto de quem já comprou.
 
 ## 4. Regras que ele não quebra
 
@@ -71,8 +93,9 @@ São as mesmas do motor principal (`CLAUDE.md` §1), aplicadas aqui:
   tela. Zero vendido é um fato; dado ausente não é.
 - **Nenhum veredito sem evidência.** Todo caso lista seus fatores. Sem fator, tem
   lacuna — nunca os dois vazios.
-- **Duas janelas nunca viram uma.** Acessos do mês (relatório) e acessos de 30 dias
-  (plataforma) medem períodos diferentes: aparecem lado a lado, nunca somados.
+- **As duas plataformas nunca se misturam.** Carpa não vende; o e-commerce vende.
+  Os acessos ao site são do mês (relatório) e os acessos ao catálogo são de 30 dias
+  (Carpa): períodos e plataformas diferentes, nunca somados.
 - **O mesmo CNPJ é olhado junto.** Antes de sugerir corte, confere se outro código
   da mesma raiz compra pelo canal — evita bloquear cadastro duplicado.
 - **Quem compra na sala não é bloqueado.** Consultar e fechar com o vendedor é
@@ -85,10 +108,11 @@ São as mesmas do motor principal (`CLAUDE.md` §1), aplicadas aqui:
 
 ## 5. O ciclo do mês
 
-1. Solta os arquivos na aba **Importar**.
+1. Solta cada arquivo no seu quadro nomeado, na aba **Importar**.
 2. Decide a fila em **Bloqueio**, com observação escrita.
 3. **Exportar → um arquivo por vendedor**, sobe no Google Sheets, compartilha.
-4. O vendedor preenche **Decisão** e **Observação** (últimas duas colunas).
+4. O vendedor preenche as quatro colunas de decisão e observação: duas do site,
+   duas do catálogo.
 5. Baixa do Sheets e solta de volta no painel: as marcações voltam para dentro.
 6. **Exportar → Gerar HTML completo** para mandar ao outro gestor: o painel se
    reescreve com os dados embutidos, num arquivo só que abre sozinho.

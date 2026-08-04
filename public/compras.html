@@ -1,0 +1,2509 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="color-scheme" content="light dark" />
+<meta name="robots" content="noindex, nofollow" />
+<meta name="description" content="Analise de estoque, lista de compra priorizada e oportunidades de venda da filial Ribeirao Preto. Os dados ficam no navegador de quem carrega o arquivo." />
+<title>Central de Compras — Estoque Ribeirão Preto</title>
+</head>
+<body>
+<style>
+  /* ───────────────────────────────────────────────────────────────
+     Tokens. Marca: marinho #0B3B7D + laranja #EF7E32.
+     Neutros puxados para o azul — cinza puro leria como descuido.
+     Status tem paleta própria e nunca é o único portador de sentido:
+     todo estado carrega rótulo textual e glifo (regra do CLAUDE.md §5).
+     ─────────────────────────────────────────────────────────────── */
+  :root {
+    --marinho: #0B3B7D;
+    --marinho-fundo: #082E63;
+    --laranja: #EF7E32;
+    --laranja-texto: #A8500B;
+
+    --chao: #EEF1F6;
+    --papel: #FFFFFF;
+    --papel-2: #F7F9FC;
+    --borda: #D7DEE9;
+    --borda-forte: #B9C4D6;
+
+    --tinta: #0E1B2E;
+    --tinta-2: #42536B;
+    --tinta-3: #6B7B93;
+
+    --critico: #C42B21;
+    --atencao: #B58200;
+    --atencao-texto: #7E5A00;
+    --saudavel: #0A7A4E;
+    --parado: #6E4BC7;
+
+    --curva-a: #0B3B7D;
+    --curva-b: #21548F;
+    --curva-c: #3D6EA3;
+    --curva-d: #6F94BE;
+    --curva-e: #A3BAD5;
+    --curva-f: #CBD8E7;
+
+    --sombra: 0 1px 2px rgba(11, 59, 125, .06), 0 4px 16px rgba(11, 59, 125, .05);
+    --sombra-alta: 0 8px 32px rgba(11, 59, 125, .16);
+    --raio: 10px;
+    --largura: 1560px;
+
+    --sans: "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --marinho: #6FA3E8;
+      --marinho-fundo: #0A1626;
+      --laranja: #F79B57;
+      --laranja-texto: #F79B57;
+
+      --chao: #0B121D;
+      --papel: #141C29;
+      --papel-2: #1A2434;
+      --borda: #2A3648;
+      --borda-forte: #3C4B62;
+
+      --tinta: #E6ECF5;
+      --tinta-2: #9DAEC6;
+      --tinta-3: #7A8CA6;
+
+      --critico: #F0685C;
+      --atencao: #D9A21F;
+      --atencao-texto: #D9A21F;
+      --saudavel: #3BB98A;
+      --parado: #A48BF5;
+
+      --curva-a: #8FBBF2;
+      --curva-b: #7AA8E2;
+      --curva-c: #6491CC;
+      --curva-d: #4E77AC;
+      --curva-e: #3B5C87;
+      --curva-f: #2C4467;
+
+      --sombra: 0 1px 2px rgba(0, 0, 0, .3), 0 4px 16px rgba(0, 0, 0, .25);
+      --sombra-alta: 0 8px 32px rgba(0, 0, 0, .5);
+    }
+  }
+
+  /* O botão de tema do leitor carimba data-theme na raiz e precisa vencer
+     a media query nos dois sentidos — por isso os tokens são redefinidos. */
+  :root[data-theme="light"] {
+    --marinho: #0B3B7D; --marinho-fundo: #082E63; --laranja: #EF7E32; --laranja-texto: #A8500B;
+    --chao: #EEF1F6; --papel: #FFFFFF; --papel-2: #F7F9FC; --borda: #D7DEE9; --borda-forte: #B9C4D6;
+    --tinta: #0E1B2E; --tinta-2: #42536B; --tinta-3: #6B7B93;
+    --critico: #C42B21; --atencao: #B58200; --atencao-texto: #7E5A00; --saudavel: #0A7A4E; --parado: #6E4BC7;
+    --curva-a: #0B3B7D; --curva-b: #21548F; --curva-c: #3D6EA3; --curva-d: #6F94BE; --curva-e: #A3BAD5; --curva-f: #CBD8E7;
+    --sombra: 0 1px 2px rgba(11,59,125,.06), 0 4px 16px rgba(11,59,125,.05);
+    --sombra-alta: 0 8px 32px rgba(11,59,125,.16);
+  }
+  :root[data-theme="dark"] {
+    --marinho: #6FA3E8; --marinho-fundo: #0A1626; --laranja: #F79B57; --laranja-texto: #F79B57;
+    --chao: #0B121D; --papel: #141C29; --papel-2: #1A2434; --borda: #2A3648; --borda-forte: #3C4B62;
+    --tinta: #E6ECF5; --tinta-2: #9DAEC6; --tinta-3: #7A8CA6;
+    --critico: #F0685C; --atencao: #D9A21F; --atencao-texto: #D9A21F; --saudavel: #3BB98A; --parado: #A48BF5;
+    --curva-a: #8FBBF2; --curva-b: #7AA8E2; --curva-c: #6491CC; --curva-d: #4E77AC; --curva-e: #3B5C87; --curva-f: #2C4467;
+    --sombra: 0 1px 2px rgba(0,0,0,.3), 0 4px 16px rgba(0,0,0,.25);
+    --sombra-alta: 0 8px 32px rgba(0,0,0,.5);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--chao);
+    color: var(--tinta);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1, h2, h3 { margin: 0; text-wrap: balance; letter-spacing: -.015em; }
+  p { margin: 0; }
+  button, input, select { font: inherit; color: inherit; }
+
+  :where(a, button, input, select, [tabindex]):focus-visible {
+    outline: 2px solid var(--laranja);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+  }
+
+  .num { font-variant-numeric: tabular-nums; }
+  .mono { font-family: var(--mono); font-size: .86em; letter-spacing: -.01em; }
+
+  .sobrancelha {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--tinta-3);
+  }
+
+  /* ── Cabeçalho ───────────────────────────────────────────────── */
+  .topo {
+    background: var(--marinho-fundo);
+    color: #fff;
+    border-bottom: 3px solid var(--laranja);
+  }
+  .topo-interno {
+    max-width: var(--largura);
+    margin: 0 auto;
+    padding: 14px 20px;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    flex-wrap: wrap;
+  }
+  .marca { display: flex; align-items: center; gap: 14px; min-width: 0; }
+  .marca img { height: 34px; width: auto; display: block; background: #fff; border-radius: 5px; padding: 4px 7px; }
+  .marca-txt { min-width: 0; }
+  .marca-txt h1 { font-size: 16px; font-weight: 650; letter-spacing: -.01em; }
+  .marca-txt .sobrancelha { color: rgba(255, 255, 255, .62); }
+  .topo-dir { margin-left: auto; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .topo-info {
+    font-size: 12px;
+    color: rgba(255, 255, 255, .72);
+    text-align: right;
+    line-height: 1.35;
+  }
+  .topo-info strong { color: #fff; font-weight: 600; }
+
+  /* ── Navegação ───────────────────────────────────────────────── */
+  .abas {
+    background: var(--papel);
+    border-bottom: 1px solid var(--borda);
+    position: sticky;
+    top: 0;
+    z-index: 40;
+  }
+  .abas-interno {
+    max-width: var(--largura);
+    margin: 0 auto;
+    padding: 0 12px;
+    display: flex;
+    gap: 2px;
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
+  .aba {
+    appearance: none;
+    background: none;
+    border: 0;
+    border-bottom: 3px solid transparent;
+    padding: 14px 15px;
+    min-height: 48px;
+    font-size: 14px;
+    font-weight: 550;
+    color: var(--tinta-2);
+    cursor: pointer;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: color .15s, border-color .15s;
+  }
+  .aba:hover { color: var(--tinta); }
+  .aba[aria-selected="true"] { color: var(--marinho); border-bottom-color: var(--laranja); }
+  .aba .selo {
+    background: var(--chao);
+    border: 1px solid var(--borda);
+    border-radius: 20px;
+    padding: 1px 7px;
+    font-size: 11px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--tinta-2);
+  }
+  .aba[aria-selected="true"] .selo { background: var(--marinho); border-color: var(--marinho); color: var(--papel); }
+
+  /* ── Estrutura ───────────────────────────────────────────────── */
+  .palco { max-width: var(--largura); margin: 0 auto; padding: 22px 20px 80px; }
+  .vista { display: none; }
+  .vista.ativa { display: block; }
+  .secao { margin-bottom: 30px; }
+  .secao-topo {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+  }
+  .secao-topo h2 { font-size: 17px; font-weight: 650; }
+  .secao-topo .nota { font-size: 13px; color: var(--tinta-3); }
+
+  .cartao {
+    background: var(--papel);
+    border: 1px solid var(--borda);
+    border-radius: var(--raio);
+    box-shadow: var(--sombra);
+  }
+  .cartao-corpo { padding: 16px 18px; }
+
+  /* ── Placas de número ────────────────────────────────────────── */
+  .placas {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 12px;
+  }
+  .placa {
+    background: var(--papel);
+    border: 1px solid var(--borda);
+    border-left: 4px solid var(--borda-forte);
+    border-radius: var(--raio);
+    padding: 14px 16px;
+    box-shadow: var(--sombra);
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .placa[data-tom="critico"] { border-left-color: var(--critico); }
+  .placa[data-tom="atencao"] { border-left-color: var(--atencao); }
+  .placa[data-tom="saudavel"] { border-left-color: var(--saudavel); }
+  .placa[data-tom="parado"] { border-left-color: var(--parado); }
+  .placa[data-tom="marca"] { border-left-color: var(--laranja); }
+  .placa .valor {
+    font-size: 30px;
+    font-weight: 700;
+    line-height: 1.05;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -.02em;
+  }
+  .placa .rodape { font-size: 12px; color: var(--tinta-3); line-height: 1.35; }
+
+  /* ── Etiquetas de estado ─────────────────────────────────────── */
+  .etiqueta {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-size: 11.5px;
+    font-weight: 650;
+    line-height: 1.6;
+    white-space: nowrap;
+    border: 1px solid;
+  }
+  .etiqueta::before { font-size: 9px; line-height: 1; }
+  .etiqueta[data-tom="critico"] { color: var(--critico); border-color: color-mix(in srgb, var(--critico) 35%, transparent); background: color-mix(in srgb, var(--critico) 9%, transparent); }
+  .etiqueta[data-tom="critico"]::before { content: "\25A0"; }
+  .etiqueta[data-tom="atencao"] { color: var(--atencao-texto); border-color: color-mix(in srgb, var(--atencao) 40%, transparent); background: color-mix(in srgb, var(--atencao) 12%, transparent); }
+  .etiqueta[data-tom="atencao"]::before { content: "\25B2"; }
+  .etiqueta[data-tom="saudavel"] { color: var(--saudavel); border-color: color-mix(in srgb, var(--saudavel) 35%, transparent); background: color-mix(in srgb, var(--saudavel) 9%, transparent); }
+  .etiqueta[data-tom="saudavel"]::before { content: "\25CF"; }
+  .etiqueta[data-tom="parado"] { color: var(--parado); border-color: color-mix(in srgb, var(--parado) 35%, transparent); background: color-mix(in srgb, var(--parado) 9%, transparent); }
+  .etiqueta[data-tom="parado"]::before { content: "\25C6"; }
+  .etiqueta[data-tom="neutro"] { color: var(--tinta-2); border-color: var(--borda); background: var(--papel-2); }
+  .etiqueta[data-tom="neutro"]::before { content: "\2013"; }
+
+  .curva {
+    display: inline-block;
+    min-width: 22px;
+    text-align: center;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 11.5px;
+    font-weight: 750;
+    color: #fff;
+  }
+  :root[data-theme="dark"] .curva, :root:not([data-theme="light"]) .curva { color: var(--marinho-fundo); }
+  @media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) .curva { color: #fff; } }
+  .curva[data-c="A"] { background: var(--curva-a); }
+  .curva[data-c="B"] { background: var(--curva-b); }
+  .curva[data-c="C"] { background: var(--curva-c); }
+  .curva[data-c="D"] { background: var(--curva-d); }
+  .curva[data-c="E"] { background: var(--curva-e); color: var(--tinta); }
+  .curva[data-c="F"] { background: var(--curva-f); color: var(--tinta); }
+
+  /* ── Botões ──────────────────────────────────────────────────── */
+  .bt {
+    appearance: none;
+    border: 1px solid var(--borda-forte);
+    background: var(--papel);
+    color: var(--tinta);
+    border-radius: 7px;
+    padding: 8px 14px;
+    min-height: 40px;
+    font-size: 13.5px;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    transition: background .15s, border-color .15s;
+  }
+  .bt:hover { background: var(--papel-2); border-color: var(--marinho); }
+  .bt:disabled { opacity: .45; cursor: not-allowed; }
+  .bt-forte {
+    background: var(--laranja);
+    border-color: var(--laranja);
+    color: #26160A;
+    font-weight: 700;
+  }
+  .bt-forte:hover { background: color-mix(in srgb, var(--laranja) 88%, #000); border-color: color-mix(in srgb, var(--laranja) 88%, #000); }
+  .bt-fantasma { background: transparent; border-color: transparent; color: var(--tinta-2); }
+  .bt-fantasma:hover { background: var(--papel-2); border-color: var(--borda); }
+  .bt-claro { background: rgba(255,255,255,.1); border-color: rgba(255,255,255,.3); color: #fff; }
+  .bt-claro:hover { background: rgba(255,255,255,.2); border-color: rgba(255,255,255,.5); }
+  .bt-mini { min-height: 32px; padding: 4px 10px; font-size: 12.5px; }
+
+  /* ── Filtros ─────────────────────────────────────────────────── */
+  .filtros {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+    padding: 12px 14px;
+    background: var(--papel);
+    border: 1px solid var(--borda);
+    border-radius: var(--raio);
+    margin-bottom: 14px;
+    box-shadow: var(--sombra);
+  }
+  .campo { display: flex; flex-direction: column; gap: 3px; }
+  .campo label { font-size: 10.5px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--tinta-3); }
+  .campo select, .campo input {
+    background: var(--papel);
+    border: 1px solid var(--borda-forte);
+    border-radius: 6px;
+    padding: 7px 9px;
+    min-height: 38px;
+    font-size: 13.5px;
+  }
+  .campo input[type="search"] { min-width: 230px; }
+
+  /* ── Tabela ──────────────────────────────────────────────────── */
+  .rolo { overflow-x: auto; border: 1px solid var(--borda); border-radius: var(--raio); background: var(--papel); box-shadow: var(--sombra); }
+  table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+  thead th {
+    position: sticky;
+    top: 0;
+    background: var(--papel-2);
+    border-bottom: 1px solid var(--borda-forte);
+    text-align: left;
+    padding: 9px 12px;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+    color: var(--tinta-3);
+    white-space: nowrap;
+    z-index: 2;
+  }
+  thead th.ord { cursor: pointer; user-select: none; }
+  thead th.ord:hover { color: var(--tinta); }
+  tbody td { border-bottom: 1px solid var(--borda); padding: 9px 12px; vertical-align: middle; }
+  tbody tr:last-child td { border-bottom: 0; }
+  tbody tr.linha:hover { background: var(--papel-2); }
+  td.dir, th.dir { text-align: right; }
+  .faixa { display: block; width: 4px; height: 26px; border-radius: 2px; }
+  .faixa[data-tom="critico"] { background: var(--critico); }
+  .faixa[data-tom="atencao"] { background: var(--atencao); }
+  .faixa[data-tom="saudavel"] { background: var(--saudavel); }
+  .faixa[data-tom="parado"] { background: var(--parado); }
+  .faixa[data-tom="neutro"] { background: var(--borda-forte); }
+
+  /* Barra de prioridade: marca fina, ponta arredondada, ancorada na base. */
+  .barra {
+    position: relative;
+    width: 62px;
+    height: 8px;
+    background: var(--chao);
+    border-radius: 4px;
+    overflow: hidden;
+    display: inline-block;
+    vertical-align: middle;
+  }
+  .barra i { position: absolute; inset: 0 auto 0 0; border-radius: 4px; display: block; }
+
+  .expandivel { background: var(--papel-2); }
+  .expandivel td { padding: 0; }
+  .detalhe { padding: 14px 18px 16px; display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+  .fatores { display: flex; flex-direction: column; gap: 6px; }
+  .fator {
+    display: grid;
+    grid-template-columns: 108px 1fr auto;
+    gap: 10px;
+    align-items: center;
+    font-size: 12.5px;
+    padding: 5px 0;
+    border-bottom: 1px dashed var(--borda);
+  }
+  .fator:last-child { border-bottom: 0; }
+  .fator b { font-weight: 650; color: var(--tinta-2); font-size: 11.5px; letter-spacing: .04em; text-transform: uppercase; }
+  .fator .pts { font-variant-numeric: tabular-nums; font-weight: 700; color: var(--marinho); white-space: nowrap; }
+  .fator.lacuna .pts { color: var(--tinta-3); font-weight: 600; }
+
+  /* ── Matriz ──────────────────────────────────────────────────── */
+  .matriz { border-collapse: separate; border-spacing: 2px; font-size: 13px; }
+  .matriz th { background: none; position: static; border: 0; padding: 6px 8px; }
+  .matriz td { border: 0; padding: 0; }
+  .cel {
+    width: 100%;
+    min-width: 74px;
+    min-height: 46px;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    padding: 7px 8px;
+    cursor: pointer;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    font-weight: 650;
+    font-size: 14px;
+    display: block;
+    transition: transform .12s, box-shadow .12s;
+  }
+  .cel:hover { transform: translateY(-1px); box-shadow: var(--sombra-alta); border-color: var(--tinta); }
+  .cel small { display: block; font-size: 10px; font-weight: 600; opacity: .78; }
+
+  /* ── Barras horizontais ──────────────────────────────────────── */
+  .listabarras { display: flex; flex-direction: column; gap: 9px; }
+  .itembarra { display: grid; grid-template-columns: 1fr; gap: 4px; }
+  .itembarra .cab { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; align-items: baseline; }
+  .itembarra .cab b { font-weight: 600; }
+  .itembarra .cab span { color: var(--tinta-3); font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .trilho { height: 9px; background: var(--chao); border-radius: 5px; overflow: hidden; }
+  .trilho i { display: block; height: 100%; border-radius: 5px; }
+
+  /* ── Redução ─────────────────────────────────────────────────── */
+  .reducao { display: flex; flex-direction: column; gap: 10px; }
+  .degrau { display: grid; grid-template-columns: 1fr; gap: 5px; }
+  .degrau .cab { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+  .degrau .cab b { font-size: 14px; font-weight: 650; }
+  .degrau .cab .n { font-size: 19px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .degrau .exp { font-size: 12.5px; color: var(--tinta-3); }
+
+  /* ── Estado vazio ────────────────────────────────────────────── */
+  .vazio {
+    border: 2px dashed var(--borda-forte);
+    border-radius: var(--raio);
+    padding: 34px 26px;
+    text-align: center;
+    background: var(--papel);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
+  .vazio h3 { font-size: 17px; font-weight: 650; }
+  .vazio p { color: var(--tinta-2); max-width: 62ch; font-size: 14px; }
+
+  .solta { border-color: var(--laranja); background: color-mix(in srgb, var(--laranja) 8%, var(--papel)); }
+
+  /* ── Aviso ───────────────────────────────────────────────────── */
+  .aviso {
+    display: flex;
+    gap: 11px;
+    padding: 12px 15px;
+    border-radius: var(--raio);
+    border: 1px solid;
+    font-size: 13px;
+    line-height: 1.5;
+    align-items: flex-start;
+  }
+  .aviso[data-tom="atencao"] { border-color: color-mix(in srgb, var(--atencao) 40%, transparent); background: color-mix(in srgb, var(--atencao) 9%, var(--papel)); }
+  .aviso[data-tom="neutro"] { border-color: var(--borda); background: var(--papel-2); }
+  .aviso b { font-weight: 650; }
+  .aviso .icone { font-weight: 800; color: var(--atencao-texto); flex-shrink: 0; }
+
+  /* ── Carrinho ────────────────────────────────────────────────── */
+  .barra-fixa {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    background: var(--marinho-fundo);
+    color: #fff;
+    border-top: 3px solid var(--laranja);
+    box-shadow: var(--sombra-alta);
+    z-index: 50;
+    padding: 11px 20px calc(11px + env(safe-area-inset-bottom, 0px));
+  }
+  .barra-fixa-interno {
+    max-width: var(--largura);
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+  .barra-fixa .resumo { font-size: 13.5px; }
+  .barra-fixa .resumo b { font-size: 17px; font-variant-numeric: tabular-nums; }
+  .barra-fixa .acoes { margin-left: auto; display: flex; gap: 9px; flex-wrap: wrap; }
+
+  /* ── Modal ───────────────────────────────────────────────────── */
+  dialog {
+    border: 1px solid var(--borda-forte);
+    border-radius: 12px;
+    padding: 0;
+    background: var(--papel);
+    color: var(--tinta);
+    max-width: min(940px, 94vw);
+    width: 100%;
+    box-shadow: var(--sombra-alta);
+  }
+  dialog::backdrop { background: rgba(8, 20, 38, .62); }
+  .modal-topo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 15px 18px;
+    border-bottom: 1px solid var(--borda);
+  }
+  .modal-topo h2 { font-size: 16px; font-weight: 650; }
+  .modal-corpo { padding: 16px 18px; max-height: 68vh; overflow: auto; }
+  .modal-pe { padding: 13px 18px; border-top: 1px solid var(--borda); display: flex; gap: 9px; justify-content: flex-end; flex-wrap: wrap; }
+  textarea.saida {
+    width: 100%;
+    min-height: 300px;
+    font-family: var(--mono);
+    font-size: 12px;
+    line-height: 1.55;
+    border: 1px solid var(--borda-forte);
+    border-radius: 7px;
+    padding: 11px;
+    background: var(--papel-2);
+    color: var(--tinta);
+    resize: vertical;
+  }
+
+  /* ── Fichas (frota / oportunidade) ───────────────────────────── */
+  .grade { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); }
+  .ficha {
+    background: var(--papel);
+    border: 1px solid var(--borda);
+    border-radius: var(--raio);
+    padding: 15px 16px;
+    box-shadow: var(--sombra);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .ficha h3 { font-size: 14.5px; font-weight: 650; }
+  .ficha p { font-size: 13px; color: var(--tinta-2); line-height: 1.5; }
+  .ficha .fonte { font-size: 11px; color: var(--tinta-3); border-top: 1px solid var(--borda); padding-top: 8px; margin-top: auto; }
+  .ficha .fonte a { color: var(--marinho); }
+
+  .linhadados { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; padding: 5px 0; border-bottom: 1px dashed var(--borda); }
+  .linhadados:last-of-type { border-bottom: 0; }
+  .linhadados b { font-variant-numeric: tabular-nums; font-weight: 650; }
+
+  .roteiro {
+    background: var(--papel-2);
+    border-left: 3px solid var(--laranja);
+    border-radius: 0 7px 7px 0;
+    padding: 10px 13px;
+    font-size: 13px;
+    line-height: 1.55;
+    color: var(--tinta-2);
+  }
+
+  .oculto { display: none !important; }
+
+  @media (max-width: 700px) {
+    .palco { padding: 16px 12px 90px; }
+    .placa .valor { font-size: 25px; }
+    .topo-info { display: none; }
+    .aba { padding: 13px 12px; }
+  }
+
+  @media print {
+    .topo, .abas, .barra-fixa, .filtros, .bt, .naoimprime { display: none !important; }
+    body { background: #fff; }
+    .palco { padding: 0; max-width: none; }
+    .cartao, .rolo, .placa { box-shadow: none; break-inside: avoid; }
+  }
+</style>
+
+<header class="topo">
+  <div class="topo-interno">
+    <div class="marca">
+      <img id="logo" alt="Pacaembu" />
+      <div class="marca-txt">
+        <div class="sobrancelha">Filial Ribeirão Preto · Linha pesada</div>
+        <h1>Central de Compras e Oportunidades</h1>
+      </div>
+    </div>
+    <div class="topo-dir">
+      <div class="topo-info" id="topoInfo"></div>
+      <button class="bt bt-claro bt-mini" id="btImportarTopo" type="button">Carregar estoque</button>
+    </div>
+  </div>
+</header>
+
+<nav class="abas" aria-label="Seções">
+  <div class="abas-interno" role="tablist">
+    <button class="aba" role="tab" data-vista="painel" aria-selected="true">Painel</button>
+    <button class="aba" role="tab" data-vista="comprar" aria-selected="false">Comprar <span class="selo" id="seloComprar">0</span></button>
+    <button class="aba" role="tab" data-vista="oportunidades" aria-selected="false">Oportunidades <span class="selo" id="seloOport">0</span></button>
+    <button class="aba" role="tab" data-vista="frota" aria-selected="false">Frota &amp; Região</button>
+    <button class="aba" role="tab" data-vista="evolucao" aria-selected="false">Evolução</button>
+    <button class="aba" role="tab" data-vista="dados" aria-selected="false">Dados</button>
+  </div>
+</nav>
+
+<main class="palco">
+
+  <!-- Estado sem dados: é a primeira coisa que qualquer pessoa vê ao abrir o link. -->
+  <section id="semDados" class="secao">
+    <div class="vazio" id="zonaSolta">
+      <div class="sobrancelha">Nenhum estoque carregado neste navegador</div>
+      <h3>Arraste o arquivo de estoque aqui</h3>
+      <p>
+        Aceita o <b>.xls</b> exportado do sistema (o mesmo arquivo, sem editar) ou um <b>.csv</b>.
+        O arquivo é lido dentro do seu navegador e fica guardado só neste aparelho — nada é enviado
+        para servidor nenhum. Quem abrir este link vê esta tela, não os seus dados.
+      </p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
+        <button class="bt bt-forte" id="btEscolher" type="button">Escolher arquivo</button>
+        <button class="bt" id="btExemplo" type="button">Ver com dados de exemplo</button>
+      </div>
+      <input type="file" id="arquivo" accept=".xls,.xlsx,.csv,.txt" class="oculto" />
+      <p class="sobrancelha" style="margin-top:4px">Colunas esperadas: Cód. Interno · Cód. Produto · Cód. Original · Grupo · Descrição · Curva · Saldo</p>
+    </div>
+  </section>
+
+  <!-- ── PAINEL ──────────────────────────────────────────────── -->
+  <section class="vista ativa" id="vista-painel" hidden>
+    <div class="secao">
+      <div class="placas" id="placasPainel"></div>
+    </div>
+
+    <div class="secao">
+      <div class="secao-topo">
+        <h2>Da lista bruta à lista de compra</h2>
+        <span class="nota">Cada degrau descarta o que não exige decisão agora, e diz por quê.</span>
+      </div>
+      <div class="cartao"><div class="cartao-corpo"><div class="reducao" id="reducao"></div></div></div>
+    </div>
+
+    <div class="secao">
+      <div class="secao-topo">
+        <h2>Onde a falta dói</h2>
+        <span class="nota">Curva de giro × situação do saldo. Clique numa célula para abrir a lista filtrada.</span>
+      </div>
+      <div class="cartao"><div class="cartao-corpo"><div class="rolo" style="border:0;box-shadow:none"><div id="matriz"></div></div></div></div>
+    </div>
+
+    <div class="secao">
+      <div class="grade">
+        <div class="cartao">
+          <div class="cartao-corpo">
+            <div class="secao-topo"><h2>Linhas comprometidas</h2></div>
+            <p class="nota" style="font-size:12.5px;color:var(--tinta-3);margin-bottom:12px">
+              Grupos com 25 itens ou mais e a maior parte do sortimento zerada. Quando a linha inteira
+              falha, o cliente não troca de peça — troca de fornecedor.
+            </p>
+            <div class="listabarras" id="linhasQuebradas"></div>
+          </div>
+        </div>
+        <div class="cartao">
+          <div class="cartao-corpo">
+            <div class="secao-topo"><h2>Famílias em falta</h2></div>
+            <p class="nota" style="font-size:12.5px;color:var(--tinta-3);margin-bottom:12px">
+              Ruptura real por família de peça, ponderada pela essencialidade de manter em prateleira.
+            </p>
+            <div class="listabarras" id="familiasFalta"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── COMPRAR ─────────────────────────────────────────────── -->
+  <section class="vista" id="vista-comprar" hidden>
+    <div class="secao">
+      <div class="secao-topo">
+        <h2>Lista de compra priorizada</h2>
+        <span class="nota">Ordenada por prioridade. Abra qualquer linha para ver de onde veio a nota.</span>
+      </div>
+
+      <div class="filtros">
+        <div class="campo">
+          <label for="fBusca">Buscar</label>
+          <input type="search" id="fBusca" placeholder="código, descrição ou grupo" />
+        </div>
+        <div class="campo">
+          <label for="fSituacao">Situação</label>
+          <select id="fSituacao">
+            <option value="">Todas</option>
+            <option value="RUPTURA" selected>Ruptura real</option>
+            <option value="COBERTA">Falta coberta por similar</option>
+            <option value="RISCO">Saldo de risco</option>
+            <option value="SAUDAVEL">Saudável</option>
+            <option value="EXCESSO">Excesso</option>
+          </select>
+        </div>
+        <div class="campo">
+          <label for="fCurva">Curva</label>
+          <select id="fCurva"><option value="">Todas</option></select>
+        </div>
+        <div class="campo">
+          <label for="fClasse">Classe</label>
+          <select id="fClasse"><option value="">Todas</option></select>
+        </div>
+        <div class="campo">
+          <label for="fOrigem">Origem provável</label>
+          <select id="fOrigem"><option value="">Todas</option></select>
+        </div>
+        <div class="campo">
+          <label for="fGrupo">Grupo</label>
+          <select id="fGrupo"><option value="">Todos</option></select>
+        </div>
+        <div class="campo">
+          <label for="fNota">Prioridade mínima</label>
+          <select id="fNota">
+            <option value="0">Qualquer</option>
+            <option value="40">40+</option>
+            <option value="55" selected>55+ (alta)</option>
+            <option value="70">70+ (urgente)</option>
+          </select>
+        </div>
+        <div class="campo">
+          <label for="fAgrupar">Cadastros repetidos</label>
+          <select id="fAgrupar">
+            <option value="1" selected>Juntar numa linha só</option>
+            <option value="0">Mostrar todos separados</option>
+          </select>
+        </div>
+        <div class="campo">
+          <label>&nbsp;</label>
+          <button class="bt bt-mini" id="btLimpar" type="button">Limpar filtros</button>
+        </div>
+        <div class="campo">
+          <label>&nbsp;</label>
+          <button class="bt bt-mini" id="btSelTodos" type="button">Marcar os 50 primeiros</button>
+        </div>
+      </div>
+
+      <div id="resumoLista" class="sobrancelha" style="margin-bottom:9px"></div>
+      <div class="rolo">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:26px"></th>
+              <th style="width:34px"><span class="sobrancelha">Sel</span></th>
+              <th class="ord" data-ord="prioridade" style="width:112px">Prioridade</th>
+              <th style="width:64px">Curva</th>
+              <th>Descrição</th>
+              <th style="width:132px">Cód. produto</th>
+              <th style="width:124px">Cód. original</th>
+              <th style="width:150px">Situação</th>
+              <th class="ord dir" data-ord="saldo" style="width:74px">Saldo</th>
+              <th class="dir" style="width:98px">Sugerido</th>
+            </tr>
+          </thead>
+          <tbody id="corpoLista"></tbody>
+        </table>
+      </div>
+      <div id="maisLista" style="text-align:center;padding:14px"></div>
+    </div>
+  </section>
+
+  <!-- ── OPORTUNIDADES ───────────────────────────────────────── -->
+  <section class="vista" id="vista-oportunidades" hidden>
+    <div class="secao">
+      <div class="secao-topo">
+        <h2>Lista de oportunidades para os vendedores</h2>
+        <span class="nota">O que já está na prateleira e precisa sair. Cada bloco vira uma mensagem pronta.</span>
+      </div>
+      <div class="placas" id="placasOport"></div>
+    </div>
+
+    <div class="secao">
+      <div class="secao-topo">
+        <h2>Capital parado — empurrar</h2>
+        <span class="nota">Saldo alto em item de giro baixo. Dinheiro na prateleira que não gira sozinho.</span>
+      </div>
+      <div id="listaParado" class="grade"></div>
+      <div style="margin-top:12px;display:flex;gap:9px;flex-wrap:wrap">
+        <button class="bt bt-forte" id="btPautaParado" type="button">Gerar pauta para os vendedores</button>
+        <button class="bt" id="btCsvParado" type="button">Baixar planilha</button>
+      </div>
+    </div>
+
+    <div class="secao">
+      <div class="secao-topo">
+        <h2>Forte e disponível — ofertar</h2>
+        <span class="nota">Curva A e B com saldo suficiente para prometer entrega sem risco.</span>
+      </div>
+      <div id="listaForte" class="grade"></div>
+    </div>
+  </section>
+
+  <!-- ── FROTA & REGIÃO ──────────────────────────────────────── -->
+  <section class="vista" id="vista-frota" hidden>
+    <div class="secao">
+      <div class="aviso" data-tom="atencao">
+        <span class="icone">!</span>
+        <div>
+          <b>Leia antes de usar esta aba.</b> A origem de cada peça é <b>inferida pelo formato do código
+          original</b>, não por catálogo de aplicação. Isso indica de qual montadora o código provavelmente
+          veio — e <b>não afirma que a peça serve em um veículo específico</b>. Para aplicação, consulte
+          sempre o catálogo do fabricante. Os dados de frota e mercado abaixo são públicos, com fonte e
+          data em cada ficha.
+        </div>
+      </div>
+    </div>
+
+    <div class="secao">
+      <div class="secao-topo"><h2>O mercado onde esta filial vende</h2></div>
+      <div class="grade" id="fichasFrota"></div>
+    </div>
+
+    <div class="secao">
+      <div class="secao-topo">
+        <h2>Seu catálogo × o mercado de caminhões</h2>
+        <span class="nota">Participação de cada montadora no seu cadastro, comparada com a participação dela nos emplacamentos.</span>
+      </div>
+      <div class="cartao"><div class="cartao-corpo"><div id="cruzamento"></div></div></div>
+    </div>
+
+    <div class="secao">
+      <div class="secao-topo"><h2>Como cada origem foi identificada</h2></div>
+      <div class="rolo">
+        <table>
+          <thead><tr><th>Origem provável</th><th>Padrão do código</th><th class="dir">Itens</th><th class="dir">Em ruptura</th><th>Confiança</th></tr></thead>
+          <tbody id="corpoOrigens"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── EVOLUÇÃO ────────────────────────────────────────────── -->
+  <section class="vista" id="vista-evolucao" hidden>
+    <div class="secao">
+      <div class="secao-topo">
+        <h2>Evolução entre dois envios</h2>
+        <span class="nota">Suba o mesmo relatório outra vez e o consumo do período passa a ser medido, não estimado.</span>
+      </div>
+      <div class="filtros" id="seletorEvolucao"></div>
+      <div id="conteudoEvolucao"></div>
+    </div>
+  </section>
+
+  <!-- ── DADOS ───────────────────────────────────────────────── -->
+  <section class="vista" id="vista-dados" hidden>
+    <div class="secao">
+      <div class="secao-topo"><h2>Envios guardados</h2><span class="nota">Ficam neste navegador. Trocar de aparelho começa do zero.</span></div>
+      <div class="rolo">
+        <table>
+          <thead><tr><th>Data do envio</th><th>Arquivo</th><th class="dir">Itens</th><th class="dir">Em falta</th><th class="dir">Unidades</th><th></th></tr></thead>
+          <tbody id="corpoEnvios"></tbody>
+        </table>
+      </div>
+      <div style="margin-top:12px;display:flex;gap:9px;flex-wrap:wrap">
+        <button class="bt bt-forte" id="btNovoEnvio" type="button">Carregar novo estoque</button>
+        <button class="bt" id="btExportarTudo" type="button">Exportar análise completa (CSV)</button>
+        <button class="bt" id="btApagar" type="button">Apagar tudo</button>
+      </div>
+    </div>
+
+    <div class="secao">
+      <div class="secao-topo"><h2>Qualidade do cadastro</h2><span class="nota">Problemas no cadastro distorcem qualquer análise feita em cima dele.</span></div>
+      <div class="grade" id="qualidade"></div>
+    </div>
+
+    <div class="secao">
+      <div class="secao-topo"><h2>Como a prioridade é calculada</h2></div>
+      <div class="cartao"><div class="cartao-corpo" id="explicaMotor"></div></div>
+    </div>
+  </section>
+</main>
+
+<div class="barra-fixa oculto" id="barraCarrinho">
+  <div class="barra-fixa-interno">
+    <div class="resumo">
+      <b id="carrinhoItens">0</b> itens marcados ·
+      <b id="carrinhoUnidades">0</b> unidades sugeridas
+    </div>
+    <div class="acoes">
+      <button class="bt bt-claro bt-mini" id="btEsvaziar" type="button">Desmarcar</button>
+      <button class="bt bt-forte" id="btSolicitacao" type="button">Montar solicitação de compra</button>
+    </div>
+  </div>
+</div>
+
+<dialog id="modal">
+  <div class="modal-topo">
+    <h2 id="modalTitulo">Solicitação de compra</h2>
+    <button class="bt bt-fantasma bt-mini" id="btFecharModal" type="button" style="margin-left:auto">Fechar</button>
+  </div>
+  <div class="modal-corpo">
+    <p class="nota" id="modalNota" style="font-size:13px;color:var(--tinta-3);margin-bottom:11px"></p>
+    <textarea class="saida" id="modalTexto" readonly></textarea>
+  </div>
+  <div class="modal-pe">
+    <button class="bt" id="btCopiar" type="button">Copiar texto</button>
+    <button class="bt" id="btBaixarCsv" type="button">Baixar CSV</button>
+    <button class="bt bt-forte" id="btImprimir" type="button">Imprimir / PDF</button>
+  </div>
+</dialog>
+
+<script type="module">
+/* ═══════════════════════════════════════════════════════════════════
+   CENTRAL DE COMPRAS — Filial Ribeirão Preto
+   Tudo roda no navegador. Nenhuma requisição de rede é feita em
+   nenhum momento: sem fetch, sem XHR, sem WebSocket.
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ─── 1. Leitura do .xls (OLE2 + BIFF8), sem biblioteca ──────────── */
+
+function lerOle(buf) {
+  const dv = new DataView(buf);
+  const assinatura = [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1];
+  for (let i = 0; i < 8; i++) {
+    if (dv.getUint8(i) !== assinatura[i]) throw new Error('Este arquivo não é um .xls do Excel. Exporte de novo no formato Excel 97-2003, ou salve como CSV.');
+  }
+  const tamSetor = 1 << dv.getUint16(30, true);
+  const tamMini = 1 << dv.getUint16(32, true);
+  const nFat = dv.getUint32(44, true);
+  const dirIni = dv.getUint32(48, true);
+  const miniIni = dv.getUint32(60, true);
+  const difIni = dv.getUint32(68, true);
+  const nDif = dv.getUint32(72, true);
+  const desloc = (s) => (s + 1) * tamSetor;
+
+  const setoresFat = [];
+  for (let i = 0; i < 109 && i < nFat; i++) setoresFat.push(dv.getUint32(76 + i * 4, true));
+  let d = difIni;
+  for (let k = 0; k < nDif && d < 0xFFFFFFFC; k++) {
+    const base = desloc(d), n = tamSetor / 4 - 1;
+    for (let i = 0; i < n; i++) {
+      const s = dv.getUint32(base + i * 4, true);
+      if (s < 0xFFFFFFFC) setoresFat.push(s);
+    }
+    d = dv.getUint32(base + n * 4, true);
+  }
+  const fat = new Uint32Array(setoresFat.length * (tamSetor / 4));
+  setoresFat.forEach((s, si) => {
+    for (let i = 0; i < tamSetor / 4; i++) fat[si * (tamSetor / 4) + i] = dv.getUint32(desloc(s) + i * 4, true);
+  });
+
+  const cadeia = (ini, tabela) => {
+    const c = [];
+    let s = ini, guarda = 0;
+    while (s < 0xFFFFFFFC && guarda++ < 1e6) { c.push(s); s = tabela[s]; }
+    return c;
+  };
+  const lerCadeia = (ini, tabela, tam, off) => {
+    const setores = cadeia(ini, tabela);
+    const saida = new Uint8Array(setores.length * tam);
+    setores.forEach((s, i) => saida.set(new Uint8Array(buf, off(s), tam), i * tam));
+    return saida;
+  };
+
+  const dir = lerCadeia(dirIni, fat, tamSetor, desloc);
+  const dvd = new DataView(dir.buffer);
+  const entradas = [];
+  for (let i = 0; i + 128 <= dir.length; i += 128) {
+    const nb = dvd.getUint16(i + 64, true);
+    if (nb <= 0 || nb > 64) { entradas.push(null); continue; }
+    let nome = '';
+    for (let j = 0; j < nb - 2; j += 2) nome += String.fromCharCode(dvd.getUint16(i + j, true));
+    entradas.push({ nome, tipo: dvd.getUint8(i + 66), ini: dvd.getUint32(i + 116, true), tam: dvd.getUint32(i + 120, true) });
+  }
+  const raiz = entradas.find((e) => e && e.tipo === 5);
+  const livro = entradas.find((e) => e && (e.nome === 'Workbook' || e.nome === 'Book'));
+  if (!livro) throw new Error('Não encontrei a planilha dentro do arquivo. Ele pode estar corrompido.');
+
+  if (livro.tam >= 4096) return lerCadeia(livro.ini, fat, tamSetor, desloc).slice(0, livro.tam);
+
+  const miniFatBytes = lerCadeia(miniIni, fat, tamSetor, desloc);
+  const mdv = new DataView(miniFatBytes.buffer);
+  const miniFat = new Uint32Array(miniFatBytes.length / 4);
+  for (let i = 0; i < miniFat.length; i++) miniFat[i] = mdv.getUint32(i * 4, true);
+  const miniStream = lerCadeia(raiz.ini, fat, tamSetor, desloc);
+  const setores = cadeia(livro.ini, miniFat);
+  const saida = new Uint8Array(setores.length * tamMini);
+  setores.forEach((s, i) => saida.set(miniStream.subarray(s * tamMini, s * tamMini + tamMini), i * tamMini));
+  return saida.slice(0, livro.tam);
+}
+
+function lerStringSst(st) {
+  const nChars = st.u16();
+  const flags = st.u8();
+  const rico = (flags & 0x08) ? 1 : 0;
+  const asia = (flags & 0x04) ? 1 : 0;
+  const nRuns = rico ? st.u16() : 0;
+  const cbExt = asia ? st.u32() : 0;
+  let s = '', lidos = 0, largo = flags & 0x01;
+  while (lidos < nChars) {
+    const resta = st.restanteDoBloco();
+    const cabem = largo ? (resta >> 1) : resta;
+    const n = Math.min(nChars - lidos, cabem);
+    for (let i = 0; i < n; i++) s += String.fromCharCode(largo ? st.u16() : st.u8());
+    lidos += n;
+    if (lidos < nChars) { st.proximoBloco(); largo = st.u8() & 0x01; }
+  }
+  st.pular(nRuns * 4 + cbExt);
+  return s;
+}
+
+function rkParaNumero(rk) {
+  let v;
+  if (rk & 0x02) v = rk >> 2;
+  else {
+    const b = new ArrayBuffer(8), d = new DataView(b);
+    d.setUint32(0, (rk & 0xFFFFFFFC) >>> 0);
+    v = d.getFloat64(0);
+  }
+  return (rk & 0x01) ? v / 100 : v;
+}
+
+function lerPlanilha(bytes) {
+  const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const regs = [];
+  for (let p = 0; p + 4 <= bytes.length;) {
+    const id = dv.getUint16(p, true), tam = dv.getUint16(p + 2, true);
+    regs.push({ id, ini: p + 4, tam });
+    p += 4 + tam;
+  }
+  if (regs.some((r) => r.id === 0x002F)) throw new Error('A planilha está protegida por senha. Remova a proteção e exporte de novo.');
+
+  const sst = [];
+  for (let i = 0; i < regs.length; i++) {
+    if (regs[i].id !== 0x00FC) continue;
+    const blocos = [regs[i]];
+    for (let j = i + 1; j < regs.length && regs[j].id === 0x003C; j++) blocos.push(regs[j]);
+    let bi = 0, p = blocos[0].ini + 8;
+    const st = {
+      u8: () => dv.getUint8(p++),
+      u16: () => { const v = dv.getUint16(p, true); p += 2; return v; },
+      u32: () => { const v = dv.getUint32(p, true); p += 4; return v; },
+      pular: (n) => { p += n; },
+      restanteDoBloco: () => blocos[bi].ini + blocos[bi].tam - p,
+      proximoBloco: () => { bi++; p = blocos[bi].ini; },
+    };
+    const total = dv.getUint32(blocos[0].ini + 4, true);
+    for (let k = 0; k < total; k++) {
+      if (st.restanteDoBloco() <= 0 && bi < blocos.length - 1) st.proximoBloco();
+      sst.push(lerStringSst(st));
+    }
+    break;
+  }
+
+  const celulas = new Map();
+  let maxL = -1, maxC = -1;
+  const por = (l, c, v) => { celulas.set(l + ':' + c, v); if (l > maxL) maxL = l; if (c > maxC) maxC = c; };
+  let pendente = null, terminou = false;
+  const texto = (p, nOff, flagOff) => {
+    const n = dv.getUint16(p + nOff, true), largo = dv.getUint8(p + flagOff) & 0x01;
+    let s = '';
+    for (let i = 0; i < n; i++) s += String.fromCharCode(largo ? dv.getUint16(p + flagOff + 1 + i * 2, true) : dv.getUint8(p + flagOff + 1 + i));
+    return s;
+  };
+  for (const r of regs) {
+    const p = r.ini;
+    switch (r.id) {
+      case 0x00FD: por(dv.getUint16(p, true), dv.getUint16(p + 2, true), sst[dv.getUint32(p + 6, true)] ?? ''); break;
+      case 0x0203: por(dv.getUint16(p, true), dv.getUint16(p + 2, true), dv.getFloat64(p + 6, true)); break;
+      case 0x027E: por(dv.getUint16(p, true), dv.getUint16(p + 2, true), rkParaNumero(dv.getInt32(p + 6, true))); break;
+      case 0x00BD: {
+        const l = dv.getUint16(p, true);
+        let c = dv.getUint16(p + 2, true);
+        for (let q = p + 4; q + 6 <= p + r.tam; q += 6) por(l, c++, rkParaNumero(dv.getInt32(q + 2, true)));
+        break;
+      }
+      case 0x0204: por(dv.getUint16(p, true), dv.getUint16(p + 2, true), texto(p, 6, 8)); break;
+      case 0x0006: {
+        const l = dv.getUint16(p, true), c = dv.getUint16(p + 2, true);
+        if (dv.getUint16(p + 12, true) === 0xFFFF) pendente = { l, c };
+        else por(l, c, dv.getFloat64(p + 6, true));
+        break;
+      }
+      case 0x0207: if (pendente) { por(pendente.l, pendente.c, texto(p, 0, 2)); pendente = null; } break;
+      case 0x000A: if (celulas.size) terminou = true; break;
+      default: break;
+    }
+    if (terminou) break;
+  }
+
+  const linhas = [];
+  for (let l = 0; l <= maxL; l++) {
+    const linha = [];
+    for (let c = 0; c <= maxC; c++) {
+      const v = celulas.get(l + ':' + c);
+      linha.push(v === undefined ? '' : v);
+    }
+    linhas.push(linha);
+  }
+  return linhas;
+}
+
+function lerCsv(texto) {
+  const sep = (texto.split('\n')[0].match(/;/g) || []).length > (texto.split('\n')[0].match(/,/g) || []).length ? ';' : ',';
+  const linhas = [];
+  let campo = '', linha = [], aspas = false;
+  for (let i = 0; i < texto.length; i++) {
+    const c = texto[i];
+    if (aspas) {
+      if (c === '"') { if (texto[i + 1] === '"') { campo += '"'; i++; } else aspas = false; }
+      else campo += c;
+    } else if (c === '"') aspas = true;
+    else if (c === sep) { linha.push(campo); campo = ''; }
+    else if (c === '\n') { linha.push(campo); linhas.push(linha); linha = []; campo = ''; }
+    else if (c !== '\r') campo += c;
+  }
+  if (campo || linha.length) { linha.push(campo); linhas.push(linha); }
+  return linhas;
+}
+
+/* ─── 2. Normalização ────────────────────────────────────────────── */
+
+const semAcento = (s) => String(s ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+const chave = (s) => semAcento(s).toLowerCase().replace(/[^a-z0-9]/g, '');
+
+const COLUNAS = [
+  { campo: 'interno',   nomes: ['codinterno', 'codigointerno', 'interno'] },
+  { campo: 'produto',   nomes: ['codproduto', 'codigoproduto', 'produto', 'referencia'] },
+  { campo: 'original',  nomes: ['codoriginal', 'codigooriginal', 'original', 'oem'] },
+  { campo: 'grupo',     nomes: ['grupo', 'codgrupo', 'linha'] },
+  { campo: 'descricao', nomes: ['descricao', 'desc', 'produtodescricao'] },
+  { campo: 'curva',     nomes: ['curva', 'classe', 'abc', 'curvaabc'] },
+  { campo: 'saldo',     nomes: ['saldo', 'estoque', 'qtd', 'quantidade', 'saldoatual'] },
+];
+
+function mapearColunas(cabecalho) {
+  const mapa = {};
+  const faltando = [];
+  cabecalho.forEach((celula, i) => {
+    const k = chave(celula);
+    if (!k) return;
+    for (const col of COLUNAS) {
+      if (mapa[col.campo] !== undefined) continue;
+      if (col.nomes.some((n) => k === n || k.startsWith(n))) { mapa[col.campo] = i; break; }
+    }
+  });
+  for (const col of COLUNAS) if (mapa[col.campo] === undefined) faltando.push(col.campo);
+  return { mapa, faltando };
+}
+
+function paraInteiro(v) {
+  if (typeof v === 'number') return Number.isFinite(v) ? Math.round(v) : null;
+  const s = String(v ?? '').trim().replace(/\./g, '').replace(',', '.');
+  if (s === '' || s === '-') return null;
+  const n = Number(s);
+  return Number.isFinite(n) ? Math.round(n) : null;
+}
+
+function normalizar(linhas) {
+  let iCab = -1, mapeamento = null;
+  for (let i = 0; i < Math.min(linhas.length, 25); i++) {
+    const m = mapearColunas(linhas[i].map(String));
+    if (m.faltando.length === 0) { iCab = i; mapeamento = m.mapa; break; }
+    if (m.faltando.length <= 2 && iCab === -1) { iCab = i; mapeamento = m.mapa; }
+  }
+  if (iCab === -1) {
+    throw new Error('Não reconheci o cabeçalho. O arquivo precisa ter uma linha com os títulos das colunas (Cód. Interno, Cód. Produto, Cód. Original, Grupo, Descrição, Curva, Saldo).');
+  }
+  const m = mapeamento;
+  const pega = (linha, campo) => (m[campo] === undefined ? '' : String(linha[m[campo]] ?? '').trim());
+
+  const itens = [];
+  for (let i = iCab + 1; i < linhas.length; i++) {
+    const l = linhas[i];
+    if (!l || l.every((c) => String(c ?? '').trim() === '')) continue;
+    const descricao = pega(l, 'descricao');
+    const produto = pega(l, 'produto');
+    const interno = pega(l, 'interno');
+    if (!descricao && !produto && !interno) continue;
+    itens.push({
+      interno,
+      produto,
+      original: pega(l, 'original').replace(/^[.\-\s]+$/, ''),
+      grupo: pega(l, 'grupo'),
+      descricao,
+      curva: (pega(l, 'curva').toUpperCase().match(/[A-F]/) || [''])[0],
+      saldo: paraInteiro(m.saldo === undefined ? null : l[m.saldo]),
+    });
+  }
+  if (!itens.length) throw new Error('O arquivo foi lido, mas não encontrei nenhum item abaixo do cabeçalho.');
+  return itens;
+}
+
+/* ─── 3. Taxonomia de famílias ───────────────────────────────────────
+   Classe de consumo = quanto faz falta esse item estar na prateleira.
+   A regra varre a descrição inteira; a primeira que casa vence, então a
+   ordem importa: o mais específico vem antes. */
+
+const REGRAS_FAMILIA = [
+  { re: /\b(elemento|filtro|cartucho)\b/, familia: 'Filtragem', classe: 'consumivel' },
+  { re: /\b(oleo|fluido|aditivo|graxa|arla|liquido de arrefec)/, familia: 'Lubrificantes e fluidos', classe: 'consumivel' },
+  { re: /\bcorreia|tensionador|esticador|polia\b/, familia: 'Correias e acionamento', classe: 'consumivel' },
+  { re: /\b(lampada|farol|lanterna|palheta|limpador|espelho|retrovisor)\b/, familia: 'Iluminação e cabine', classe: 'consumivel' },
+  { re: /\b(lona|pastilha|tambor|disco de freio|catraca|patim|sapata)\b/, familia: 'Freio — atrito', classe: 'desgaste' },
+  { re: /\b(camara|secador|valvula (de )?(4|2|3) ?(vias|circuitos)|valvula solenoide|valvula protecao|valvula nivel|valvula reguladora|valvula pedal|valvula relay|valvula rele|governador|compressor ar|reservatorio ar)\b/, familia: 'Freio e ar — comando', classe: 'pneumatico' },
+  { re: /\b(amortecedor|bolsa|feixe|mola|coxim|bucha|pivo|barra|tirante|estabiliz|jumelo|grampo)\b/, familia: 'Suspensão e direção', classe: 'desgaste' },
+  { re: /\b(terminal|caixa direcao|bomba direcao|braco|articul)\b/, familia: 'Suspensão e direção', classe: 'desgaste' },
+  { re: /\b(retentor|rolamento|cubo|cruzeta|cardan|junta homoc|luva desliz)\b/, familia: 'Transmissão e rodagem', classe: 'desgaste' },
+  { re: /\b(embreagem|platô|plato|disco embre|servo embre|cilindro mestre|cilindro auxiliar|atuador embre)\b/, familia: 'Embreagem', classe: 'desgaste' },
+  { re: /\b(bico|injetor|bomba injet|bomba alta|common rail|unidade injet|tubo alta)\b/, familia: 'Injeção', classe: 'injecao' },
+  { re: /\b(turbo|intercooler|atuador turbo|valvula egr|egr)\b/, familia: 'Turbo e admissão', classe: 'injecao' },
+  { re: /\b(radiador|tanque expansao|bomba agua|valvula termostat|termostato|ventoinha|viscos|arrefec|mangueira)\b/, familia: 'Arrefecimento', classe: 'desgaste' },
+  { re: /\b(sensor|interruptor|chave|rele|modulo|bobina|alternador|motor de partida|bateria|chicote|comutador|tacografo)\b/, familia: 'Elétrica e sensores', classe: 'eletrico' },
+  { re: /\b(junta|anel|jg junta|kit junta|bronzina|mancal|casquilho)\b/, familia: 'Vedação e mancais', classe: 'desgaste' },
+  { re: /\b(reparo|kit reparo|jogo reparo)\b/, familia: 'Kits de reparo', classe: 'desgaste' },
+  { re: /\b(virabrequim|comando|cabecote|bloco|biela|pistao|camisa|volante motor|valvula admissao|valvula escape|balancim|tucho|haste valv)\b/, familia: 'Motor — interno', classe: 'estrutural' },
+  { re: /\b(engrenagem|eixo|diferencial|caixa (de )?(cambio|marcha)|carcaca|sincroniz|garfo|pinhao|coroa|semi ?eixo)\b/, familia: 'Câmbio e diferencial', classe: 'estrutural' },
+  { re: /\b(bomba|compressor|servo)\b/, familia: 'Bombas e compressores', classe: 'injecao' },
+  { re: /\b(parafuso|porca|arruela|pino|presilha|abracadeira|grampo|trava)\b/, familia: 'Fixação', classe: 'consumivel' },
+];
+
+const ROTULO_CLASSE = {
+  consumivel: 'Consumível',
+  pneumatico: 'Freio e ar',
+  desgaste: 'Desgaste',
+  eletrico: 'Elétrica',
+  injecao: 'Injeção e bombas',
+  estrutural: 'Estrutural',
+};
+
+/* Quanto pesa, de 0 a 1, a essencialidade de manter em prateleira. */
+const PESO_CLASSE = {
+  consumivel: 1.00,
+  pneumatico: 0.92,
+  eletrico: 0.85,
+  desgaste: 0.80,
+  injecao: 0.52,
+  estrutural: 0.14,
+};
+
+function classificarFamilia(descricao) {
+  const d = ' ' + semAcento(descricao).toLowerCase() + ' ';
+  for (const r of REGRAS_FAMILIA) if (r.re.test(d)) return { familia: r.familia, classe: r.classe };
+  const primeira = descricao.trim().split(/\s+/)[0] || '';
+  return { familia: primeira ? primeira.charAt(0).toUpperCase() + primeira.slice(1).toLowerCase() : 'Não classificada', classe: null };
+}
+
+/* ─── 4. Origem provável pelo formato do código ───────────────────────
+   ATENÇÃO: isto identifica de qual montadora o código provavelmente veio.
+   NÃO afirma que a peça se aplica a um veículo. Aplicação só sai de
+   catálogo do fabricante. Só entram padrões de formato inequívocos —
+   é melhor deixar como "não identificada" do que chutar. */
+
+const REGRAS_ORIGEM = [
+  { re: /^\d{10}$/,               origem: 'Mercedes-Benz',     confianca: 'alta',  padrao: '10 dígitos (formato A ### ### ## ##)' },
+  { re: /^\d[A-Z]{1,2}\d{6,7}[A-Z]?$/, origem: 'Volkswagen / MAN', confianca: 'alta', padrao: 'dígito + letra + dígitos (ex.: 2Z0501615E)' },
+  { re: /^2[0-2]\d{6}$/,          origem: 'Volvo',             confianca: 'alta',  padrao: '8 dígitos iniciando em 20, 21 ou 22' },
+  { re: /^8\d\.\d{5}[-.]?\d{4}$/, origem: 'MAN',               confianca: 'alta',  padrao: 'formato 8X.XXXXX-XXXX' },
+  { re: /^50\d{7}$/,              origem: 'Iveco / FPT',       confianca: 'media', padrao: '9 dígitos iniciando em 50' },
+  { re: /^(0501|1315)\d{6}$/,     origem: 'ZF',                confianca: 'media', padrao: 'prefixo 0501 ou 1315' },
+];
+
+function inferirOrigem(codigo) {
+  const c = String(codigo || '').trim().toUpperCase().replace(/\s+/g, '');
+  if (!c || c === '.' || c === '-') return { origem: null, confianca: null, padrao: null, motivo: 'Item sem código original cadastrado.' };
+  const primeiro = c.split(/[/,;]/)[0];
+  for (const r of REGRAS_ORIGEM) {
+    if (r.re.test(primeiro)) return { origem: r.origem, confianca: r.confianca, padrao: r.padrao, motivo: 'Código ' + primeiro + ' segue o padrão ' + r.padrao + '.' };
+  }
+  return { origem: null, confianca: null, padrao: null, motivo: 'O formato do código ' + primeiro + ' não corresponde a nenhum padrão que eu reconheça com segurança.' };
+}
+
+/* ─── 5. Dados públicos de mercado e frota ───────────────────────────
+   Cada número carrega fonte e data. Nada aqui é estimado sem dizer que é. */
+
+const MERCADO = {
+  atualizadoEm: 'agosto de 2026',
+  frotaCidade: {
+    total: 568142, caminhoes: 12423, camionetas: 40012, onibus: 2871, micro: 1506,
+    referencia: 'maio de 2024',
+    fonte: 'Tribuna Ribeirão, sobre dados de frota do Senatran/Detran-SP',
+    url: 'https://www.tribunaribeirao.com.br/frota-de-veiculos-cresce-079-em-rp/',
+  },
+  regiao: {
+    municipios: 34, habitantes: 1680000, pib: 66540947400, pibAno: 2018, pibShareSP: 3.01,
+    fonte: 'Região Metropolitana de Ribeirão Preto — Fundação Seade / IBGE',
+    url: 'https://rmrp.pdui.sp.gov.br/?page_id=127',
+  },
+  frotaBrasil: {
+    caminhoes: 2280000, idadeMediaAnos: 12.25,
+    fonte: 'Sindipeças/Abipeças — Relatório da Frota Circulante, edição 2025/2026',
+    url: 'https://www.autoindustria.com.br/2026/05/12/frota-brasileira-envelhece-e-idade-media-sobe-para-11-anos/',
+  },
+  emplacamentos: {
+    periodo: '1º semestre de 2026', total: 48030, anterior: 53009, variacao: -9.39,
+    fonte: 'Fenabrave, via FrotaNews',
+    url: 'https://frotanews.com.br/vw-mercedes-empate-mercado/',
+    marcas: [
+      { marca: 'Volkswagen / MAN', unidades: 13496, share: 28.10 },
+      { marca: 'Mercedes-Benz',    unidades: 13104, share: 27.28 },
+      { marca: 'Volvo',            unidades: 8642,  share: 17.99 },
+      { marca: 'Scania',           unidades: 5187,  share: 10.80 },
+      { marca: 'Iveco / FPT',      unidades: 3752,  share: 7.81 },
+      { marca: 'DAF',              unidades: 2844,  share: 5.92 },
+      { marca: 'Foton',            unidades: 665,   share: 1.38 },
+    ],
+  },
+  reposicao: {
+    faturamento2026: 284.1, crescimento: 3.0, aftermarket2024: 43, aftermarket2040: 79,
+    fonte: 'Sindipeças — projeção do setor de autopeças para 2026',
+    url: 'https://reparacaoautomotiva.com.br/2026/02/03/faturamento-autopecas-brasil-crescimento-eletricos/',
+  },
+  cana: {
+    fonte: 'Visão Agro / Portal do Agronegócio — safra de cana 2026 em São Paulo',
+    url: 'https://visaoagro.com.br/safra-de-cana-2026-em-sp-comeca-antecipada-e-usinas-ampliam-aposta-na-producao-de-etanol/',
+  },
+  agrishow: {
+    intencao: 11.4, variacao: -22, visitantes: 197000, marcas: 800,
+    fonte: 'Agrishow 2026, Ribeirão Preto — balanço da feira',
+    url: 'https://thmais.com.br/cidades/ribeirao-preto/agrishow-2026-encerra-com-r-114-bilhoes-em-intencao-de-negocios/',
+  },
+};
+
+/* Aderência da origem ao mercado que roda na região, de 0 a 1.
+   Deriva do share de emplacamentos, reescalado para o maior. */
+const ADERENCIA_ORIGEM = (() => {
+  const mapa = {};
+  const maior = Math.max(...MERCADO.emplacamentos.marcas.map((m) => m.share));
+  for (const m of MERCADO.emplacamentos.marcas) mapa[m.marca] = m.share / maior;
+  mapa['MAN'] = mapa['Volkswagen / MAN'];
+  mapa['ZF'] = 0.75; // componente de transmissão presente em várias montadoras
+  return mapa;
+})();
+
+/* ─── 6. Motor de prioridade ─────────────────────────────────────────
+   Cinco componentes, pesos somando 100. Todo componente que pontua
+   registra um fator com evidência concreta; todo componente sem dado
+   registra uma lacuna e NÃO pontua — ausência nunca vira zero disfarçado.
+   A confiança mostra quanto do peso total pôde ser aplicado. */
+
+const PESOS = { giro: 30, ruptura: 26, essencialidade: 20, linha: 14, mercado: 10 };
+const PESO_CURVA = { A: 1.00, B: 0.80, C: 0.55, D: 0.33, E: 0.15, F: 0.00 };
+const RISCO_CURVA = { A: 3, B: 2, C: 2, D: 1, E: 1, F: 1 };
+const EXCESSO_CURVA = { A: 90, B: 70, C: 45, D: 25, E: 20, F: 16 };
+
+function situacaoDe(item, temSimilarComSaldo) {
+  if (item.saldo === null) return 'SEM_SALDO';
+  if (item.saldo === 0) return temSimilarComSaldo ? 'COBERTA' : 'RUPTURA';
+  const limiteRisco = RISCO_CURVA[item.curva] ?? 1;
+  const limiteExcesso = EXCESSO_CURVA[item.curva] ?? 25;
+  if (item.saldo >= limiteExcesso) return 'EXCESSO';
+  if (item.saldo <= limiteRisco) return 'RISCO';
+  return 'SAUDAVEL';
+}
+
+const SITUACOES = {
+  RUPTURA:   { rotulo: 'Ruptura real',      tom: 'critico'  },
+  COBERTA:   { rotulo: 'Coberta por similar', tom: 'atencao'  },
+  RISCO:     { rotulo: 'Saldo de risco',    tom: 'atencao'  },
+  SAUDAVEL:  { rotulo: 'Saudável',          tom: 'saudavel' },
+  EXCESSO:   { rotulo: 'Excesso',           tom: 'parado'   },
+  SEM_SALDO: { rotulo: 'Saldo ausente',     tom: 'neutro'   },
+};
+
+function analisar(itens) {
+  /* Um SKU zerado cujo irmão de mesmo código original tem saldo não é
+     ruptura: o balcão atende. Essa distinção é o que separa uma lista
+     impossível de uma lista que cabe num pedido. */
+  const porOriginal = new Map();
+  for (const it of itens) {
+    if (!it.original) continue;
+    const k = it.original.toUpperCase();
+    if (!porOriginal.has(k)) porOriginal.set(k, []);
+    porOriginal.get(k).push(it);
+  }
+
+  const porGrupo = new Map();
+  for (const it of itens) {
+    if (!porGrupo.has(it.grupo)) porGrupo.set(it.grupo, []);
+    porGrupo.get(it.grupo).push(it);
+  }
+  const saudeGrupo = new Map();
+  for (const [g, lista] of porGrupo) {
+    const zerados = lista.filter((x) => x.saldo === 0).length;
+    saudeGrupo.set(g, { tamanho: lista.length, zerados, taxa: zerados / lista.length });
+  }
+
+  const analisados = itens.map((item) => {
+    const irmaos = item.original ? (porOriginal.get(item.original.toUpperCase()) || []).filter((x) => x !== item) : [];
+    const similaresComSaldo = irmaos.filter((x) => (x.saldo ?? 0) > 0);
+    const situacao = situacaoDe(item, similaresComSaldo.length > 0);
+    const { familia, classe } = classificarFamilia(item.descricao);
+    const origem = inferirOrigem(item.original);
+    const grupo = saudeGrupo.get(item.grupo);
+
+    const fatores = [];
+    const lacunas = [];
+    let pontos = 0, pesoAplicado = 0;
+
+    // 1. Giro pela curva ABC.
+    if (item.curva && PESO_CURVA[item.curva] !== undefined) {
+      const p = PESOS.giro * PESO_CURVA[item.curva];
+      pontos += p; pesoAplicado += PESOS.giro;
+      fatores.push({ nome: 'Giro', pontos: p, texto: 'Curva ' + item.curva + ' — ' + ({ A: 'a faixa de maior saída do cadastro', B: 'saída alta', C: 'saída média', D: 'saída baixa', E: 'saída rara', F: 'praticamente sem saída' })[item.curva] + '.' });
+    } else {
+      lacunas.push({ nome: 'Giro', texto: 'Item sem curva ABC no cadastro. Sem ela não dá para saber se sai muito ou pouco.' });
+    }
+
+    // 2. Situação do saldo.
+    if (item.saldo === null) {
+      lacunas.push({ nome: 'Saldo', texto: 'Coluna de saldo vazia ou ilegível para este item.' });
+    } else {
+      let f = 0, texto = '';
+      if (situacao === 'RUPTURA') { f = 1.0; texto = 'Saldo zero e nenhum similar com o mesmo código original tem saldo. O balcão perde a venda.'; }
+      else if (situacao === 'COBERTA') { f = 0.22; texto = 'Saldo zero, mas ' + similaresComSaldo.length + ' cadastro' + (similaresComSaldo.length > 1 ? 's' : '') + ' com o mesmo código original ainda tem saldo (' + similaresComSaldo.map((x) => x.produto + ': ' + x.saldo).slice(0, 3).join(', ') + '). Atende, mas o cadastro está duplicado.'; }
+      else if (item.saldo === 1) { f = 0.70; texto = 'Última peça na prateleira. A próxima venda zera o item.'; }
+      else if (situacao === 'RISCO') { f = 0.50; texto = 'Saldo ' + item.saldo + ', dentro da faixa de risco para curva ' + item.curva + '.'; }
+      else if (situacao === 'EXCESSO') { f = 0.0; texto = 'Saldo ' + item.saldo + ' — acima do necessário para curva ' + item.curva + '. Não é caso de compra.'; }
+      else { f = 0.08; texto = 'Saldo ' + item.saldo + ', suficiente para a curva ' + item.curva + '.'; }
+      const p = PESOS.ruptura * f;
+      pontos += p; pesoAplicado += PESOS.ruptura;
+      fatores.push({ nome: 'Falta', pontos: p, texto });
+    }
+
+    // 3. Essencialidade de prateleira, pela classe da peça.
+    if (classe && PESO_CLASSE[classe] !== undefined) {
+      const p = PESOS.essencialidade * PESO_CLASSE[classe];
+      pontos += p; pesoAplicado += PESOS.essencialidade;
+      const explica = {
+        consumivel: 'troca programada, o cliente compra sempre — faltar é perder recorrência',
+        pneumatico: 'freio e ar param o caminhão; o cliente compra de quem tem hoje',
+        eletrico: 'falha sem aviso, e a procura é imediata',
+        desgaste: 'troca por uso, procura constante',
+        injecao: 'ticket alto e procura média — vale ter, não vale encher',
+        estrutural: 'ticket alto e giro raro — normalmente se compra sob pedido',
+      }[classe];
+      fatores.push({ nome: 'Essencial', pontos: p, texto: familia + ' (' + ROTULO_CLASSE[classe] + '): ' + explica + '.' });
+    } else {
+      lacunas.push({ nome: 'Essencial', texto: 'A descrição "' + item.descricao + '" não caiu em nenhuma família conhecida. Descrição truncada ou termo novo.' });
+    }
+
+    // 4. Saúde da linha inteira.
+    if (grupo && grupo.tamanho >= 8) {
+      const f = Math.min(1, Math.max(0, (grupo.taxa - 0.30) / 0.50));
+      const p = PESOS.linha * f;
+      pontos += p; pesoAplicado += PESOS.linha;
+      fatores.push({ nome: 'Linha', pontos: p, texto: 'Grupo ' + item.grupo + ': ' + grupo.zerados + ' de ' + grupo.tamanho + ' itens zerados (' + Math.round(grupo.taxa * 100) + '%).' + (grupo.taxa > 0.6 ? ' Quando a linha inteira falha, o cliente troca de fornecedor, não de peça.' : '') });
+    } else {
+      lacunas.push({ nome: 'Linha', texto: 'Grupo ' + item.grupo + ' tem menos de 8 itens — base pequena demais para julgar a linha.' });
+    }
+
+    // 5. Aderência ao mercado da região.
+    if (origem.origem && ADERENCIA_ORIGEM[origem.origem] !== undefined) {
+      const f = ADERENCIA_ORIGEM[origem.origem];
+      const p = PESOS.mercado * f;
+      pontos += p; pesoAplicado += PESOS.mercado;
+      const share = MERCADO.emplacamentos.marcas.find((m) => m.marca === origem.origem);
+      fatores.push({ nome: 'Mercado', pontos: p, texto: 'Código com padrão ' + origem.origem + (share ? ' — ' + share.share.toFixed(1).replace('.', ',') + '% dos emplacamentos de caminhão no ' + MERCADO.emplacamentos.periodo : '') + '.' });
+    } else {
+      lacunas.push({ nome: 'Mercado', texto: origem.motivo });
+    }
+
+    return {
+      ...item, situacao, familia, classe, chaveDuplicata: item.original ? item.original.toUpperCase() + '|' + chave(item.descricao) : null,
+      origem: origem.origem, origemConfianca: origem.confianca, origemMotivo: origem.motivo,
+      similares: similaresComSaldo.length, irmaos: irmaos.length,
+      grupoTamanho: grupo ? grupo.tamanho : 0, grupoTaxa: grupo ? grupo.taxa : null,
+      prioridade: Math.round(pontos),
+      confianca: Math.round((pesoAplicado / 100) * 100),
+      fatores, lacunas,
+    };
+  });
+
+  /* O mesmo item cadastrado várias vezes (sufixo [2], [3]...) não pode virar
+     várias linhas de compra da mesma peça. Elege-se um representante — o de
+     maior prioridade — e os demais ficam anexados a ele. */
+  const conjuntos = new Map();
+  for (const i of analisados) {
+    if (!i.chaveDuplicata) continue;
+    if (!conjuntos.has(i.chaveDuplicata)) conjuntos.set(i.chaveDuplicata, []);
+    conjuntos.get(i.chaveDuplicata).push(i);
+  }
+  for (const i of analisados) { i.repetidos = 1; i.ehRepresentante = true; i.saldoConjunto = i.saldo; }
+  for (const grupo of conjuntos.values()) {
+    if (grupo.length < 2) continue;
+    const soma = grupo.reduce((s, x) => s + (x.saldo || 0), 0);
+    const chefe = grupo.slice().sort((a, b) => b.prioridade - a.prioridade || (b.saldo || 0) - (a.saldo || 0))[0];
+    for (const x of grupo) {
+      x.repetidos = grupo.length;
+      x.ehRepresentante = x === chefe;
+      x.saldoConjunto = soma;
+      x.conjunto = grupo;
+    }
+  }
+
+  return { itens: analisados, saudeGrupo };
+}
+
+/* ─── 7. Quantidade sugerida ─────────────────────────────────────────
+   Sem dois envios não existe consumo medido. Nesse caso a sugestão é
+   declaradamente uma referência por classe, e diz isso na cara. */
+
+const BASE_CLASSE = { consumivel: 6, pneumatico: 4, eletrico: 3, desgaste: 4, injecao: 2, estrutural: 1 };
+const MULT_CURVA = { A: 2.0, B: 1.5, C: 1.0, D: 0.6, E: 0.4, F: 0.25 };
+
+function sugerirQuantidade(item, consumo, diasCobertura) {
+  if (consumo && consumo.dias >= 14 && consumo.saida > 0) {
+    const porDia = consumo.saida / consumo.dias;
+    const alvo = porDia * diasCobertura;
+    const qtd = Math.max(1, Math.ceil(alvo - (item.saldo ?? 0)));
+    return { qtd, medida: true, texto: 'Saíram ' + consumo.saida + ' unidades em ' + consumo.dias + ' dias. Para cobrir ' + diasCobertura + ' dias, faltam ' + qtd + '.' };
+  }
+  if (item.situacao === 'EXCESSO' || item.situacao === 'SAUDAVEL') return { qtd: 0, medida: false, texto: 'Saldo já cobre a curva.' };
+  const base = BASE_CLASSE[item.classe] ?? 2;
+  const mult = MULT_CURVA[item.curva] ?? 0.5;
+  const qtd = Math.max(1, Math.round(base * mult) - (item.saldo ?? 0));
+  return { qtd: Math.max(1, qtd), medida: false, texto: 'Referência por classe (' + (item.classe ? ROTULO_CLASSE[item.classe] : 'sem classe') + ' × curva ' + (item.curva || '—') + '). Suba um segundo envio e esta conta passa a usar o consumo medido.' };
+}
+
+/* ─── 8. Persistência local ──────────────────────────────────────────
+   IndexedDB no navegador do usuário. Nada sai daqui. */
+
+const BANCO = 'compras-ribeirao-preto', VERSAO_BANCO = 1, LOJA = 'envios';
+
+function abrirBanco() {
+  return new Promise((ok, erro) => {
+    const req = indexedDB.open(BANCO, VERSAO_BANCO);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains(LOJA)) db.createObjectStore(LOJA, { keyPath: 'id' });
+    };
+    req.onsuccess = () => ok(req.result);
+    req.onerror = () => erro(req.error);
+  });
+}
+
+async function comLoja(modo, fn) {
+  const db = await abrirBanco();
+  return new Promise((ok, erro) => {
+    const tx = db.transaction(LOJA, modo);
+    const req = fn(tx.objectStore(LOJA));
+    tx.oncomplete = () => ok(req && req.result);
+    tx.onerror = () => erro(tx.error);
+  });
+}
+
+const guardarEnvio = (e) => comLoja('readwrite', (l) => l.put(e));
+const lerEnvios = () => comLoja('readonly', (l) => l.getAll());
+const removerEnvio = (id) => comLoja('readwrite', (l) => l.delete(id));
+const limparEnvios = () => comLoja('readwrite', (l) => l.clear());
+
+/* ─── 9. Estado ──────────────────────────────────────────────────── */
+
+const estado = {
+  envios: [],
+  atualId: null,
+  analise: null,
+  consumo: null,
+  diasCobertura: 45,
+  marcados: new Set(),
+  limite: 150,
+  ordem: { campo: 'prioridade', desc: true },
+  filtros: { busca: '', situacao: 'RUPTURA', curva: '', classe: '', origem: '', grupo: '', nota: 55 },
+  agrupar: true,
+  bancoOk: true,
+};
+
+const $ = (s) => document.querySelector(s);
+const $$ = (s) => Array.from(document.querySelectorAll(s));
+const nf = new Intl.NumberFormat('pt-BR');
+const n = (v) => nf.format(v);
+const pct = (v) => (v * 100).toFixed(v < 0.1 ? 1 : 0).replace('.', ',') + '%';
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const dataBr = (iso) => new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+const horaBr = (iso) => new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+const envioAtual = () => estado.envios.find((e) => e.id === estado.atualId) || null;
+const itens = () => (estado.analise ? estado.analise.itens : []);
+
+/* Nome legível para um grupo, deduzido da família que mais aparece nele. */
+function nomeGrupo(codigo) {
+  const lista = itens().filter((i) => i.grupo === codigo);
+  if (!lista.length) return codigo;
+  const cont = {};
+  for (const i of lista) cont[i.familia] = (cont[i.familia] || 0) + 1;
+  const top = Object.entries(cont).sort((a, b) => b[1] - a[1])[0];
+  const amostra = lista.map((i) => i.descricao).filter(Boolean)[0] || '';
+  return (top ? top[0] : 'Grupo') + ' · ' + codigo + (amostra ? ' (' + amostra.slice(0, 22) + ')' : '');
+}
+
+/* ─── 10. Consumo entre dois envios ──────────────────────────────── */
+
+function calcularConsumo(anterior, atual) {
+  if (!anterior || !atual) return null;
+  const dias = Math.max(1, Math.round((new Date(atual.dataISO) - new Date(anterior.dataISO)) / 86400000));
+  const mapa = new Map();
+  for (const it of anterior.itens) mapa.set(it.interno || it.produto, it.saldo);
+  const porItem = new Map();
+  let totalSaida = 0, totalEntrada = 0, comparados = 0;
+  for (const it of atual.itens) {
+    const k = it.interno || it.produto;
+    if (!mapa.has(k)) continue;
+    const antes = mapa.get(k), agora = it.saldo;
+    if (antes === null || agora === null) continue;
+    comparados++;
+    const delta = antes - agora;
+    if (delta > 0) { porItem.set(k, { saida: delta, dias }); totalSaida += delta; }
+    else if (delta < 0) totalEntrada += -delta;
+  }
+  return { dias, porItem, totalSaida, totalEntrada, comparados, de: anterior, para: atual };
+}
+
+/* ─── 11. Recalcular ─────────────────────────────────────────────── */
+
+function recalcular() {
+  const atual = envioAtual();
+  if (!atual) { estado.analise = null; estado.consumo = null; return; }
+  estado.analise = analisar(atual.itens);
+  const anteriores = estado.envios
+    .filter((e) => new Date(e.dataISO) < new Date(atual.dataISO))
+    .sort((a, b) => new Date(b.dataISO) - new Date(a.dataISO));
+  estado.consumo = anteriores.length ? calcularConsumo(anteriores[0], atual) : null;
+  for (const it of estado.analise.itens) {
+    const c = estado.consumo ? estado.consumo.porItem.get(it.interno || it.produto) : null;
+    it.consumo = c || null;
+  }
+  for (const it of estado.analise.itens) {
+    /* Um item cadastrado três vezes teve a saída dividida entre os três
+       cadastros. Quem compra precisa da soma, não de um terço. */
+    let consumo = it.consumo, saldo = it.saldo;
+    if (it.repetidos > 1 && it.ehRepresentante && it.conjunto) {
+      const saida = it.conjunto.reduce((s, x) => s + (x.consumo ? x.consumo.saida : 0), 0);
+      const dias = it.conjunto.find((x) => x.consumo)?.consumo.dias ?? 0;
+      consumo = saida > 0 ? { saida, dias } : null;
+      saldo = it.saldoConjunto;
+    }
+    it.sugestao = sugerirQuantidade({ ...it, saldo }, consumo, estado.diasCobertura);
+    if (it.repetidos > 1 && it.ehRepresentante) {
+      it.sugestao.texto += ' Soma os ' + it.repetidos + ' cadastros com este mesmo código original.';
+    }
+  }
+}
+
+/* ─── 12. Filtros e ordenação ────────────────────────────────────── */
+
+function filtrar() {
+  const f = estado.filtros;
+  const busca = chave(f.busca);
+  let lista = itens().filter((i) => {
+    if (estado.agrupar && i.repetidos > 1 && !i.ehRepresentante) return false;
+    if (f.situacao && i.situacao !== f.situacao) return false;
+    if (f.curva && i.curva !== f.curva) return false;
+    if (f.classe && i.classe !== f.classe) return false;
+    if (f.origem === '__nenhuma') { if (i.origem) return false; }
+    else if (f.origem && i.origem !== f.origem) return false;
+    if (f.grupo && i.grupo !== f.grupo) return false;
+    if (i.prioridade < f.nota) return false;
+    if (busca) {
+      const alvo = chave(i.descricao + i.produto + i.original + i.grupo + i.interno);
+      if (!alvo.includes(busca)) return false;
+    }
+    return true;
+  });
+  const { campo, desc } = estado.ordem;
+  lista.sort((a, b) => {
+    const va = campo === 'saldo' ? (a.saldo ?? -1) : a.prioridade;
+    const vb = campo === 'saldo' ? (b.saldo ?? -1) : b.prioridade;
+    if (va !== vb) return desc ? vb - va : va - vb;
+    return b.prioridade - a.prioridade;
+  });
+  return lista;
+}
+
+/* ─── 13. Componentes de desenho ─────────────────────────────────── */
+
+function etiquetaSituacao(sit) {
+  const s = SITUACOES[sit] || SITUACOES.SEM_SALDO;
+  return '<span class="etiqueta" data-tom="' + s.tom + '">' + esc(s.rotulo) + '</span>';
+}
+
+function barraPrioridade(p) {
+  const tom = p >= 70 ? 'var(--critico)' : p >= 55 ? 'var(--atencao)' : p >= 35 ? 'var(--marinho)' : 'var(--borda-forte)';
+  return '<span style="display:inline-flex;align-items:center;gap:7px">' +
+    '<b class="num" style="width:24px;text-align:right;font-weight:700">' + p + '</b>' +
+    '<span class="barra"><i style="width:' + Math.max(3, p) + '%;background:' + tom + '"></i></span></span>';
+}
+
+function placa({ rotulo, valor, rodape, tom }) {
+  return '<div class="placa" data-tom="' + (tom || 'neutro') + '">' +
+    '<div class="sobrancelha">' + esc(rotulo) + '</div>' +
+    '<div class="valor">' + valor + '</div>' +
+    '<div class="rodape">' + rodape + '</div></div>';
+}
+
+function barraHorizontal({ titulo, direita, fracao, cor }) {
+  return '<div class="itembarra"><div class="cab"><b>' + titulo + '</b><span>' + direita + '</span></div>' +
+    '<div class="trilho"><i style="width:' + Math.max(1.5, fracao * 100) + '%;background:' + cor + '"></i></div></div>';
+}
+
+/* ─── 14. Painel ─────────────────────────────────────────────────── */
+
+function renderPainel() {
+  const L = itens();
+  const total = L.length;
+  const zerados = L.filter((i) => i.saldo === 0).length;
+  const ruptura = L.filter((i) => i.situacao === 'RUPTURA');
+  const cobertas = L.filter((i) => i.situacao === 'COBERTA').length;
+  const alta = L.filter((i) => i.prioridade >= 55);
+  const urgente = L.filter((i) => i.prioridade >= 70);
+  const excesso = L.filter((i) => i.situacao === 'EXCESSO');
+  const unidadesParadas = excesso.reduce((s, i) => s + (i.saldo || 0), 0);
+
+  $('#placasPainel').innerHTML = [
+    placa({ rotulo: 'Itens no cadastro', valor: n(total), rodape: n(L.reduce((s, i) => s + (i.saldo || 0), 0)) + ' unidades em estoque', tom: 'neutro' }),
+    placa({ rotulo: 'Em falta (saldo zero)', valor: n(zerados), rodape: pct(zerados / total) + ' do cadastro — número bruto, antes de filtrar', tom: 'atencao' }),
+    placa({ rotulo: 'Ruptura real', valor: n(ruptura.length), rodape: 'Zerados sem nenhum similar com saldo. É a falta que o cliente sente.', tom: 'critico' }),
+    placa({ rotulo: 'Prioridade alta', valor: n(alta.length), rodape: n(urgente.length) + ' com nota 70 ou mais — comprar nesta semana', tom: 'marca' }),
+    placa({ rotulo: 'Capital parado', valor: n(unidadesParadas), rodape: 'unidades em ' + n(excesso.length) + ' itens de giro baixo — vira lista de oportunidade', tom: 'parado' }),
+  ].join('');
+
+  const degraus = [
+    { rot: 'Itens no cadastro', v: total, exp: 'Tudo o que existe na filial.' },
+    { rot: 'Com saldo zero', v: zerados, exp: 'A lista que o sistema entrega hoje. Grande demais para virar pedido.' },
+    { rot: 'Ruptura real', v: ruptura.length, exp: n(cobertas) + ' zerados saem daqui porque outro cadastro com o mesmo código original ainda tem peça.' },
+    { rot: 'Prioridade 55 ou mais', v: alta.length, exp: 'Sobra o que junta giro, essencialidade e linha comprometida.' },
+    { rot: 'Prioridade 70 ou mais', v: urgente.length, exp: 'O pedido desta semana.' },
+  ];
+  $('#reducao').innerHTML = degraus.map((d, i) => {
+    const cor = ['var(--borda-forte)', 'var(--atencao)', 'var(--critico)', 'var(--marinho)', 'var(--laranja)'][i];
+    return '<div class="degrau"><div class="cab"><b>' + d.rot + '</b><span class="n">' + n(d.v) + '</span></div>' +
+      '<div class="trilho" style="height:12px"><i style="width:' + Math.max(1, (d.v / total) * 100) + '%;background:' + cor + '"></i></div>' +
+      '<div class="exp">' + d.exp + '</div></div>';
+  }).join('');
+
+  // Matriz curva × situação.
+  const curvas = ['A', 'B', 'C', 'D', 'E', 'F'].filter((c) => L.some((i) => i.curva === c));
+  const cols = ['RUPTURA', 'COBERTA', 'RISCO', 'SAUDAVEL', 'EXCESSO'];
+  const maxCel = Math.max(...curvas.flatMap((c) => cols.map((s) => L.filter((i) => i.curva === c && i.situacao === s).length)));
+  let html = '<table class="matriz"><thead><tr><th></th>' +
+    cols.map((s) => '<th class="sobrancelha" style="text-align:center">' + esc(SITUACOES[s].rotulo) + '</th>').join('') +
+    '<th class="sobrancelha" style="text-align:center">Total</th></tr></thead><tbody>';
+  for (const c of curvas) {
+    const naCurva = L.filter((i) => i.curva === c);
+    html += '<tr><th style="text-align:right"><span class="curva" data-c="' + c + '">' + c + '</span></th>';
+    for (const s of cols) {
+      const q = naCurva.filter((i) => i.situacao === s).length;
+      const tom = { critico: 'var(--critico)', atencao: 'var(--atencao)', saudavel: 'var(--saudavel)', parado: 'var(--parado)', neutro: 'var(--borda-forte)' }[SITUACOES[s].tom];
+      const intensidade = maxCel ? Math.round((q / maxCel) * 32) + 5 : 5;
+      html += '<td><button class="cel" data-curva="' + c + '" data-situacao="' + s + '" ' +
+        'style="background:color-mix(in srgb,' + tom + ' ' + intensidade + '%, var(--papel));color:var(--tinta)" ' +
+        'title="' + esc(SITUACOES[s].rotulo + ' na curva ' + c) + '">' + n(q) + '<small>' + (naCurva.length ? Math.round((q / naCurva.length) * 100) + '%' : '0%') + '</small></button></td>';
+    }
+    html += '<td style="padding-left:8px;font-variant-numeric:tabular-nums;color:var(--tinta-3)">' + n(naCurva.length) + '</td></tr>';
+  }
+  html += '</tbody></table>';
+  $('#matriz').innerHTML = html;
+  $$('#matriz .cel').forEach((b) => b.addEventListener('click', () => {
+    estado.filtros = { ...estado.filtros, curva: b.dataset.curva, situacao: b.dataset.situacao, nota: 0, grupo: '', classe: '', origem: '', busca: '' };
+    sincronizarFiltros();
+    trocarVista('comprar');
+  }));
+
+  // Linhas comprometidas.
+  const grupos = [];
+  for (const [g, s] of estado.analise.saudeGrupo) if (s.tamanho >= 25) grupos.push({ g, ...s });
+  grupos.sort((a, b) => b.taxa - a.taxa || b.tamanho - a.tamanho);
+  $('#linhasQuebradas').innerHTML = grupos.slice(0, 9).map((x) =>
+    barraHorizontal({
+      titulo: esc(nomeGrupo(x.g)),
+      direita: n(x.zerados) + '/' + n(x.tamanho) + ' · ' + Math.round(x.taxa * 100) + '%',
+      fracao: x.taxa,
+      cor: x.taxa >= 0.65 ? 'var(--critico)' : x.taxa >= 0.5 ? 'var(--atencao)' : 'var(--marinho)',
+    })).join('') || '<p class="nota">Nenhum grupo com 25 itens ou mais neste envio.</p>';
+
+  // Famílias com ruptura real.
+  const fam = {};
+  for (const i of L) {
+    if (!fam[i.familia]) fam[i.familia] = { total: 0, ruptura: 0, classe: i.classe };
+    fam[i.familia].total++;
+    if (i.situacao === 'RUPTURA') fam[i.familia].ruptura++;
+  }
+  const listaFam = Object.entries(fam)
+    .filter(([, v]) => v.total >= 20 && v.ruptura > 0)
+    .map(([k, v]) => ({ nome: k, ...v, peso: v.ruptura * (PESO_CLASSE[v.classe] ?? 0.4) }))
+    .sort((a, b) => b.peso - a.peso).slice(0, 9);
+  const maxPeso = Math.max(...listaFam.map((x) => x.peso), 1);
+  $('#familiasFalta').innerHTML = listaFam.map((x) =>
+    barraHorizontal({
+      titulo: esc(x.nome) + (x.classe ? ' <span class="etiqueta" data-tom="neutro" style="margin-left:5px">' + esc(ROTULO_CLASSE[x.classe]) + '</span>' : ''),
+      direita: n(x.ruptura) + ' em ruptura de ' + n(x.total),
+      fracao: x.peso / maxPeso,
+      cor: 'var(--marinho)',
+    })).join('') || '<p class="nota">Sem ruptura relevante por família.</p>';
+}
+
+/* ─── 15. Lista de compra ────────────────────────────────────────── */
+
+function renderComprar() {
+  const lista = filtrar();
+  const mostrados = lista.slice(0, estado.limite);
+  const unidades = lista.reduce((s, i) => s + (i.sugestao ? i.sugestao.qtd : 0), 0);
+
+  $('#resumoLista').textContent = n(lista.length) + ' itens no filtro · ' + n(unidades) +
+    ' unidades sugeridas · ' + (estado.consumo ? 'sugestão pelo consumo medido' : 'sugestão por classe, sem consumo medido');
+
+  $('#corpoLista').innerHTML = mostrados.map((i) => {
+    const id = i.interno || i.produto;
+    const marcado = estado.marcados.has(id);
+    const s = SITUACOES[i.situacao] || SITUACOES.SEM_SALDO;
+    return '<tr class="linha" data-id="' + esc(id) + '">' +
+      '<td><span class="faixa" data-tom="' + s.tom + '"></span></td>' +
+      '<td><input type="checkbox" class="marca-item" data-id="' + esc(id) + '"' + (marcado ? ' checked' : '') + ' aria-label="Marcar ' + esc(i.descricao) + '" style="width:18px;height:18px;cursor:pointer" /></td>' +
+      '<td>' + barraPrioridade(i.prioridade) + '</td>' +
+      '<td>' + (i.curva ? '<span class="curva" data-c="' + i.curva + '">' + i.curva + '</span>' : '<span class="etiqueta" data-tom="neutro">sem curva</span>') + '</td>' +
+      '<td><b style="font-weight:600">' + esc(i.descricao || '—') + '</b>' +
+        (i.repetidos > 1 ? ' <span class="etiqueta" data-tom="neutro" title="O mesmo código original aparece em ' + i.repetidos + ' cadastros. A quantidade sugerida já soma todos.">' + i.repetidos + ' cadastros</span>' : '') +
+        '<br><span style="font-size:11.5px;color:var(--tinta-3)">' + esc(i.familia) + (i.origem ? ' · padrão ' + esc(i.origem) : '') + '</span></td>' +
+      '<td class="mono">' + esc(i.produto || '—') + '</td>' +
+      '<td class="mono">' + esc(i.original || '—') + '</td>' +
+      '<td>' + etiquetaSituacao(i.situacao) + '</td>' +
+      '<td class="dir num"><b>' + (i.saldo === null ? '—' : n(i.saldo)) + '</b></td>' +
+      '<td class="dir num"><b style="color:var(--laranja-texto);font-weight:700">' + (i.sugestao.qtd || '—') + '</b>' +
+        (i.sugestao.medida ? '<br><span style="font-size:10px;color:var(--saudavel);font-weight:700">MEDIDO</span>' : '') + '</td>' +
+      '</tr>' +
+      '<tr class="expandivel oculto" data-detalhe="' + esc(id) + '"><td colspan="10">' + detalheItem(i) + '</td></tr>';
+  }).join('');
+
+  if (!mostrados.length) {
+    $('#corpoLista').innerHTML = '<tr><td colspan="10" style="padding:26px;text-align:center;color:var(--tinta-2)">' +
+      'Nenhum item com esses filtros. Baixe a prioridade mínima ou troque a situação.</td></tr>';
+  }
+
+  $('#maisLista').innerHTML = lista.length > estado.limite
+    ? '<button class="bt" id="btMais">Mostrar mais ' + Math.min(150, lista.length - estado.limite) + ' (de ' + n(lista.length - estado.limite) + ' restantes)</button>'
+    : (lista.length ? '<span class="sobrancelha">fim da lista — ' + n(lista.length) + ' itens</span>' : '');
+  const btMais = $('#btMais');
+  if (btMais) btMais.addEventListener('click', () => { estado.limite += 150; renderComprar(); });
+
+  $$('#corpoLista tr.linha').forEach((tr) => tr.addEventListener('click', (ev) => {
+    if (ev.target.closest('input')) return;
+    const alvo = document.querySelector('[data-detalhe="' + CSS.escape(tr.dataset.id) + '"]');
+    if (alvo) alvo.classList.toggle('oculto');
+  }));
+  $$('.marca-item').forEach((cb) => cb.addEventListener('change', () => {
+    if (cb.checked) estado.marcados.add(cb.dataset.id); else estado.marcados.delete(cb.dataset.id);
+    atualizarCarrinho();
+  }));
+  $('#seloComprar').textContent = n(lista.length);
+}
+
+function detalheItem(i) {
+  const fatores = i.fatores.map((f) =>
+    '<div class="fator"><b>' + esc(f.nome) + '</b><span>' + esc(f.texto) + '</span><span class="pts">+' + f.pontos.toFixed(1).replace('.', ',') + '</span></div>').join('');
+  const lacunas = i.lacunas.map((l) =>
+    '<div class="fator lacuna"><b>' + esc(l.nome) + '</b><span style="color:var(--tinta-3)">' + esc(l.texto) + '</span><span class="pts">sem dado</span></div>').join('');
+  return '<div class="detalhe">' +
+    '<div><div class="sobrancelha" style="margin-bottom:7px">Por que a nota é ' + i.prioridade + '</div><div class="fatores">' + fatores + lacunas + '</div>' +
+    '<p style="font-size:11.5px;color:var(--tinta-3);margin-top:9px">Confiança ' + i.confianca + '% — parcela dos pesos que teve dado para pontuar. O resto ficou como lacuna acima.</p></div>' +
+    '<div><div class="sobrancelha" style="margin-bottom:7px">Quantidade sugerida</div>' +
+    '<p style="font-size:31px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums">' + i.sugestao.qtd + '</p>' +
+    '<p style="font-size:12.5px;color:var(--tinta-2);margin-top:7px">' + esc(i.sugestao.texto) + '</p>' +
+    '<div style="margin-top:11px">' +
+      '<div class="linhadados"><span>Grupo</span><b>' + esc(i.grupo) + '</b></div>' +
+      '<div class="linhadados"><span>Cadastros com o mesmo código original</span><b>' + i.irmaos + '</b></div>' +
+      (i.repetidos > 1 ? '<div class="linhadados"><span>Cadastros idênticos juntados aqui</span><b>' + i.conjunto.map((x) => x.produto).join(', ') + '</b></div>' : '') +
+      '<div class="linhadados"><span>Origem provável do código</span><b>' + esc(i.origem || 'não identificada') + '</b></div>' +
+      (i.consumo ? '<div class="linhadados"><span>Saída medida no período</span><b>' + i.consumo.saida + ' un / ' + i.consumo.dias + ' dias</b></div>' : '') +
+    '</div>' +
+    '<p style="font-size:11px;color:var(--tinta-3);margin-top:10px;border-top:1px solid var(--borda);padding-top:8px">' +
+    esc(i.origemMotivo) + ' Isso indica a origem do código — <b>não</b> confirma aplicação em veículo. Confira no catálogo do fabricante.</p></div>' +
+    '</div>';
+}
+
+/* ─── 16. Oportunidades ──────────────────────────────────────────── */
+
+function renderOportunidades() {
+  const L = itens();
+  const parados = L.filter((i) => i.situacao === 'EXCESSO').sort((a, b) => (b.saldo || 0) - (a.saldo || 0));
+  const fortes = L.filter((i) => (i.curva === 'A' || i.curva === 'B') && i.situacao === 'SAUDAVEL').sort((a, b) => (b.saldo || 0) - (a.saldo || 0));
+  const unidadesParadas = parados.reduce((s, i) => s + (i.saldo || 0), 0);
+
+  $('#placasOport').innerHTML = [
+    placa({ rotulo: 'Itens parados', valor: n(parados.length), rodape: n(unidadesParadas) + ' unidades sem giro que combine com o saldo', tom: 'parado' }),
+    placa({ rotulo: 'Forte e disponível', valor: n(fortes.length), rodape: 'Curva A e B com saldo para prometer entrega', tom: 'saudavel' }),
+    placa({ rotulo: 'Famílias com sobra', valor: n(new Set(parados.map((i) => i.familia)).size), rodape: 'Cada família vira um bloco de oferta', tom: 'neutro' }),
+    placa({ rotulo: 'Maior sobra isolada', valor: parados.length ? n(parados[0].saldo) : '—', rodape: parados.length ? esc(parados[0].descricao) : 'sem itens em excesso', tom: 'atencao' }),
+  ].join('');
+
+  const porFamilia = (lista) => {
+    const m = {};
+    for (const i of lista) { (m[i.familia] = m[i.familia] || []).push(i); }
+    return Object.entries(m).map(([f, is]) => ({ familia: f, itens: is, unidades: is.reduce((s, x) => s + (x.saldo || 0), 0) }))
+      .sort((a, b) => b.unidades - a.unidades);
+  };
+
+  $('#listaParado').innerHTML = porFamilia(parados).slice(0, 6).map((b) => {
+    const top = b.itens.slice(0, 5);
+    return '<div class="ficha"><div class="sobrancelha">' + n(b.unidades) + ' unidades · ' + n(b.itens.length) + ' itens</div>' +
+      '<h3>' + esc(b.familia) + '</h3>' +
+      '<div>' + top.map((i) => '<div class="linhadados"><span>' + esc(i.descricao) + ' <span class="mono" style="color:var(--tinta-3)">' + esc(i.produto) + '</span></span><b>' + n(i.saldo) + '</b></div>').join('') + '</div>' +
+      '<div class="roteiro">' + esc(argumento(b)) + '</div>' +
+      '<div class="fonte">Curvas ' + esc([...new Set(b.itens.map((i) => i.curva).filter(Boolean))].sort().join(', ') || '—') + ' — giro baixo com saldo alto. Sai com desconto ou em pacote.</div></div>';
+  }).join('') || '<p class="nota">Nenhum item em excesso neste envio.</p>';
+
+  $('#listaForte').innerHTML = porFamilia(fortes).slice(0, 6).map((b) => {
+    const top = b.itens.slice(0, 5);
+    return '<div class="ficha"><div class="sobrancelha">' + n(b.unidades) + ' unidades · ' + n(b.itens.length) + ' itens</div>' +
+      '<h3>' + esc(b.familia) + '</h3>' +
+      '<div>' + top.map((i) => '<div class="linhadados"><span>' + esc(i.descricao) + ' <span class="curva" data-c="' + i.curva + '">' + i.curva + '</span></span><b>' + n(i.saldo) + '</b></div>').join('') + '</div>' +
+      '<div class="fonte">Curva A e B com saldo confortável: dá para prometer entrega imediata sem consultar o estoque.</div></div>';
+  }).join('') || '<p class="nota">Nenhum item de curva A ou B com saldo folgado.</p>';
+}
+
+function argumento(bloco) {
+  const curvas = [...new Set(bloco.itens.map((i) => i.curva).filter(Boolean))].sort();
+  const raras = curvas.filter((c) => 'DEF'.includes(c)).length > 0;
+  return 'Temos ' + bloco.unidades + ' unidades de ' + bloco.familia.toLowerCase() + ' paradas em ' + bloco.itens.length +
+    ' itens' + (raras ? ' de giro baixo' : '') + '. Oferecer na próxima visita a oficinas e frotistas: ' +
+    bloco.itens.slice(0, 3).map((i) => i.descricao).join('; ') + '. Fecha em pacote e libera prateleira.';
+}
+
+/* ─── 17. Frota e região ─────────────────────────────────────────── */
+
+function renderFrota() {
+  const L = itens();
+  const M = MERCADO;
+  const estimativaRegiao = Math.round(M.frotaCidade.caminhoes * (M.regiao.habitantes / 703000));
+
+  const fichas = [
+    { t: 'Caminhões emplacados na cidade', v: n(M.frotaCidade.caminhoes),
+      p: 'De uma frota total de ' + n(M.frotaCidade.total) + ' veículos em Ribeirão Preto. Somam-se ' + n(M.frotaCidade.camionetas) + ' camionetas e ' + n(M.frotaCidade.onibus) + ' ônibus, que também consomem linha pesada e semipesada.',
+      f: M.frotaCidade.fonte + ' — ' + M.frotaCidade.referencia, u: M.frotaCidade.url },
+    { t: 'Região metropolitana', v: '≈ ' + n(estimativaRegiao),
+      p: 'Estimativa de caminhões nos ' + M.regiao.municipios + ' municípios da região, projetada pela proporção de população (' + n(M.regiao.habitantes) + ' habitantes contra 703 mil da capital regional). É estimativa, não contagem — a base municipal do Senatran traz o número exato.',
+      f: M.regiao.fonte, u: M.regiao.url },
+    { t: 'Idade média do caminhão brasileiro', v: '12 anos e 3 meses',
+      p: 'A frota circulante soma ' + n(M.frotaBrasil.caminhoes) + ' caminhões e envelhece a cada ano. Frota velha troca peça de desgaste com mais frequência — é o que sustenta a reposição.',
+      f: M.frotaBrasil.fonte, u: M.frotaBrasil.url },
+    { t: 'Emplacamentos no país', v: n(M.emplacamentos.total),
+      p: 'No ' + M.emplacamentos.periodo + ', contra ' + n(M.emplacamentos.anterior) + ' no mesmo período de 2025 — queda de ' + String(Math.abs(M.emplacamentos.variacao)).replace('.', ',') + '%. Venda nova em baixa empurra a manutenção da frota existente para cima.',
+      f: M.emplacamentos.fonte, u: M.emplacamentos.url },
+    { t: 'Autopeças no país em 2026', v: 'R$ ' + String(M.reposicao.faturamento2026).replace('.', ',') + ' bi',
+      p: 'Projeção de faturamento do setor, com alta de ' + String(M.reposicao.crescimento).replace('.', ',') + '%. Só a reposição saiu de R$ ' + M.reposicao.aftermarket2024 + ' bi em 2024 e deve chegar a R$ ' + M.reposicao.aftermarket2040 + ' bi em 2040.',
+      f: M.reposicao.fonte, u: M.reposicao.url },
+    { t: 'Agrishow 2026, aqui na cidade', v: 'R$ ' + String(M.agrishow.intencao).replace('.', ',') + ' bi',
+      p: n(M.agrishow.visitantes) + ' visitantes e ' + M.agrishow.marcas + ' marcas. A intenção de negócios caiu ' + Math.abs(M.agrishow.variacao) + '% — quem adia máquina nova mantém a antiga rodando, e isso se converte em peça de reposição.',
+      f: M.agrishow.fonte, u: M.agrishow.url },
+  ];
+  $('#fichasFrota').innerHTML = fichas.map((f) =>
+    '<div class="ficha"><div class="sobrancelha">' + esc(f.t) + '</div>' +
+    '<div style="font-size:27px;font-weight:700;line-height:1.05;font-variant-numeric:tabular-nums;letter-spacing:-.02em">' + f.v + '</div>' +
+    '<p>' + esc(f.p) + '</p>' +
+    '<div class="fonte">' + esc(f.f) + ' · <a href="' + esc(f.u) + '" target="_blank" rel="noopener noreferrer">fonte</a></div></div>').join('');
+
+  // Cruzamento catálogo × emplacamentos.
+  const comOrigem = L.filter((i) => i.origem);
+  const contagem = {};
+  for (const i of comOrigem) contagem[i.origem] = (contagem[i.origem] || 0) + 1;
+  const linhas = M.emplacamentos.marcas.map((m) => {
+    const noCatalogo = contagem[m.marca] || 0;
+    return { marca: m.marca, share: m.share, catalogo: noCatalogo, shareCatalogo: comOrigem.length ? (noCatalogo / comOrigem.length) * 100 : 0 };
+  }).filter((x) => x.catalogo > 0 || x.share > 5);
+
+  $('#cruzamento').innerHTML =
+    '<p style="font-size:12.5px;color:var(--tinta-3);margin-bottom:14px">' +
+    'Base: ' + n(comOrigem.length) + ' itens cujo código original tem formato reconhecível (' + pct(comOrigem.length / L.length) + ' do cadastro). ' +
+    'Os outros ' + n(L.length - comOrigem.length) + ' ficaram sem origem — a maioria por não ter código original preenchido ou por usar formato de fabricante de reposição.</p>' +
+    '<div class="listabarras">' + (() => {
+      const maiorShare = Math.max(...linhas.map((x) => Math.max(x.share, x.shareCatalogo)), 1);
+      const larg = (v) => Math.max(1.5, (v / maiorShare) * 100);
+      return linhas.map((x) =>
+      '<div class="itembarra"><div class="cab"><b>' + esc(x.marca) + '</b>' +
+      '<span>catálogo ' + x.shareCatalogo.toFixed(1).replace('.', ',') + '% · mercado ' + x.share.toFixed(1).replace('.', ',') + '%</span></div>' +
+      '<div class="trilho" style="height:8px"><i style="width:' + larg(x.shareCatalogo) + '%;background:var(--marinho)"></i></div>' +
+      '<div class="trilho" style="height:8px;margin-top:3px"><i style="width:' + larg(x.share) + '%;background:var(--laranja)"></i></div>' +
+      '</div>').join('');
+    })() + '</div>' +
+    '<p style="font-size:12px;color:var(--tinta-3);margin-top:12px">' +
+    '<span style="display:inline-block;width:11px;height:8px;background:var(--marinho);border-radius:3px;vertical-align:middle"></span> participação no seu cadastro &nbsp;·&nbsp; ' +
+    '<span style="display:inline-block;width:11px;height:8px;background:var(--laranja);border-radius:3px;vertical-align:middle"></span> participação nos emplacamentos (' + esc(M.emplacamentos.periodo) + '). ' +
+    'Barra laranja bem maior que a azul indica marca com muito caminhão rodando e pouca cobertura no seu cadastro.</p>';
+
+  // Tabela de origens.
+  const grupos = {};
+  for (const i of L) {
+    const k = i.origem || '— não identificada —';
+    if (!grupos[k]) grupos[k] = { total: 0, ruptura: 0, conf: i.origemConfianca, padrao: null };
+    grupos[k].total++;
+    if (i.situacao === 'RUPTURA') grupos[k].ruptura++;
+    if (i.origem && !grupos[k].padrao) {
+      const r = REGRAS_ORIGEM.find((x) => x.origem === i.origem);
+      if (r) { grupos[k].padrao = r.padrao; grupos[k].conf = r.confianca; }
+    }
+  }
+  $('#corpoOrigens').innerHTML = Object.entries(grupos).sort((a, b) => b[1].total - a[1].total).map(([k, v]) =>
+    '<tr><td><b style="font-weight:600">' + esc(k) + '</b></td>' +
+    '<td style="color:var(--tinta-2);font-size:12.5px">' + esc(v.padrao || 'sem código original, ou formato de fabricante de reposição') + '</td>' +
+    '<td class="dir num">' + n(v.total) + '</td>' +
+    '<td class="dir num">' + n(v.ruptura) + '</td>' +
+    '<td>' + (v.conf ? '<span class="etiqueta" data-tom="' + (v.conf === 'alta' ? 'saudavel' : 'atencao') + '">' + esc(v.conf) + '</span>' : '<span class="etiqueta" data-tom="neutro">não se aplica</span>') + '</td></tr>').join('');
+}
+
+/* ─── 18. Evolução entre envios ──────────────────────────────────── */
+
+function renderEvolucao() {
+  const sel = $('#seletorEvolucao');
+  if (estado.envios.length < 2) {
+    sel.classList.add('oculto');
+    $('#conteudoEvolucao').innerHTML =
+      '<div class="vazio"><div class="sobrancelha">Falta um segundo envio</div>' +
+      '<h3>Com um envio só, o consumo não pode ser medido</h3>' +
+      '<p>Você tem <b>' + estado.envios.length + '</b> envio guardado. Suba o mesmo relatório de estoque daqui a alguns dias e esta tela passa a mostrar ' +
+      'quanto saiu de cada item, quais rupturas apareceram e quais foram resolvidas. A partir daí a quantidade sugerida na aba Comprar deixa de ser referência por classe e passa a ser calculada sobre a saída real.</p>' +
+      '<button class="bt bt-forte" id="btEnvioEvolucao" type="button">Carregar outro estoque</button></div>';
+    const b = $('#btEnvioEvolucao');
+    if (b) b.addEventListener('click', () => $('#arquivo').click());
+    return;
+  }
+  sel.classList.remove('oculto');
+
+  const ordenados = [...estado.envios].sort((a, b) => new Date(a.dataISO) - new Date(b.dataISO));
+  const c = estado.consumo;
+  sel.innerHTML = '<div class="campo"><label>Comparando</label><div style="padding-top:7px;font-size:13.5px">' +
+    (c ? '<b>' + esc(c.de.nome) + '</b> (' + dataBr(c.de.dataISO) + ') → <b>' + esc(c.para.nome) + '</b> (' + dataBr(c.para.dataISO) + ') · <b>' + c.dias + ' dias</b>' : 'selecione um envio atual mais recente') + '</div></div>' +
+    '<div class="campo"><label for="fCobertura">Dias de cobertura desejada</label>' +
+    '<select id="fCobertura">' + [30, 45, 60, 90].map((d) => '<option value="' + d + '"' + (d === estado.diasCobertura ? ' selected' : '') + '>' + d + ' dias</option>').join('') + '</select></div>';
+  const fc = $('#fCobertura');
+  if (fc) fc.addEventListener('change', () => { estado.diasCobertura = Number(fc.value); recalcular(); renderTudo(); });
+
+  if (!c) { $('#conteudoEvolucao').innerHTML = '<p class="nota">O envio selecionado é o mais antigo. Escolha um envio mais recente na aba Dados.</p>'; return; }
+
+  const antes = new Map(c.de.itens.map((i) => [i.interno || i.produto, i]));
+  const agora = estado.analise.itens;
+  const novasRupturas = agora.filter((i) => i.situacao === 'RUPTURA' && antes.has(i.interno || i.produto) && (antes.get(i.interno || i.produto).saldo || 0) > 0);
+  const resolvidas = agora.filter((i) => (i.saldo || 0) > 0 && antes.has(i.interno || i.produto) && antes.get(i.interno || i.produto).saldo === 0);
+  const maisSairam = agora.filter((i) => i.consumo).sort((a, b) => b.consumo.saida - a.consumo.saida).slice(0, 12);
+  const novos = agora.filter((i) => !antes.has(i.interno || i.produto));
+
+  $('#conteudoEvolucao').innerHTML =
+    '<div class="placas" style="margin-bottom:22px">' + [
+      placa({ rotulo: 'Saída no período', valor: n(c.totalSaida), rodape: 'unidades a menos em ' + c.dias + ' dias · ' + (c.totalSaida / c.dias).toFixed(1).replace('.', ',') + ' por dia', tom: 'marca' }),
+      placa({ rotulo: 'Entrada no período', valor: n(c.totalEntrada), rodape: 'unidades a mais — compras que chegaram', tom: 'saudavel' }),
+      placa({ rotulo: 'Rupturas novas', valor: n(novasRupturas.length), rodape: 'tinham saldo antes e zeraram sem cobertura', tom: 'critico' }),
+      placa({ rotulo: 'Rupturas resolvidas', valor: n(resolvidas.length), rodape: 'estavam zerados e voltaram para a prateleira', tom: 'saudavel' }),
+      placa({ rotulo: 'Itens novos no cadastro', valor: n(novos.length), rodape: 'não existiam no envio anterior', tom: 'neutro' }),
+    ].join('') + '</div>' +
+    '<div class="grade">' +
+    '<div class="cartao"><div class="cartao-corpo"><div class="secao-topo"><h2>O que mais saiu</h2></div>' +
+    '<div class="listabarras">' + (maisSairam.length ? maisSairam.map((i) =>
+      barraHorizontal({ titulo: esc(i.descricao) + ' <span class="curva" data-c="' + (i.curva || 'F') + '">' + (i.curva || '—') + '</span>',
+        direita: i.consumo.saida + ' un · saldo ' + i.saldo, fracao: i.consumo.saida / maisSairam[0].consumo.saida, cor: 'var(--marinho)' })).join('')
+      : '<p class="nota">Nenhuma queda de saldo entre os dois envios.</p>') + '</div></div></div>' +
+    '<div class="cartao"><div class="cartao-corpo"><div class="secao-topo"><h2>Rupturas que apareceram</h2></div>' +
+    (novasRupturas.length ? '<div class="rolo" style="border:0;box-shadow:none"><table><thead><tr><th>Item</th><th class="dir">Tinha</th><th class="dir">Prioridade</th></tr></thead><tbody>' +
+      novasRupturas.sort((a, b) => b.prioridade - a.prioridade).slice(0, 14).map((i) =>
+        '<tr><td><b style="font-weight:600">' + esc(i.descricao) + '</b><br><span class="mono" style="color:var(--tinta-3)">' + esc(i.produto) + '</span></td>' +
+        '<td class="dir num">' + (antes.get(i.interno || i.produto).saldo) + '</td>' +
+        '<td class="dir">' + barraPrioridade(i.prioridade) + '</td></tr>').join('') + '</tbody></table></div>'
+      : '<p class="nota">Nenhum item saiu de saldo positivo para ruptura no período. Bom sinal.</p>') +
+    '</div></div></div>';
+}
+
+/* ─── 19. Dados e qualidade ──────────────────────────────────────── */
+
+function renderDados() {
+  $('#corpoEnvios').innerHTML = [...estado.envios].sort((a, b) => new Date(b.dataISO) - new Date(a.dataISO)).map((e) => {
+    const zerados = e.itens.filter((i) => i.saldo === 0).length;
+    const unidades = e.itens.reduce((s, i) => s + (i.saldo || 0), 0);
+    const ativo = e.id === estado.atualId;
+    return '<tr' + (ativo ? ' style="background:color-mix(in srgb, var(--laranja) 8%, transparent)"' : '') + '>' +
+      '<td><b style="font-weight:600">' + horaBr(e.dataISO) + '</b>' + (ativo ? ' <span class="etiqueta" data-tom="saudavel">em uso</span>' : '') + '</td>' +
+      '<td class="mono">' + esc(e.nome) + '</td>' +
+      '<td class="dir num">' + n(e.itens.length) + '</td>' +
+      '<td class="dir num">' + n(zerados) + '</td>' +
+      '<td class="dir num">' + n(unidades) + '</td>' +
+      '<td class="dir"><button class="bt bt-mini" data-usar="' + e.id + '"' + (ativo ? ' disabled' : '') + '>Usar</button> ' +
+      '<button class="bt bt-mini" data-apagar="' + e.id + '">Apagar</button></td></tr>';
+  }).join('') || '<tr><td colspan="6" style="padding:22px;text-align:center;color:var(--tinta-2)">Nenhum envio guardado.</td></tr>';
+
+  $$('[data-usar]').forEach((b) => b.addEventListener('click', async () => {
+    estado.atualId = b.dataset.usar; estado.marcados.clear(); recalcular(); renderTudo();
+  }));
+  $$('[data-apagar]').forEach((b) => b.addEventListener('click', async () => {
+    if (!confirm('Apagar este envio? A ação não pode ser desfeita.')) return;
+    await removerEnvio(b.dataset.apagar).catch(() => {});
+    estado.envios = estado.envios.filter((e) => e.id !== b.dataset.apagar);
+    if (estado.atualId === b.dataset.apagar) estado.atualId = estado.envios.length ? estado.envios[estado.envios.length - 1].id : null;
+    recalcular(); renderTudo();
+  }));
+
+  // Qualidade do cadastro.
+  const L = itens();
+  const semOriginal = L.filter((i) => !i.original).length;
+  const semCurva = L.filter((i) => !i.curva).length;
+  const semSaldo = L.filter((i) => i.saldo === null).length;
+  const recadastros = L.filter((i) => /\[\d+\]/.test(i.produto)).length;
+  const semFamilia = L.filter((i) => !i.classe).length;
+  const descCurta = L.filter((i) => i.descricao && i.descricao.length >= 19).length;
+
+  const fichas = [
+    { t: 'Cadastros repetidos', v: n(recadastros), p: 'Itens cujo código de produto traz sufixo [2], [3], [5] — o mesmo item cadastrado várias vezes. Isso infla a lista de falta e divide o saldo real entre cadastros. É a causa de a falta bruta parecer maior do que é.', tom: 'atencao' },
+    { t: 'Sem código original', v: n(semOriginal), p: 'Sem o código original não dá para reconhecer a origem nem cruzar com similar. São os itens que ficam de fora do cruzamento com a frota.', tom: semOriginal > L.length * 0.15 ? 'atencao' : 'neutro' },
+    { t: 'Descrição truncada', v: n(descCurta), p: 'Descrições cortadas em 19 caracteres na exportação. Se o relatório puder sair com a descrição inteira, a classificação por família melhora bastante.', tom: 'neutro' },
+    { t: 'Sem curva ABC', v: n(semCurva), p: 'Sem curva, o componente de giro não pontua e o item aparece com nota mais baixa do que talvez mereça.', tom: semCurva ? 'atencao' : 'saudavel' },
+    { t: 'Sem saldo legível', v: n(semSaldo), p: 'Coluna de saldo vazia ou com texto. Estes itens não entram em nenhuma conta de falta.', tom: semSaldo ? 'atencao' : 'saudavel' },
+    { t: 'Fora das famílias conhecidas', v: n(semFamilia), p: 'A descrição não casou com nenhuma família. Estes itens perdem o componente de essencialidade e registram lacuna.', tom: 'neutro' },
+  ];
+  $('#qualidade').innerHTML = fichas.map((f) =>
+    '<div class="ficha"><div class="sobrancelha">' + esc(f.t) + '</div>' +
+    '<div style="font-size:26px;font-weight:700;line-height:1.05;font-variant-numeric:tabular-nums">' + f.v + ' ' +
+    '<span style="font-size:13px;font-weight:600;color:var(--tinta-3)">de ' + n(L.length) + '</span></div>' +
+    '<p>' + esc(f.p) + '</p></div>').join('');
+
+  $('#explicaMotor').innerHTML =
+    '<p style="font-size:13.5px;color:var(--tinta-2);margin-bottom:14px">A nota vai de 0 a 100 e é a soma de cinco componentes. ' +
+    'Todo componente que pontua registra o motivo com o número que usou; todo componente sem dado registra uma lacuna e <b>não pontua</b> — ' +
+    'dado ausente nunca vira zero disfarçado. A confiança de cada item é a parcela dos pesos que teve dado para ser aplicada.</p>' +
+    '<div class="rolo" style="box-shadow:none"><table><thead><tr><th>Componente</th><th class="dir">Peso</th><th>O que mede</th><th>Quando fica em branco</th></tr></thead><tbody>' +
+    [['Giro', PESOS.giro, 'A curva ABC do próprio cadastro. Curva A vale o peso inteiro; curva F vale zero.', 'Item sem curva no cadastro.'],
+     ['Falta', PESOS.ruptura, 'Ruptura real vale o peso inteiro. Zerado com similar disponível vale pouco. Última peça vale 70%.', 'Coluna de saldo vazia.'],
+     ['Essencial', PESOS.essencialidade, 'A classe da peça: filtro e correia pesam mais que virabrequim, porque a falta se sente todo dia.', 'Descrição fora das famílias conhecidas.'],
+     ['Linha', PESOS.linha, 'Quanto do grupo inteiro está zerado. Acima de 30% começa a pontuar; acima de 80% satura.', 'Grupo com menos de 8 itens.'],
+     ['Mercado', PESOS.mercado, 'Participação da montadora de origem nos emplacamentos de caminhão do país.', 'Código sem padrão reconhecível.']]
+      .map((r) => '<tr><td><b style="font-weight:600">' + r[0] + '</b></td><td class="dir num"><b>' + r[1] + '</b></td><td style="font-size:12.5px;color:var(--tinta-2)">' + r[2] + '</td><td style="font-size:12.5px;color:var(--tinta-3)">' + r[3] + '</td></tr>').join('') +
+    '</tbody></table></div>';
+}
+
+/* ─── 20. Exportação ─────────────────────────────────────────────── */
+
+function baixar(nomeArquivo, conteudo, tipo) {
+  const blob = new Blob(['﻿' + conteudo], { type: tipo + ';charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = nomeArquivo;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
+const csvCampo = (v) => '"' + String(v ?? '').replace(/"/g, '""') + '"';
+const paraCsv = (cab, linhas) => [cab.map(csvCampo).join(';')].concat(linhas.map((l) => l.map(csvCampo).join(';'))).join('\r\n');
+
+function csvDeItens(lista) {
+  return paraCsv(
+    ['Prioridade', 'Confianca %', 'Curva', 'Situacao', 'Descricao', 'Familia', 'Classe', 'Cod. Interno', 'Cod. Produto', 'Cod. Original', 'Grupo', 'Saldo', 'Qtd sugerida', 'Base da sugestao', 'Origem provavel do codigo', 'Cadastros irmaos', 'Ruptura do grupo %', 'Motivos'],
+    lista.map((i) => [i.prioridade, i.confianca, i.curva, SITUACOES[i.situacao].rotulo, i.descricao, i.familia, i.classe ? ROTULO_CLASSE[i.classe] : '', i.interno, i.produto, i.original, i.grupo,
+      i.saldo === null ? '' : i.saldo, i.sugestao.qtd, i.sugestao.medida ? 'consumo medido' : 'referencia por classe',
+      i.origem || 'nao identificada', i.irmaos, i.grupoTaxa === null ? '' : Math.round(i.grupoTaxa * 100),
+      i.fatores.map((f) => f.nome + ': ' + f.texto).join(' | ')]));
+}
+
+function itensMarcados() {
+  const ids = estado.marcados;
+  return itens().filter((i) => ids.has(i.interno || i.produto)).sort((a, b) => b.prioridade - a.prioridade);
+}
+
+function textoSolicitacao(lista) {
+  const e = envioAtual();
+  const linhas = [];
+  linhas.push('SOLICITAÇÃO DE COMPRA — FILIAL RIBEIRÃO PRETO');
+  linhas.push('Gerada em ' + new Date().toLocaleString('pt-BR'));
+  linhas.push('Base: ' + (e ? e.nome + ', estoque de ' + dataBr(e.dataISO) : '—'));
+  linhas.push('Itens: ' + lista.length + ' · Unidades: ' + lista.reduce((s, i) => s + i.sugestao.qtd, 0));
+  linhas.push(estado.consumo
+    ? 'Quantidades calculadas sobre o consumo medido entre ' + dataBr(estado.consumo.de.dataISO) + ' e ' + dataBr(estado.consumo.para.dataISO) + ' (' + estado.consumo.dias + ' dias), para cobrir ' + estado.diasCobertura + ' dias.'
+    : 'Quantidades por referência de classe e curva — ainda sem consumo medido (existe só um envio de estoque).');
+  linhas.push('');
+  const porGrupo = {};
+  for (const i of lista) (porGrupo[i.familia] = porGrupo[i.familia] || []).push(i);
+  for (const [fam, is] of Object.entries(porGrupo).sort((a, b) => b[1].length - a[1].length)) {
+    linhas.push('■ ' + fam.toUpperCase() + '  (' + is.length + ' itens)');
+    for (const i of is) {
+      linhas.push('   ' + String(i.sugestao.qtd).padStart(4, ' ') + ' un  ·  ' + (i.produto || '').padEnd(16, ' ') +
+        ' · orig ' + (i.original || '—').padEnd(16, ' ') + ' · ' + i.descricao +
+        '  [curva ' + (i.curva || '—') + ' · saldo ' + (i.saldo ?? '—') + ' · prioridade ' + i.prioridade + ']');
+    }
+    linhas.push('');
+  }
+  linhas.push('— Critério: prioridade = giro (30) + falta (26) + essencialidade (20) + linha comprometida (14) + mercado (10).');
+  linhas.push('— A origem indicada vem do formato do código original e não confirma aplicação em veículo.');
+  return linhas.join('\n');
+}
+
+function abrirModal(titulo, nota, texto, csv, nomeCsv) {
+  $('#modalTitulo').textContent = titulo;
+  $('#modalNota').textContent = nota;
+  $('#modalTexto').value = texto;
+  $('#modal').showModal();
+  $('#btCopiar').onclick = async () => {
+    try { await navigator.clipboard.writeText(texto); $('#btCopiar').textContent = 'Copiado'; }
+    catch { $('#modalTexto').select(); $('#btCopiar').textContent = 'Selecionado — use Ctrl+C'; }
+    setTimeout(() => { $('#btCopiar').textContent = 'Copiar texto'; }, 2200);
+  };
+  $('#btBaixarCsv').onclick = () => baixar(nomeCsv, csv, 'text/csv');
+  $('#btImprimir').onclick = () => window.print();
+}
+
+/* ─── 21. Carregar arquivo ───────────────────────────────────────── */
+
+async function carregarArquivo(file) {
+  const nome = file.name;
+  let linhas;
+  try {
+    if (/\.csv$|\.txt$/i.test(nome)) {
+      linhas = lerCsv(await file.text());
+    } else {
+      const buf = await file.arrayBuffer();
+      const cab = new Uint8Array(buf, 0, Math.min(8, buf.byteLength));
+      if (cab[0] === 0x50 && cab[1] === 0x4b) {
+        throw new Error('Este é um .xlsx (formato novo). Salve como "Excel 97-2003 (*.xls)" ou como CSV e envie de novo.');
+      }
+      linhas = lerPlanilha(lerOle(buf));
+    }
+    const itensLidos = normalizar(linhas);
+    const envio = {
+      id: 'e' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
+      nome,
+      dataISO: new Date(file.lastModified || Date.now()).toISOString(),
+      itens: itensLidos,
+    };
+    estado.envios.push(envio);
+    estado.atualId = envio.id;
+    estado.marcados.clear();
+    try { await guardarEnvio(envio); }
+    catch { estado.bancoOk = false; }
+    recalcular();
+    renderTudo();
+    trocarVista('painel');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  } catch (err) {
+    alert('Não consegui ler o arquivo.\n\n' + (err && err.message ? err.message : err));
+  }
+}
+
+/* Dados de demonstração: determinísticos, para quem abre o link sem
+   ter arquivo em mãos. Nenhum dado real. */
+function dadosExemplo() {
+  let semente = 20260804;
+  const rnd = () => { semente = (semente * 1103515245 + 12345) & 0x7fffffff; return semente / 0x7fffffff; };
+  const modelos = [
+    ['Elemento filtro ar', '000032', 'consumivel'], ['Elemento filtro ole', '004779', 'consumivel'],
+    ['Filtro comb separad', '004808', 'consumivel'], ['Correia micro V 8PK', '000084', 'consumivel'],
+    ['Retentor cubo roda', '004784', 'desgaste'], ['Rolamento roda tras', '000327', 'desgaste'],
+    ['Cruzeta cardan', '000271', 'desgaste'], ['Lona freio diant/tr', '000112', 'desgaste'],
+    ['Catraca freio autom', '004795', 'pneumatico'], ['Valvula solenoide 3', '000021', 'pneumatico'],
+    ['Camara freio combin', '000112', 'pneumatico'], ['Bolsa pneumatica su', '000212', 'desgaste'],
+    ['Amortecedor cabine', '000108', 'desgaste'], ['Terminal direcao', '004886', 'desgaste'],
+    ['Bico injetor DLLA 1', '004738', 'injecao'], ['Turbo alimentador (', '000648', 'injecao'],
+    ['Bomba agua', '004775', 'desgaste'], ['Valvula termostatic', '004775', 'desgaste'],
+    ['Sensor rotacao', '004841', 'eletrico'], ['Interruptor freio', '004652', 'eletrico'],
+    ['Junta cabecote meta', '000616', 'desgaste'], ['Bronzina biela STD', '000164', 'desgaste'],
+    ['Virabrequim motor (', '000224', 'estrutural'], ['Comando valvulas c/', '000224', 'estrutural'],
+    ['Engrenagem 4a marcha', '000820', 'estrutural'], ['Kit embreagem 430mm', '004603', 'desgaste'],
+  ];
+  const dig = (q) => { let s = ''; for (let i = 0; i < q; i++) s += Math.floor(rnd() * 10); return s; };
+  const geradoresOrigem = [
+    () => '3' + dig(9),                       // padrão Mercedes-Benz, 10 dígitos
+    () => '2' + 'ZWT'[Math.floor(rnd() * 3)] + dig(7), // padrão Volkswagen / MAN
+    () => '2' + Math.floor(rnd() * 3) + dig(6),        // padrão Volvo, 8 dígitos
+    () => '50' + dig(7),                      // padrão Iveco / FPT
+    () => dig(7),                             // sem padrão reconhecível
+    () => '',                                 // sem código original
+  ];
+  const curvas = ['A', 'A', 'B', 'C', 'C', 'D', 'D', 'E', 'E', 'F', 'F', 'F'];
+  const lista = [];
+  for (let k = 0; k < 720; k++) {
+    const m = modelos[Math.floor(rnd() * modelos.length)];
+    const curva = curvas[Math.floor(rnd() * curvas.length)];
+    const r = rnd();
+    const saldo = r < 0.42 ? 0 : r < 0.78 ? Math.ceil(rnd() * 6) : Math.ceil(rnd() * 70);
+
+    lista.push({
+      interno: String(1000000000 + Math.floor(rnd() * 8999999999)),
+      produto: 'X' + String(10000 + k) + (rnd() < 0.3 ? '[' + (2 + Math.floor(rnd() * 4)) + ']' : ''),
+      original: geradoresOrigem[Math.floor(rnd() * geradoresOrigem.length)](),
+      grupo: m[1], descricao: m[0], curva, saldo,
+    });
+  }
+  return lista;
+}
+
+/* ─── 22. Navegação e sincronização ──────────────────────────────── */
+
+function trocarVista(vista) {
+  $$('.aba').forEach((a) => a.setAttribute('aria-selected', String(a.dataset.vista === vista)));
+  $$('.vista').forEach((v) => {
+    const ativa = v.id === 'vista-' + vista;
+    v.classList.toggle('ativa', ativa);
+    v.hidden = !ativa;
+  });
+  if (vista === 'evolucao') renderEvolucao();
+  if (vista === 'dados') renderDados();
+  if (vista === 'frota') renderFrota();
+}
+
+function sincronizarFiltros() {
+  const f = estado.filtros;
+  $('#fBusca').value = f.busca;
+  $('#fSituacao').value = f.situacao;
+  $('#fCurva').value = f.curva;
+  $('#fClasse').value = f.classe;
+  $('#fOrigem').value = f.origem;
+  $('#fGrupo').value = f.grupo;
+  $('#fNota').value = String(f.nota);
+  $('#fAgrupar').value = estado.agrupar ? '1' : '0';
+  estado.limite = 150;
+  renderComprar();
+}
+
+function montarSelects() {
+  const L = itens();
+  const opc = (el, valores, rotulo) => {
+    const atual = el.value;
+    el.innerHTML = '<option value="">' + rotulo + '</option>' +
+      valores.map((v) => '<option value="' + esc(v.valor) + '">' + esc(v.texto) + '</option>').join('');
+    el.value = atual;
+  };
+  opc($('#fCurva'), ['A', 'B', 'C', 'D', 'E', 'F'].filter((c) => L.some((i) => i.curva === c)).map((c) => ({ valor: c, texto: 'Curva ' + c })), 'Todas');
+  opc($('#fClasse'), Object.keys(ROTULO_CLASSE).filter((c) => L.some((i) => i.classe === c)).map((c) => ({ valor: c, texto: ROTULO_CLASSE[c] })), 'Todas');
+  const origens = [...new Set(L.map((i) => i.origem).filter(Boolean))].sort();
+  opc($('#fOrigem'), origens.map((o) => ({ valor: o, texto: o })).concat([{ valor: '__nenhuma', texto: '— sem origem identificada —' }]), 'Todas');
+  const grupos = [...new Set(L.map((i) => i.grupo))].filter(Boolean)
+    .map((g) => ({ g, t: estado.analise.saudeGrupo.get(g).tamanho }))
+    .sort((a, b) => b.t - a.t).slice(0, 80);
+  opc($('#fGrupo'), grupos.map((x) => ({ valor: x.g, texto: nomeGrupo(x.g) + ' — ' + x.t + ' itens' })), 'Todos');
+}
+
+function atualizarCarrinho() {
+  const marcados = itensMarcados();
+  const barra = $('#barraCarrinho');
+  barra.classList.toggle('oculto', marcados.length === 0);
+  $('#carrinhoItens').textContent = n(marcados.length);
+  $('#carrinhoUnidades').textContent = n(marcados.reduce((s, i) => s + i.sugestao.qtd, 0));
+}
+
+function renderTudo() {
+  const temDados = itens().length > 0;
+  $('#semDados').classList.toggle('oculto', temDados);
+  $$('.vista').forEach((v) => { if (temDados) v.classList.remove('oculto'); else v.classList.add('oculto'); });
+  const e = envioAtual();
+  $('#topoInfo').innerHTML = temDados && e
+    ? 'Estoque de <strong>' + dataBr(e.dataISO) + '</strong> · <strong>' + n(itens().length) + '</strong> itens<br>' +
+      (estado.consumo ? 'consumo medido em ' + estado.consumo.dias + ' dias' : 'um envio guardado — sem consumo medido')
+    : 'nenhum estoque carregado';
+  if (!temDados) { $('#seloComprar').textContent = '0'; $('#seloOport').textContent = '0'; atualizarCarrinho(); return; }
+  montarSelects();
+  renderPainel();
+  renderComprar();
+  renderOportunidades();
+  $('#seloOport').textContent = n(itens().filter((i) => i.situacao === 'EXCESSO').length);
+  const ativa = $$('.aba').find((a) => a.getAttribute('aria-selected') === 'true');
+  const vista = ativa ? ativa.dataset.vista : 'painel';
+  if (vista === 'frota') renderFrota();
+  if (vista === 'evolucao') renderEvolucao();
+  if (vista === 'dados') renderDados();
+  atualizarCarrinho();
+}
+
+/* ─── 23. Ligações ───────────────────────────────────────────────── */
+
+$$('.aba').forEach((a) => a.addEventListener('click', () => trocarVista(a.dataset.vista)));
+
+$('#arquivo').addEventListener('change', (ev) => { if (ev.target.files[0]) carregarArquivo(ev.target.files[0]); ev.target.value = ''; });
+$('#btEscolher').addEventListener('click', () => $('#arquivo').click());
+$('#btImportarTopo').addEventListener('click', () => $('#arquivo').click());
+$('#btNovoEnvio').addEventListener('click', () => $('#arquivo').click());
+
+$('#btExemplo').addEventListener('click', () => {
+  const envio = { id: 'exemplo', nome: 'dados-de-exemplo.xls', dataISO: new Date().toISOString(), itens: dadosExemplo() };
+  estado.envios = estado.envios.filter((e) => e.id !== 'exemplo').concat([envio]);
+  estado.atualId = envio.id;
+  recalcular(); renderTudo(); trocarVista('painel');
+});
+
+const zona = $('#zonaSolta');
+['dragenter', 'dragover'].forEach((ev) => document.addEventListener(ev, (e) => {
+  e.preventDefault(); zona.classList.add('solta');
+}));
+['dragleave', 'drop'].forEach((ev) => document.addEventListener(ev, (e) => {
+  e.preventDefault();
+  if (ev === 'dragleave' && e.relatedTarget) return;
+  zona.classList.remove('solta');
+}));
+document.addEventListener('drop', (e) => { if (e.dataTransfer.files[0]) carregarArquivo(e.dataTransfer.files[0]); });
+
+const liga = (id, ev, fn) => $(id).addEventListener(ev, fn);
+liga('#fBusca', 'input', (e) => { estado.filtros.busca = e.target.value; estado.limite = 150; renderComprar(); });
+['fSituacao', 'fCurva', 'fClasse', 'fOrigem', 'fGrupo'].forEach((id) =>
+  liga('#' + id, 'change', (e) => { estado.filtros[id.slice(1).charAt(0).toLowerCase() + id.slice(2)] = e.target.value; estado.limite = 150; renderComprar(); }));
+liga('#fNota', 'change', (e) => { estado.filtros.nota = Number(e.target.value); estado.limite = 150; renderComprar(); });
+liga('#fAgrupar', 'change', (e) => { estado.agrupar = e.target.value === '1'; estado.limite = 150; renderComprar(); });
+liga('#btLimpar', 'click', () => {
+  estado.filtros = { busca: '', situacao: '', curva: '', classe: '', origem: '', grupo: '', nota: 0 };
+  sincronizarFiltros();
+});
+liga('#btSelTodos', 'click', () => {
+  filtrar().slice(0, 50).forEach((i) => estado.marcados.add(i.interno || i.produto));
+  renderComprar(); atualizarCarrinho();
+});
+liga('#btEsvaziar', 'click', () => { estado.marcados.clear(); renderComprar(); atualizarCarrinho(); });
+
+$$('thead th.ord').forEach((th) => th.addEventListener('click', () => {
+  const campo = th.dataset.ord;
+  estado.ordem = { campo, desc: estado.ordem.campo === campo ? !estado.ordem.desc : true };
+  renderComprar();
+}));
+
+liga('#btSolicitacao', 'click', () => {
+  const lista = itensMarcados();
+  if (!lista.length) return;
+  abrirModal('Solicitação de compra',
+    lista.length + ' itens marcados. Copie o texto para o e-mail ou mensagem, ou baixe a planilha para o fornecedor.',
+    textoSolicitacao(lista), csvDeItens(lista), 'solicitacao-compra-ribeirao-preto.csv');
+});
+liga('#btFecharModal', 'click', () => $('#modal').close());
+
+liga('#btPautaParado', 'click', () => {
+  const parados = itens().filter((i) => i.situacao === 'EXCESSO').sort((a, b) => (b.saldo || 0) - (a.saldo || 0));
+  if (!parados.length) return;
+  const porFam = {};
+  for (const i of parados) (porFam[i.familia] = porFam[i.familia] || []).push(i);
+  const linhas = ['PAUTA DE OPORTUNIDADES — FILIAL RIBEIRÃO PRETO', 'Gerada em ' + new Date().toLocaleString('pt-BR'),
+    'Base: estoque de ' + dataBr(envioAtual().dataISO), '',
+    'O que está abaixo tem saldo alto e giro baixo. Não falta — sobra. Cada bloco é uma oferta pronta.', ''];
+  for (const [fam, is] of Object.entries(porFam).sort((a, b) => b[1].reduce((s, x) => s + x.saldo, 0) - a[1].reduce((s, x) => s + x.saldo, 0))) {
+    linhas.push('■ ' + fam.toUpperCase() + ' — ' + is.reduce((s, x) => s + x.saldo, 0) + ' unidades em ' + is.length + ' itens');
+    for (const i of is.slice(0, 12)) {
+      linhas.push('   ' + String(i.saldo).padStart(4, ' ') + ' un  ·  ' + (i.produto || '').padEnd(16, ' ') + ' · ' + i.descricao + '  [curva ' + (i.curva || '—') + ']');
+    }
+    linhas.push('   → ' + argumento({ familia: fam, itens: is, unidades: is.reduce((s, x) => s + x.saldo, 0) }));
+    linhas.push('');
+  }
+  abrirModal('Pauta para os vendedores', 'Manda no grupo da equipe ou imprime para a reunião de segunda.',
+    linhas.join('\n'), csvDeItens(parados), 'oportunidades-ribeirao-preto.csv');
+});
+
+liga('#btCsvParado', 'click', () => {
+  const parados = itens().filter((i) => i.situacao === 'EXCESSO').sort((a, b) => (b.saldo || 0) - (a.saldo || 0));
+  baixar('oportunidades-ribeirao-preto.csv', csvDeItens(parados), 'text/csv');
+});
+
+liga('#btExportarTudo', 'click', () => {
+  baixar('analise-estoque-ribeirao-preto.csv', csvDeItens([...itens()].sort((a, b) => b.prioridade - a.prioridade)), 'text/csv');
+});
+
+liga('#btApagar', 'click', async () => {
+  if (!confirm('Apagar todos os envios guardados neste navegador? A ação não pode ser desfeita.')) return;
+  await limparEnvios().catch(() => {});
+  estado.envios = []; estado.atualId = null; estado.marcados.clear();
+  recalcular(); renderTudo(); trocarVista('painel');
+});
+
+/* ─── 24. Início ─────────────────────────────────────────────────── */
+
+$('#logo').src = 'data:image/png;base64,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';
+
+(async function iniciar() {
+  try {
+    estado.envios = (await lerEnvios()) || [];
+  } catch {
+    estado.bancoOk = false;
+    estado.envios = [];
+  }
+  if (estado.envios.length) {
+    estado.atualId = [...estado.envios].sort((a, b) => new Date(b.dataISO) - new Date(a.dataISO))[0].id;
+    recalcular();
+  }
+  renderTudo();
+  trocarVista('painel');
+})();
+</script>
+</body>
+</html>

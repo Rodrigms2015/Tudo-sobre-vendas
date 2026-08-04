@@ -6,6 +6,7 @@
   "description": "BRUTO OS — sistema operacional de vendas da linha pesada",
   "scripts": {
     "dev": "vite",
+    "prebuild": "node scripts/gerar-plataforma.mjs",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "test": "vitest run",
@@ -14,7 +15,8 @@
     "lint": "eslint . --max-warnings 0",
     "format": "prettier --write \"src/**/*.{ts,tsx,css}\" \"*.{md,json}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,css}\"",
-    "check": "npm run lint && npm run test && npm run build"
+    "check": "npm run lint && npm run test && npm run build",
+    "plataforma": "node scripts/gerar-plataforma.mjs"
   },
   "dependencies": {
     "idb": "^8.0.0",

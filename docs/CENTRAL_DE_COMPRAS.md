@@ -65,7 +65,55 @@ A essencialidade não sai do preço, sai de quanto faz falta **estar na pratelei
 
 ---
 
-## 3. Quantidade sugerida — e o que muda no segundo envio
+## 3. Demanda medida — o relatório de movimentação
+
+O Opus tem um segundo relatório, **Movimentação de Produto**, com uma linha por movimento:
+data, tipo (`E` entrada / `S` saída), quantidade e documento. Ele entra pela mesma porta que o
+estoque — o cabeçalho diz qual é qual — e muda a natureza de tudo o que a página faz.
+
+Com 7 meses e 28.908 lançamentos da filial, a análise deixa de inferir e passa a medir:
+
+| | |
+|---|---:|
+| Unidades vendidas no período | 84.192 |
+| Peças diferentes com venda | 3.821 |
+| **Itens sem uma única saída** | **6.281 (67% do cadastro)** |
+| Itens com saldo e zero venda (capital morto) | 2.241 · 16.076 unidades |
+| **Ruptura real com venda comprovada** | **542** |
+
+### Volume e frequência são coisas diferentes
+
+440 unidades em 32 pedidos é demanda recorrente: tem que ter na prateleira. 440 unidades em
+1 pedido foi uma obra: não se estoca. Por isso o componente **Giro** combina os dois, com peso
+maior para frequência (0,55 frequência + 0,45 volume), ambos escalados pelo percentil 95 da
+carteira — o máximo achataria todo o resto por causa de um extremo.
+
+### A armadilha da falta
+
+Um item zerado que parou de vender há 122 dias **não perdeu procura: ficou sem peça**. Medir
+a taxa sobre o período inteiro dilui a falta no divisor e manda comprar de menos — repetindo
+a ruptura.
+
+Quando o saldo é zero **e** a última venda tem 21 dias ou mais, a conta usa a taxa do período
+em que a peça existiu na prateleira (`unidades ÷ dias até a última venda`), não a do período
+inteiro. No arquivo real isso levou o disco de tacógrafo de 60 para 126 unidades sugeridas.
+A linha marca `VENDA REAL ↑` e o detalhe explica a troca.
+
+### Ruptura de verdade, não cadastro trocado
+
+A lista **Zerado e vendendo** filtra por ruptura real, não por saldo zero. Um cadastro zerado
+cujo irmão de mesmo código original tem 182 unidades em estoque não é urgência — é cadastro
+substituído. Esse filtro sozinho tirou 72 falsos positivos da lista de urgência.
+
+### Ordem das fontes para a quantidade
+
+1. **Venda medida** na movimentação — a melhor base que existe.
+2. **Diferença entre dois envios** de estoque — quando não há movimentação.
+3. **Referência por classe × curva** — quando não há nem uma nem outra, e a tela diz isso.
+
+---
+
+## 3b. Quantidade sugerida — e o que muda no segundo envio
 
 **Com um envio só não existe consumo medido.** A sugestão é declaradamente uma referência
 por classe × curva, e a tela diz isso na cara em vez de fingir precisão.

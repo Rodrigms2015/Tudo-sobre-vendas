@@ -633,6 +633,7 @@
     <button class="aba" role="tab" data-vista="painel" aria-selected="true">Painel</button>
     <button class="aba" role="tab" data-vista="comprar" aria-selected="false">Comprar <span class="selo" id="seloComprar">0</span></button>
     <button class="aba" role="tab" data-vista="oportunidades" aria-selected="false">Oportunidades <span class="selo" id="seloOport">0</span></button>
+    <button class="aba" role="tab" data-vista="demanda" aria-selected="false">Demanda <span class="selo" id="seloDemanda">0</span></button>
     <button class="aba" role="tab" data-vista="marcas" aria-selected="false">Marcas <span class="selo" id="seloMarcas">0</span></button>
     <button class="aba" role="tab" data-vista="frota" aria-selected="false">Frota &amp; Região</button>
     <button class="aba" role="tab" data-vista="evolucao" aria-selected="false">Evolução</button>
@@ -753,6 +754,15 @@
           <select id="fGrupo"><option value="">Todos</option></select>
         </div>
         <div class="campo">
+          <label for="fCoberturaCompra">Cobrir quantos dias</label>
+          <select id="fCoberturaCompra">
+            <option value="30">30 dias</option>
+            <option value="45" selected>45 dias</option>
+            <option value="60">60 dias</option>
+            <option value="90">90 dias</option>
+          </select>
+        </div>
+        <div class="campo">
           <label for="fNota">Prioridade mínima</label>
           <select id="fNota">
             <option value="0">Qualquer</option>
@@ -831,6 +841,67 @@
         <span class="nota">Curva A e B com saldo suficiente para prometer entrega sem risco.</span>
       </div>
       <div id="listaForte" class="grade"></div>
+    </div>
+  </section>
+
+  <!-- ── DEMANDA ─────────────────────────────────────────────── -->
+  <section class="vista" id="vista-demanda" hidden>
+    <div id="demandaVazia" class="secao oculto">
+      <div class="vazio">
+        <div class="sobrancelha">Falta o relatório de movimentação</div>
+        <h3>Com a venda medida, a compra deixa de ser palpite</h3>
+        <p>
+          Suba o relatório <b>Movimentação de Produto</b> do Opus — o mesmo caminho do estoque, com
+          Data, TP (E/S) e Quantidade. Aí a sugestão de compra passa a vir da saída real de cada peça,
+          e não de estimativa por curva.
+        </p>
+        <button class="bt bt-forte" id="btMovimentacao" type="button">Carregar movimentação</button>
+      </div>
+    </div>
+    <div id="demandaConteudo">
+      <div class="secao"><div class="placas" id="placasDemanda"></div></div>
+      <div class="secao">
+        <div class="secao-topo"><h2>Venda por mês</h2><span class="nota" id="periodoDemanda"></span></div>
+        <div class="cartao"><div class="cartao-corpo"><div id="curvaMensal"></div></div></div>
+      </div>
+      <div class="secao">
+        <div class="secao-topo">
+          <h2>Zerado e vendendo</h2>
+          <span class="nota">Saldo zero com venda comprovada no período. É venda que está sendo perdida agora.</span>
+        </div>
+        <div class="rolo">
+          <table>
+            <thead><tr><th>Item</th><th>Marca</th><th class="dir">Vendeu</th><th class="dir">Pedidos</th><th class="dir">Última venda</th><th class="dir">Pedir</th></tr></thead>
+            <tbody id="corpoZeradoVendendo"></tbody>
+          </table>
+        </div>
+        <div style="margin-top:12px"><button class="bt bt-forte" id="btPedidoUrgente" type="button">Montar pedido só com estes</button></div>
+      </div>
+      <div class="secao">
+        <div class="grade">
+          <div class="cartao"><div class="cartao-corpo">
+            <div class="secao-topo"><h2>Capital morto</h2></div>
+            <p class="nota" style="font-size:12.5px;color:var(--tinta-3);margin-bottom:12px">
+              Tem saldo e não vendeu <b>nenhuma</b> unidade no período inteiro. Não é giro baixo — é giro zero.
+            </p>
+            <div class="listabarras" id="capitalMorto"></div>
+          </div></div>
+          <div class="cartao"><div class="cartao-corpo">
+            <div class="secao-topo"><h2>A curva do sistema bate com a venda?</h2></div>
+            <p class="nota" style="font-size:12.5px;color:var(--tinta-3);margin-bottom:12px">
+              Média de unidades vendidas por item em cada curva. Se uma curva baixa vende como curva alta, a classificação está desatualizada.
+            </p>
+            <div class="listabarras" id="curvaVsVenda"></div>
+          </div></div>
+        </div>
+      </div>
+      <div class="secao">
+        <div class="secao-topo"><h2>Tipos de movimento no arquivo</h2><span class="nota">O que foi contado como saída. Confira se algum código não deveria entrar.</span></div>
+        <div class="rolo"><table>
+          <thead><tr><th>Tipo</th><th>Código</th><th class="dir">Lançamentos</th><th class="dir">Unidades</th><th>Entra na conta?</th></tr></thead>
+          <tbody id="corpoTr"></tbody>
+        </table></div>
+      </div>
     </div>
   </section>
 
@@ -1272,6 +1343,80 @@ function paraDinheiro(v) {
   return Number.isFinite(n) && n >= 0 ? n : null;
 }
 
+/* ── Relatório de movimentação ────────────────────────────────────────
+   O outro relatório do Opus: uma linha por movimento, com data, tipo
+   (E=entrada, S=saída), quantidade e documento. É o que transforma
+   "estimativa de consumo" em "venda medida". */
+
+const COLUNAS_MOV = [
+  { campo: 'filial',    nomes: ['fi', 'filial'] },
+  { campo: 'almox',     nomes: ['alm', 'almoxarifado'], opcional: true },
+  { campo: 'produto',   nomes: ['produto', 'codproduto', 'codigo'] },
+  { campo: 'descricao', nomes: ['descricao', 'desc'], opcional: true },
+  { campo: 'data',      nomes: ['data', 'datamov', 'datamovimentacao'] },
+  { campo: 'documento', nomes: ['documento', 'doc', 'nota'], opcional: true },
+  { campo: 'tr',        nomes: ['tr', 'tipomov', 'codmov'], opcional: true },
+  { campo: 'tp',        nomes: ['tp', 'tipo', 'es'] },
+  { campo: 'quantidade', nomes: ['quantidade', 'qtd', 'qtde'] },
+];
+
+function ehMovimentacao(linhas) {
+  for (let i = 0; i < Math.min(linhas.length, 25); i++) {
+    const chaves = linhas[i].map((c) => chave(c));
+    const temTp = chaves.some((k) => k === 'tp' || k === 'es');
+    const temData = chaves.some((k) => k === 'data' || k.startsWith('datamov'));
+    const temProduto = chaves.some((k) => k === 'produto' || k === 'codproduto');
+    if (temTp && temData && temProduto) return i;
+  }
+  return -1;
+}
+
+/* dd/mm/aa e dd/mm/aaaa. Ano de dois dígitos entra no século 2000 — este
+   relatório não tem movimento do século passado. */
+function paraData(v) {
+  const t = String(v ?? '').trim();
+  const m = t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+  if (!m) return null;
+  const ano = Number(m[3]) < 100 ? 2000 + Number(m[3]) : Number(m[3]);
+  const d = new Date(ano, Number(m[2]) - 1, Number(m[1]));
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function normalizarMovimentacao(linhas, iCab) {
+  const mapa = {};
+  linhas[iCab].forEach((celula, i) => {
+    const k = chave(celula);
+    if (!k) return;
+    for (const col of COLUNAS_MOV) {
+      if (mapa[col.campo] !== undefined) continue;
+      if (col.nomes.some((nome) => k === nome || k.startsWith(nome))) { mapa[col.campo] = i; break; }
+    }
+  });
+  const faltando = COLUNAS_MOV.filter((c) => !c.opcional && mapa[c.campo] === undefined).map((c) => c.campo);
+  if (faltando.length) throw new Error('O relatório de movimentação precisa das colunas ' + faltando.join(', ') + '.');
+
+  const pega = (l, campo) => (mapa[campo] === undefined ? '' : String(l[mapa[campo]] ?? '').trim());
+  const movimentos = [];
+  for (let i = iCab + 1; i < linhas.length; i++) {
+    const l = linhas[i];
+    if (!l) continue;
+    const produto = pega(l, 'produto');
+    /* A linha de tracinhos abaixo do cabeçalho não é dado. */
+    if (!produto || /^-+$/.test(produto)) continue;
+    const data = paraData(pega(l, 'data'));
+    const tp = pega(l, 'tp').toUpperCase().charAt(0);
+    const qtd = paraDinheiro(pega(l, 'quantidade'));
+    if (!data || (tp !== 'S' && tp !== 'E') || qtd === null) continue;
+    movimentos.push({
+      filial: pega(l, 'filial'), produto, descricao: pega(l, 'descricao'),
+      data: data.toISOString().slice(0, 10),
+      documento: pega(l, 'documento'), tr: pega(l, 'tr'), tp, qtd,
+    });
+  }
+  if (!movimentos.length) throw new Error('Li o arquivo de movimentação, mas nenhuma linha tinha data, tipo e quantidade válidos ao mesmo tempo.');
+  return movimentos;
+}
+
 function paraInteiro(v) {
   if (typeof v === 'number') return Number.isFinite(v) ? Math.round(v) : null;
   const s = String(v ?? '').trim().replace(/\./g, '').replace(',', '.');
@@ -1570,7 +1715,25 @@ const SITUACOES = {
   SEM_SALDO: { rotulo: 'Saldo ausente',     tom: 'neutro'   },
 };
 
-function analisar(itens, mapaMarcas = {}) {
+function analisar(itens, mapaMarcas = {}, resumo = null) {
+  /* Com venda medida, "giro" deixa de ser a letra da curva e passa a ser
+     quanto o item realmente saiu. A escala é relativa à própria carteira:
+     o topo da casa vale o peso inteiro. Volume e frequência entram
+     juntos — 440 unidades em 1 pedido não é giro, é uma obra. */
+  let escalaVolume = 0, escalaPedidos = 0;
+  if (resumo) {
+    const vols = [...resumo.demanda.values()].map((d) => d.porDia).sort((a, b) => a - b);
+    const peds = [...resumo.demanda.values()].map((d) => d.pedidos).sort((a, b) => a - b);
+    /* Percentil 95 em vez do máximo: um item extremo não achata todo o resto. */
+    escalaVolume = vols[Math.floor(vols.length * 0.95)] || 1;
+    escalaPedidos = peds[Math.floor(peds.length * 0.95)] || 1;
+  }
+  const notaGiroMedido = (d) => {
+    const vol = Math.min(1, d.porDia / escalaVolume);
+    const freq = Math.min(1, d.pedidos / escalaPedidos);
+    return Math.min(1, 0.45 * vol + 0.55 * freq);
+  };
+
   /* Um SKU zerado cujo irmão de mesmo código original tem saldo não é
      ruptura: o balcão atende. Essa distinção é o que separa uma lista
      impossível de uma lista que cabe num pedido. */
@@ -1633,13 +1796,25 @@ function analisar(itens, mapaMarcas = {}) {
     const lacunas = [];
     let pontos = 0, pesoAplicado = 0;
 
-    // 1. Giro pela curva ABC.
-    if (item.curva && PESO_CURVA[item.curva] !== undefined) {
+    // 1. Giro — medido quando há movimentação; pela curva quando não há.
+    const dem = resumo ? resumo.demanda.get(item.interno) || null : null;
+    if (resumo && dem) {
+      const f = notaGiroMedido(dem);
+      const p = PESOS.giro * f;
+      pontos += p; pesoAplicado += PESOS.giro;
+      fatores.push({ nome: 'Giro', pontos: p, texto: 'Saíram ' + Math.round(dem.unidades) + ' unidades em ' + dem.pedidos +
+        ' pedido' + (dem.pedidos > 1 ? 's' : '') + ' ao longo de ' + resumo.dias + ' dias' +
+        (dem.mesesComVenda > 1 ? ', em ' + dem.mesesComVenda + ' meses diferentes' : ', concentradas num mês só') + '.' });
+    } else if (resumo) {
+      const p = 0;
+      pontos += p; pesoAplicado += PESOS.giro;
+      fatores.push({ nome: 'Giro', pontos: p, texto: 'Nenhuma saída em ' + resumo.dias + ' dias de movimentação. Curva ' + (item.curva || '—') + ' no cadastro, mas sem venda medida.' });
+    } else if (item.curva && PESO_CURVA[item.curva] !== undefined) {
       const p = PESOS.giro * PESO_CURVA[item.curva];
       pontos += p; pesoAplicado += PESOS.giro;
       fatores.push({ nome: 'Giro', pontos: p, texto: 'Curva ' + item.curva + ' — ' + ({ A: 'a faixa de maior saída do cadastro', B: 'saída alta', C: 'saída média', D: 'saída baixa', E: 'saída rara', F: 'praticamente sem saída' })[item.curva] + '.' });
     } else {
-      lacunas.push({ nome: 'Giro', texto: 'Item sem curva ABC no cadastro. Sem ela não dá para saber se sai muito ou pouco.' });
+      lacunas.push({ nome: 'Giro', texto: 'Item sem curva ABC no cadastro e sem relatório de movimentação. Sem um dos dois não dá para saber se sai muito ou pouco.' });
     }
 
     // 2. Situação do saldo.
@@ -1698,7 +1873,7 @@ function analisar(itens, mapaMarcas = {}) {
 
     return {
       ...item, situacao, familia, classe,
-      prefixo, chaveDoMapa, marca,
+      prefixo, chaveDoMapa, marca, demanda: dem,
       origemDaMarca: item.marcaArquivo ? 'veio no próprio relatório'
         : (marcaManual ? 'definida por você no ' + rotuloChave(chaveDoMapa)
         : (detectada ? 'detectada pelo código ' + detectada.padrao : null)),
@@ -1744,7 +1919,26 @@ function analisar(itens, mapaMarcas = {}) {
 const BASE_CLASSE = { consumivel: 6, pneumatico: 4, eletrico: 3, desgaste: 4, injecao: 2, estrutural: 1 };
 const MULT_CURVA = { A: 2.0, B: 1.5, C: 1.0, D: 0.6, E: 0.4, F: 0.25 };
 
-function sugerirQuantidade(item, consumo, diasCobertura) {
+function sugerirQuantidade(item, consumo, diasCobertura, demanda) {
+  /* Venda medida no relatório de movimentação é a melhor base que existe:
+     é saída de verdade, não diferença entre duas fotos do estoque. */
+  if (demanda && demanda.porDia > 0) {
+    /* Item zerado que parou de vender há tempo não perdeu procura: ficou
+       sem peça. Nesse caso a taxa correta é a do período em que ele existiu
+       na prateleira — senão a reposição repete a mesma falta. */
+    const emFalta = (item.saldo ?? 0) === 0 && demanda.diasSemVender >= 21 && demanda.porDiaDisponivel > demanda.porDia;
+    const taxa = emFalta ? demanda.porDiaDisponivel : demanda.porDia;
+    const qtd = Math.max(1, Math.ceil(taxa * diasCobertura - (item.saldo ?? 0)));
+    return {
+      qtd, medida: true, fonte: 'movimentação', emFalta,
+      texto: 'Saíram ' + Math.round(demanda.unidades) + ' unidades em ' + demanda.pedidos + ' pedidos. ' +
+        (emFalta
+          ? 'A última venda foi há ' + demanda.diasSemVender + ' dias e o saldo está zerado: parou de vender porque acabou, não porque a procura caiu. Por isso a conta usa ' +
+            taxa.toFixed(2).replace('.', ',') + ' por dia — o ritmo de quando havia peça — e não ' + demanda.porDia.toFixed(2).replace('.', ',') + ', que diluiria a falta no divisor.'
+          : 'Ritmo de ' + taxa.toFixed(2).replace('.', ',') + ' por dia.') +
+        ' Para cobrir ' + diasCobertura + ' dias, faltam ' + qtd + '.',
+    };
+  }
   if (consumo && consumo.dias >= 14 && consumo.saida > 0) {
     const porDia = consumo.saida / consumo.dias;
     const alvo = porDia * diasCobertura;
@@ -1756,6 +1950,82 @@ function sugerirQuantidade(item, consumo, diasCobertura) {
   const mult = MULT_CURVA[item.curva] ?? 0.5;
   const qtd = Math.max(1, Math.round(base * mult) - (item.saldo ?? 0));
   return { qtd: Math.max(1, qtd), medida: false, texto: 'Referência por classe (' + (item.classe ? ROTULO_CLASSE[item.classe] : 'sem classe') + ' × curva ' + (item.curva || '—') + '). Suba um segundo envio e esta conta passa a usar o consumo medido.' };
+}
+
+/* ─── 7b. Demanda medida ─────────────────────────────────────────────
+   Volume e frequência são coisas diferentes, e a diferença decide compra.
+   440 unidades em 32 pedidos é demanda recorrente: tem que ter na
+   prateleira. 440 unidades em 1 pedido foi uma obra: não se estoca. */
+
+const DIA = 86400000;
+
+function resumirDemanda(movimentos) {
+  if (!movimentos || !movimentos.length) return null;
+  const datas = movimentos.map((m) => new Date(m.data).getTime());
+  const inicio = Math.min(...datas), fim = Math.max(...datas);
+  const dias = Math.max(1, Math.round((fim - inicio) / DIA) + 1);
+
+  const porProduto = new Map();
+  const porMes = new Map();
+  const codigosTr = new Map();
+
+  for (const m of movimentos) {
+    if (m.tr) {
+      const k = m.tp + '·' + m.tr;
+      if (!codigosTr.has(k)) codigosTr.set(k, { tp: m.tp, tr: m.tr, linhas: 0, unidades: 0 });
+      const c = codigosTr.get(k); c.linhas++; c.unidades += m.qtd;
+    }
+    if (m.tp !== 'S') continue;
+    if (!porProduto.has(m.produto)) {
+      porProduto.set(m.produto, { unidades: 0, pedidos: new Set(), ultima: null, descricao: m.descricao, porMes: new Map() });
+    }
+    const p = porProduto.get(m.produto);
+    p.unidades += m.qtd;
+    if (m.documento) p.pedidos.add(m.documento);
+    if (!p.ultima || m.data > p.ultima) p.ultima = m.data;
+    if (m.descricao && m.descricao.length > (p.descricao || '').length) p.descricao = m.descricao;
+    const mes = m.data.slice(0, 7);
+    p.porMes.set(mes, (p.porMes.get(mes) || 0) + m.qtd);
+    porMes.set(mes, (porMes.get(mes) || 0) + m.qtd);
+  }
+
+  const meses = [...porMes.keys()].sort();
+  const metade = Math.floor(meses.length / 2);
+  const antigos = meses.slice(0, metade), recentes = meses.slice(meses.length - metade);
+
+  const demanda = new Map();
+  for (const [produto, p] of porProduto) {
+    const somaMeses = (lista) => lista.reduce((s, mes) => s + (p.porMes.get(mes) || 0), 0);
+    const antes = somaMeses(antigos), depois = somaMeses(recentes);
+    demanda.set(produto, {
+      unidades: p.unidades,
+      pedidos: p.pedidos.size || 1,
+      porDia: p.unidades / dias,
+      /* Taxa enquanto a peça esteve disponível. Para um item que zerou no
+         meio do período, a taxa sobre o período inteiro subestima: os dias
+         sem estoque entram no divisor como se não houvesse procura. */
+      porDiaDisponivel: p.unidades / Math.max(1, dias - Math.round((fim - new Date(p.ultima).getTime()) / DIA)),
+      mesesComVenda: p.porMes.size,
+      ultima: p.ultima,
+      diasSemVender: Math.round((fim - new Date(p.ultima).getTime()) / DIA),
+      descricao: p.descricao,
+      /* Tendência só existe com pelo menos dois meses de cada lado. */
+      tendencia: metade >= 2 && antes > 0 ? (depois - antes) / antes : null,
+      antes, depois,
+    });
+  }
+
+  return {
+    demanda, dias,
+    inicio: new Date(inicio).toISOString().slice(0, 10),
+    fim: new Date(fim).toISOString().slice(0, 10),
+    porMes: meses.map((mes) => ({ mes, unidades: porMes.get(mes) })),
+    totalSaida: [...demanda.values()].reduce((s, d) => s + d.unidades, 0),
+    produtosComVenda: demanda.size,
+    linhas: movimentos.length,
+    codigosTr: [...codigosTr.values()].sort((a, b) => b.linhas - a.linhas),
+    filiais: [...new Set(movimentos.map((m) => m.filial).filter(Boolean))],
+  };
 }
 
 /* ─── 8. Persistência local ──────────────────────────────────────────
@@ -1788,6 +2058,7 @@ async function comLoja(modo, fn) {
 const guardarEnvio = (e) => comLoja('readwrite', (l) => l.put(e));
 const guardarMapaMarcas = () => comLoja('readwrite', (l) => l.put({ id: '__marcas', mapa: estado.mapaMarcas }));
 const guardarQuantidades = () => comLoja('readwrite', (l) => l.put({ id: '__quantidades', mapa: estado.quantidades }));
+const guardarMovimentos = (nome) => comLoja('readwrite', (l) => l.put({ id: '__movimentos', nome, em: new Date().toISOString(), movimentos: estado.movimentos }));
 const lerEnvios = () => comLoja('readonly', (l) => l.getAll());
 const removerEnvio = (id) => comLoja('readwrite', (l) => l.delete(id));
 const limparEnvios = () => comLoja('readwrite', (l) => l.clear());
@@ -1805,6 +2076,8 @@ const estado = {
   ordem: { campo: 'prioridade', desc: true },
   filtros: { busca: '', situacao: 'RUPTURA', curva: '', classe: '', marca: '', origem: '', grupo: '', nota: 55 },
   agrupar: true,
+  movimentos: null,
+  resumoDemanda: null,
   mapaMarcas: {},
   quantidades: {},
   bancoOk: true,
@@ -1867,7 +2140,8 @@ function calcularConsumo(anterior, atual) {
 function recalcular() {
   const atual = envioAtual();
   if (!atual) { estado.analise = null; estado.consumo = null; return; }
-  estado.analise = analisar(atual.itens, estado.mapaMarcas);
+  estado.resumoDemanda = resumirDemanda(estado.movimentos);
+  estado.analise = analisar(atual.itens, estado.mapaMarcas, estado.resumoDemanda);
   const anteriores = estado.envios
     .filter((e) => new Date(e.dataISO) < new Date(atual.dataISO))
     .sort((a, b) => new Date(b.dataISO) - new Date(a.dataISO));
@@ -1886,7 +2160,29 @@ function recalcular() {
       consumo = saida > 0 ? { saida, dias } : null;
       saldo = it.saldoConjunto;
     }
-    it.sugestao = sugerirQuantidade({ ...it, saldo }, consumo, estado.diasCobertura);
+    let demanda = it.demanda;
+    if (it.repetidos > 1 && it.ehRepresentante && it.conjunto) {
+      /* Cadastros iguais dividiram a venda entre si; quem compra precisa da soma. */
+      const soma = it.conjunto.reduce((acc, x) => {
+        if (!x.demanda) return acc;
+        acc.unidades += x.demanda.unidades;
+        acc.pedidos += x.demanda.pedidos;
+        acc.porDia += x.demanda.porDia;
+        acc.porDiaDisponivel += x.demanda.porDiaDisponivel;
+        /* A venda mais recente de qualquer um dos cadastros é a do conjunto:
+           se um irmão vendeu ontem, o grupo não está parado. */
+        if (acc.ultima === null || x.demanda.ultima > acc.ultima) {
+          acc.ultima = x.demanda.ultima;
+          acc.diasSemVender = x.demanda.diasSemVender;
+        }
+        acc.mesesComVenda = Math.max(acc.mesesComVenda, x.demanda.mesesComVenda);
+        if (!acc.descricao || (x.demanda.descricao || '').length > acc.descricao.length) acc.descricao = x.demanda.descricao;
+        return acc;
+      }, { unidades: 0, pedidos: 0, porDia: 0, porDiaDisponivel: 0, ultima: null, diasSemVender: 0, mesesComVenda: 0, descricao: '' });
+      demanda = soma.unidades > 0 ? soma : null;
+    }
+    it.demandaUsada = demanda;
+    it.sugestao = sugerirQuantidade({ ...it, saldo }, consumo, estado.diasCobertura, demanda);
     if (it.repetidos > 1 && it.ehRepresentante) {
       it.sugestao.texto += ' Soma os ' + it.repetidos + ' cadastros com este mesmo código original.';
     }
@@ -2068,7 +2364,9 @@ function renderComprar() {
   const valorLista = temCusto() ? somaValor(lista, (i) => i.qtd || 0) : null;
   $('#resumoLista').textContent = n(lista.length) + ' itens no filtro · ' + n(unidades) + ' unidades a pedir · ' +
     (valorLista !== null ? brl(valorLista) + ' a custo · ' : '') +
-    (estado.consumo ? 'sugestão pelo consumo medido' : 'sugestão por classe, sem consumo medido') +
+    (estado.resumoDemanda ? 'sugestão pela venda medida em ' + estado.resumoDemanda.dias + ' dias'
+      : estado.consumo ? 'sugestão pela diferença entre dois envios de estoque'
+      : 'sugestão por classe — sem movimentação nem segundo envio') +
     (editados ? ' · ' + n(editados) + ' quantidade' + (editados > 1 ? 's' : '') + ' ajustada' + (editados > 1 ? 's' : '') + ' por você' : '');
 
   $('#corpoLista').innerHTML = mostrados.map((i) => {
@@ -2170,7 +2468,10 @@ function campoQuantidade(i) {
     '<div style="font-size:10px;margin-top:2px;color:var(--tinta-3)">' +
       (ajustado
         ? '<b style="color:var(--laranja-texto)">você pediu</b> · sugerido ' + i.sugestao.qtd
-        : (i.sugestao.medida ? '<b style="color:var(--saudavel)">MEDIDO</b>' : 'sugerido')) +
+        : (i.sugestao.medida
+            ? '<b style="color:var(--saudavel)" title="' + esc(i.sugestao.texto) + '">' +
+                (i.sugestao.fonte === 'movimentação' ? (i.sugestao.emFalta ? 'VENDA REAL ↑' : 'VENDA REAL') : 'MEDIDO') + '</b>'
+            : 'sugerido')) +
     '</div>';
 }
 
@@ -2246,6 +2547,96 @@ function argumento(bloco) {
   return 'Temos ' + bloco.unidades + ' unidades de ' + bloco.familia.toLowerCase() + ' paradas em ' + bloco.itens.length +
     ' itens' + (raras ? ' de giro baixo' : '') + '. Oferecer na próxima visita a oficinas e frotistas: ' +
     bloco.itens.slice(0, 3).map((i) => i.descricao).join('; ') + '. Fecha em pacote e libera prateleira.';
+}
+
+/* ─── 16a. Demanda ───────────────────────────────────────────────── */
+
+function renderDemanda() {
+  const R = estado.resumoDemanda;
+  const temMov = !!R;
+  $('#demandaVazia').classList.toggle('oculto', temMov);
+  $('#demandaConteudo').classList.toggle('oculto', !temMov);
+  if (!temMov) { $('#seloDemanda').textContent = '0'; return; }
+
+  const L = itens();
+  const comVenda = L.filter((i) => i.demanda);
+  const semVenda = L.filter((i) => !i.demanda);
+  const mortos = semVenda.filter((i) => (i.saldo || 0) > 0);
+  const zeradoVendendo = L.filter((i) => i.situacao === 'RUPTURA' && i.demandaUsada &&
+      (estado.agrupar ? i.ehRepresentante || i.repetidos === 1 : true))
+    .sort((a, b) => b.demandaUsada.unidades - a.demandaUsada.unidades);
+  const unidadesMortas = mortos.reduce((s, i) => s + (i.saldo || 0), 0);
+
+  $('#placasDemanda').innerHTML = [
+    placa({ rotulo: 'Saída no período', valor: n(Math.round(R.totalSaida)), rodape: n(R.produtosComVenda) + ' peças diferentes em ' + R.dias + ' dias · ' + (R.totalSaida / R.dias).toFixed(0) + ' unidades por dia', tom: 'marca' }),
+    placa({ rotulo: 'Zerado e vendendo', valor: n(zeradoVendendo.length), rodape: 'saldo zero com venda comprovada — é a compra que não pode esperar', tom: 'critico' }),
+    placa({ rotulo: 'Não vendeu nada', valor: n(semVenda.length), rodape: pct(semVenda.length / L.length) + ' do cadastro sem uma única saída no período', tom: 'atencao' }),
+    placa({
+      rotulo: 'Capital morto',
+      valor: temCusto() ? brl(somaValor(mortos, (i) => i.saldo || 0)) : n(unidadesMortas),
+      rodape: n(mortos.length) + ' itens com saldo e zero venda' + (temCusto() ? '' : ' · ' + n(unidadesMortas) + ' unidades'),
+      tom: 'parado',
+    }),
+  ].join('');
+
+  $('#periodoDemanda').textContent = 'de ' + dataBr(R.inicio) + ' a ' + dataBr(R.fim) + ' · ' + n(R.linhas) + ' lançamentos' +
+    (R.filiais.length ? ' · filial ' + R.filiais.join(', ') : '');
+
+  const maxMes = Math.max(...R.porMes.map((m) => m.unidades), 1);
+  const nomeMes = (iso) => {
+    const [a, m] = iso.split('-');
+    return ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'][Number(m) - 1] + '/' + a.slice(2);
+  };
+  $('#curvaMensal').innerHTML = '<div class="listabarras">' + R.porMes.map((m) =>
+    barraHorizontal({ titulo: nomeMes(m.mes), direita: n(Math.round(m.unidades)) + ' un', fracao: m.unidades / maxMes, cor: 'var(--marinho)' })).join('') + '</div>';
+
+  $('#corpoZeradoVendendo').innerHTML = zeradoVendendo.slice(0, 40).map((i) =>
+    '<tr><td><b style="font-weight:600">' + esc(i.demandaUsada.descricao || i.descricao) + '</b>' +
+      (i.repetidos > 1 ? ' <span class="etiqueta" data-tom="neutro">' + i.repetidos + ' cadastros</span>' : '') +
+      '<br><span class="mono" style="color:var(--tinta-3)">' + esc(i.produto) + '</span> ' +
+      (i.curva ? '<span class="curva" data-c="' + i.curva + '">' + i.curva + '</span>' : '') + '</td>' +
+    '<td>' + (i.marca ? '<span class="etiqueta" data-tom="neutro">' + esc(i.marca) + '</span>' : '<span style="color:var(--tinta-3);font-size:12px">—</span>') + '</td>' +
+    '<td class="dir num"><b>' + n(Math.round(i.demandaUsada.unidades)) + '</b> un</td>' +
+    '<td class="dir num">' + n(i.demandaUsada.pedidos) + '</td>' +
+    '<td class="dir num" style="font-size:12.5px">' + dataBr(i.demandaUsada.ultima) +
+      '<br><span style="font-size:10.5px;color:' + (i.sugestao.emFalta ? 'var(--critico)' : 'var(--tinta-3)') + '">há ' + i.demandaUsada.diasSemVender + ' dias' +
+      (i.sugestao.emFalta ? '<br>parou por falta' : '') + '</span></td>' +
+    '<td class="dir num"><b style="color:var(--laranja-texto);font-weight:700">' + i.qtd + '</b></td></tr>').join('') ||
+    '<tr><td colspan="6" style="padding:24px;text-align:center;color:var(--tinta-2)">Nenhum item zerado teve venda no período. Boa notícia.</td></tr>';
+
+  const porFamMorta = {};
+  for (const i of mortos) porFamMorta[i.familia] = (porFamMorta[i.familia] || 0) + (i.saldo || 0);
+  const listaMorta = Object.entries(porFamMorta).sort((a, b) => b[1] - a[1]).slice(0, 9);
+  const maxMorto = Math.max(...listaMorta.map((x) => x[1]), 1);
+  $('#capitalMorto').innerHTML = listaMorta.map(([fam, un]) =>
+    barraHorizontal({ titulo: esc(fam), direita: n(un) + ' un paradas', fracao: un / maxMorto, cor: 'var(--parado)' })).join('') ||
+    '<p class="nota">Nenhum item com saldo ficou sem vender.</p>';
+
+  const porCurva = {};
+  for (const i of L) {
+    const c = i.curva || '—';
+    if (!porCurva[c]) porCurva[c] = { itens: 0, unidades: 0 };
+    porCurva[c].itens++;
+    porCurva[c].unidades += i.demanda ? i.demanda.unidades : 0;
+  }
+  const medias = Object.entries(porCurva).map(([c, v]) => ({ c, media: v.unidades / v.itens, itens: v.itens })).sort((a, b) => a.c.localeCompare(b.c));
+  const maxMedia = Math.max(...medias.map((m) => m.media), 1);
+  $('#curvaVsVenda').innerHTML = medias.map((m) =>
+    barraHorizontal({
+      titulo: '<span class="curva" data-c="' + (m.c === '—' ? 'F' : m.c) + '">' + m.c + '</span> <span style="color:var(--tinta-3);font-size:12px">' + n(m.itens) + ' itens</span>',
+      direita: m.media.toFixed(1).replace('.', ',') + ' un por item',
+      fracao: m.media / maxMedia,
+      cor: 'var(--marinho)',
+    })).join('');
+
+  $('#corpoTr').innerHTML = R.codigosTr.map((c) =>
+    '<tr><td>' + (c.tp === 'S' ? '<span class="etiqueta" data-tom="critico">saída</span>' : '<span class="etiqueta" data-tom="saudavel">entrada</span>') + '</td>' +
+    '<td class="mono">' + esc(c.tr) + '</td>' +
+    '<td class="dir num">' + n(c.linhas) + '</td>' +
+    '<td class="dir num">' + n(Math.round(c.unidades)) + '</td>' +
+    '<td style="font-size:12.5px;color:var(--tinta-2)">' + (c.tp === 'S' ? 'Sim — conta como demanda' : 'Não — entrada não é venda') + '</td></tr>').join('');
+
+  $('#seloDemanda').textContent = n(zeradoVendendo.length);
 }
 
 /* ─── 16b. Marcas ────────────────────────────────────────────────── */
@@ -2614,9 +3005,11 @@ function textoSolicitacao(lista) {
   linhas.push('Gerada em ' + new Date().toLocaleString('pt-BR'));
   linhas.push('Base: ' + (e ? e.nome + ', estoque de ' + dataBr(e.dataISO) : '—'));
   linhas.push('Itens: ' + lista.length + ' · Unidades: ' + lista.reduce((s, i) => s + (i.qtd || 0), 0));
-  linhas.push(estado.consumo
+  linhas.push(estado.resumoDemanda
+    ? 'Quantidades calculadas sobre a venda real de ' + dataBr(estado.resumoDemanda.inicio) + ' a ' + dataBr(estado.resumoDemanda.fim) + ' (' + estado.resumoDemanda.dias + ' dias, ' + n(estado.resumoDemanda.linhas) + ' lancamentos), para cobrir ' + estado.diasCobertura + ' dias.'
+    : estado.consumo
     ? 'Quantidades calculadas sobre o consumo medido entre ' + dataBr(estado.consumo.de.dataISO) + ' e ' + dataBr(estado.consumo.para.dataISO) + ' (' + estado.consumo.dias + ' dias), para cobrir ' + estado.diasCobertura + ' dias.'
-    : 'Quantidades por referência de classe e curva — ainda sem consumo medido (existe só um envio de estoque).');
+    : 'Quantidades por referência de classe e curva — ainda sem movimentação nem segundo envio de estoque.');
   linhas.push('');
   const porGrupo = {};
   for (const i of lista) (porGrupo[i.familia] = porGrupo[i.familia] || []).push(i);
@@ -2697,6 +3090,19 @@ async function carregarArquivo(file) {
       }
       linhas = lerPlanilha(lerOle(buf));
     }
+    /* Os dois relatórios do Opus entram pela mesma porta; o cabeçalho diz qual é. */
+    const iMov = ehMovimentacao(linhas);
+    if (iMov >= 0) {
+      const movimentos = normalizarMovimentacao(linhas, iMov);
+      estado.movimentos = movimentos;
+      try { await guardarMovimentos(nome); } catch { estado.bancoOk = false; }
+      recalcular();
+      renderTudo();
+      trocarVista(estado.analise ? 'demanda' : 'painel');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
     const itensLidos = normalizar(linhas);
     const envio = {
       id: 'e' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
@@ -2778,6 +3184,7 @@ function trocarVista(vista) {
   if (vista === 'dados') renderDados();
   if (vista === 'frota') renderFrota();
   if (vista === 'marcas') renderMarcas();
+  if (vista === 'demanda') renderDemanda();
 }
 
 function sincronizarFiltros() {
@@ -2791,6 +3198,7 @@ function sincronizarFiltros() {
   $('#fGrupo').value = f.grupo;
   $('#fNota').value = String(f.nota);
   $('#fAgrupar').value = estado.agrupar ? '1' : '0';
+  $('#fCoberturaCompra').value = String(estado.diasCobertura);
   estado.limite = 150;
   renderComprar();
 }
@@ -2834,7 +3242,10 @@ function renderTudo() {
   const e = envioAtual();
   $('#topoInfo').innerHTML = temDados && e
     ? 'Estoque de <strong>' + dataBr(e.dataISO) + '</strong> · <strong>' + n(itens().length) + '</strong> itens<br>' +
-      (estado.consumo ? 'consumo medido em ' + estado.consumo.dias + ' dias' : 'um envio guardado — sem consumo medido')
+      (estado.resumoDemanda
+        ? '<strong>' + n(estado.resumoDemanda.linhas) + '</strong> movimentos · venda medida em ' + estado.resumoDemanda.dias + ' dias'
+        : estado.consumo ? 'consumo medido em ' + estado.consumo.dias + ' dias'
+        : 'sem movimentação carregada — sugestão por classe')
     : 'nenhum estoque carregado';
   if (!temDados) { $('#seloComprar').textContent = '0'; $('#seloOport').textContent = '0'; atualizarCarrinho(); return; }
   montarSelects();
@@ -2848,6 +3259,7 @@ function renderTudo() {
   if (vista === 'evolucao') renderEvolucao();
   if (vista === 'dados') renderDados();
   if (vista === 'marcas') renderMarcas();
+  renderDemanda();
   $('#seloMarcas').textContent = n(resumoPrefixos().filter((p) => !p.marca).length);
   atualizarCarrinho();
 }
@@ -2885,6 +3297,7 @@ liga('#fBusca', 'input', (e) => { estado.filtros.busca = e.target.value; estado.
   liga('#' + id, 'change', (e) => { estado.filtros[id.slice(1).charAt(0).toLowerCase() + id.slice(2)] = e.target.value; estado.limite = 150; renderComprar(); }));
 liga('#fNota', 'change', (e) => { estado.filtros.nota = Number(e.target.value); estado.limite = 150; renderComprar(); });
 liga('#fAgrupar', 'change', (e) => { estado.agrupar = e.target.value === '1'; estado.limite = 150; renderComprar(); });
+liga('#fCoberturaCompra', 'change', (e) => { estado.diasCobertura = Number(e.target.value); recalcular(); renderTudo(); });
 liga('#btLimpar', 'click', () => {
   estado.filtros = { busca: '', situacao: '', curva: '', classe: '', marca: '', origem: '', grupo: '', nota: 0 };
   sincronizarFiltros();
@@ -2900,6 +3313,17 @@ $$('thead th.ord').forEach((th) => th.addEventListener('click', () => {
   estado.ordem = { campo, desc: estado.ordem.campo === campo ? !estado.ordem.desc : true };
   renderComprar();
 }));
+
+liga('#btMovimentacao', 'click', () => $('#arquivo').click());
+liga('#btPedidoUrgente', 'click', () => {
+  const lista = itens().filter((i) => i.situacao === 'RUPTURA' && i.demandaUsada && (i.qtd || 0) > 0 &&
+      (estado.agrupar ? i.ehRepresentante || i.repetidos === 1 : true))
+    .sort((a, b) => b.demandaUsada.unidades - a.demandaUsada.unidades);
+  if (!lista.length) return;
+  abrirModal('Pedido urgente — zerado e vendendo',
+    lista.length + ' itens com saldo zero e venda comprovada no período. Cada um destes é venda que está sendo perdida hoje.',
+    pedidosPorFornecedor(lista), csvDeItens(lista), 'pedido-urgente-ribeirao-preto.csv');
+});
 
 liga('#fBuscaPrefixo', 'input', () => renderMarcas());
 liga('#fSoVazios', 'change', () => renderMarcas());
@@ -2972,8 +3396,10 @@ $('#logo').src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAOAAAAB4CAIAAABk
     const guardados = (await lerEnvios()) || [];
     const marcas = guardados.find((e) => e.id === '__marcas');
     const quantidades = guardados.find((e) => e.id === '__quantidades');
+    const movs = guardados.find((e) => e.id === '__movimentos');
     if (marcas) estado.mapaMarcas = marcas.mapa || {};
     if (quantidades) estado.quantidades = quantidades.mapa || {};
+    if (movs) { estado.movimentos = movs.movimentos || null; estado.nomeMovimentos = movs.nome || null; }
     estado.envios = guardados.filter((e) => Array.isArray(e.itens));
   } catch {
     estado.bancoOk = false;

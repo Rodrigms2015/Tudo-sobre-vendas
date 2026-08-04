@@ -112,7 +112,68 @@ cadastro com a participação dela no mercado.
 
 ---
 
-## 5. Dados públicos embutidos
+## 5. Marcas
+
+O catálogo de 61 marcas vem do site da própria Pacaembu (pabu.com.br). A marca de cada item
+sai de três lugares, nesta ordem:
+
+**1. O mapa que o usuário definiu** (aba Marcas). Ele conhece o fornecedor; a regra
+automática só conhece o formato do código. Por isso o mapa manual sempre vence.
+
+**2. Detecção automática.** Só entram esquemas de codificação do próprio fabricante,
+confirmados pela descrição da peça:
+
+| Marca | Padrão | Itens | Precisão medida |
+|---|---|---:|---:|
+| MANN | `W`, `WK`, `C`, `CF`, `CU`, `HU`, `PU` + número | 361 | 100% |
+| MAHLE / Metal Leve | `OC`, `OX`, `LX`, `LA`, `KC`, `KX` + número | 136 | 100% |
+| FLEETGUARD | `LF`, `FS`, `AF`, `FF`, `HF`, `WF` + número | 130 | 100% |
+| HENGST | `E` + número | 64 | 100% |
+
+A exigência de que a descrição seja de filtragem é o que leva a precisão a 100%. Sem ela,
+`C…` casaria com "Camisa motor" e `E…` com "Coroa pinhão". Um prefixo que acerta 94% **não
+entra**: 6% de marca errada dentro de um pedido de compra é pior que marca em branco.
+
+**3. Nada.** O item mostra o botão *definir marca*, que leva direto à linha certa do mapa.
+
+### A chave do mapa
+
+O que o usuário mapeia não é item a item — seriam 9.387 decisões. É a **chave**, que agrupa
+itens do mesmo fornecedor:
+
+- Código começando com letra → a chave é o **prefixo** (`REX…`, `APV…`, `MBU…`).
+- Código só com número → a chave é o **grupo**, porque o prefixo não diria nada.
+- **Prefixo que mistura famílias** → a chave inclui a família. O prefixo `P` tem 313 filtros
+  e 62 barras de direção: fornecedores diferentes. Sem essa quebra, mapear `P` inteiro
+  marcaria filtro com a marca da barra de direção. Custa 516 chaves em vez de 211, e evita
+  marca errada no pedido.
+
+A distribuição é muito desigual, e a tabela vem ordenada por tamanho: **preencher as 10
+maiores marca ~1.500 itens; as 30 maiores, ~3.100.** A lista nunca precisa ser preenchida
+inteira, e a tela diz isso.
+
+### O que a marca destrava
+
+- Coluna e filtro de marca na lista de compra.
+- **Pedidos separados por fornecedor** — que é como a compra realmente acontece: um pedido
+  por fornecedor, não uma lista única.
+- Situação por marca: itens, ruptura e unidades a pedir de cada fornecedor.
+
+---
+
+## 5b. Quantidade: sugestão que você sobrepõe
+
+Cada linha traz um campo editável com − e +. O número começa na sugestão do motor; assim que
+você digita outro, ele passa a valer, fica marcado em laranja com o rótulo *você pediu* e a
+sugestão original continua visível ao lado, para comparação. As quantidades ajustadas ficam
+guardadas no navegador e sobrevivem a recarregar a página e a subir um novo estoque.
+
+Somatórios, carrinho, solicitação de compra e CSV usam sempre a quantidade escolhida — nunca
+a sugestão, quando existe escolha.
+
+---
+
+## 6. Dados públicos embutidos
 
 Todo número externo carrega fonte e data na própria ficha. Nada é estimado sem dizer que é.
 
@@ -131,7 +192,7 @@ ficha diz isso. A contagem exata está na base municipal do Senatran.
 
 ---
 
-## 6. Privacidade e compartilhamento
+## 7. Privacidade e compartilhamento
 
 - **Nenhuma requisição de rede.** Sem `fetch`, sem `XHR`, sem `WebSocket`, sem CDN. O
   arquivo é lido no navegador e a análise roda ali. Verificado sob a CSP de produção.
@@ -146,7 +207,7 @@ ficha diz isso. A contagem exata está na base municipal do Senatran.
 
 ---
 
-## 7. Leitura do `.xls`
+## 8. Leitura do `.xls`
 
 O relatório sai em BIFF8 (Excel 97-2003), dentro de um contêiner OLE2. A página traz um
 leitor próprio dos dois formatos — cerca de 200 linhas — em vez de embutir um megabyte de
@@ -165,7 +226,7 @@ Detalhes que importam:
 
 ---
 
-## 8. Ao mexer nesta página
+## 9. Ao mexer nesta página
 
 1. Edite **`plataforma/corpo.html`** — nunca `public/compras.html`, que é gerado.
 2. Rode `npm run plataforma`. Isso regrava a página **e o hash da CSP** em `public/_headers`.

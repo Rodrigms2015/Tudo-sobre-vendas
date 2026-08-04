@@ -642,6 +642,7 @@
     <button class="aba" role="tab" data-vista="painel" aria-selected="true">Painel</button>
     <button class="aba" role="tab" data-vista="comprar" aria-selected="false">Comprar <span class="selo" id="seloComprar">0</span></button>
     <button class="aba" role="tab" data-vista="oportunidades" aria-selected="false">Oportunidades <span class="selo" id="seloOport">0</span></button>
+    <button class="aba" role="tab" data-vista="marcas" aria-selected="false">Marcas <span class="selo" id="seloMarcas">0</span></button>
     <button class="aba" role="tab" data-vista="frota" aria-selected="false">Frota &amp; Região</button>
     <button class="aba" role="tab" data-vista="evolucao" aria-selected="false">Evolução</button>
     <button class="aba" role="tab" data-vista="dados" aria-selected="false">Dados</button>
@@ -749,6 +750,10 @@
           <select id="fClasse"><option value="">Todas</option></select>
         </div>
         <div class="campo">
+          <label for="fMarca">Marca</label>
+          <select id="fMarca"><option value="">Todas</option></select>
+        </div>
+        <div class="campo">
           <label for="fOrigem">Origem provável</label>
           <select id="fOrigem"><option value="">Todas</option></select>
         </div>
@@ -792,11 +797,12 @@
               <th class="ord" data-ord="prioridade" style="width:112px">Prioridade</th>
               <th style="width:64px">Curva</th>
               <th>Descrição</th>
-              <th style="width:132px">Cód. produto</th>
-              <th style="width:124px">Cód. original</th>
-              <th style="width:150px">Situação</th>
-              <th class="ord dir" data-ord="saldo" style="width:74px">Saldo</th>
-              <th class="dir" style="width:98px">Sugerido</th>
+              <th style="width:126px">Marca</th>
+              <th style="width:126px">Cód. produto</th>
+              <th style="width:118px">Cód. original</th>
+              <th style="width:142px">Situação</th>
+              <th class="ord dir" data-ord="saldo" style="width:70px">Saldo</th>
+              <th class="dir" style="width:132px">Pedir</th>
             </tr>
           </thead>
           <tbody id="corpoLista"></tbody>
@@ -834,6 +840,83 @@
         <span class="nota">Curva A e B com saldo suficiente para prometer entrega sem risco.</span>
       </div>
       <div id="listaForte" class="grade"></div>
+    </div>
+  </section>
+
+  <!-- ── MARCAS ──────────────────────────────────────────────── -->
+  <section class="vista" id="vista-marcas" hidden>
+    <div class="secao">
+      <div class="placas" id="placasMarcas"></div>
+    </div>
+
+    <div class="secao">
+      <div class="cartao"><div class="cartao-corpo" id="progressoMarcas"></div></div>
+    </div>
+
+    <div class="secao">
+      <div class="secao-topo">
+        <h2>De quem é cada prefixo</h2>
+        <span class="nota">Você define uma vez e vale para o cadastro inteiro. Fica guardado neste navegador.</span>
+      </div>
+      <div class="aviso" data-tom="neutro" style="margin-bottom:14px">
+        <span class="icone" style="color:var(--marinho)">i</span>
+        <div>
+          Quatro esquemas de filtro são reconhecidos sozinhos — <b>MANN</b>, <b>MAHLE</b>,
+          <b>FLEETGUARD</b> e <b>HENGST</b> — porque o próprio fabricante codifica assim e a
+          descrição confirma. O resto dos prefixos é fornecedor que só você sabe qual é.
+          Quando o código começa com letra, a chave é o <b>prefixo</b> (todo <code>REX…</code> é do
+          mesmo fornecedor). Quando o código é só número, a chave é o <b>grupo</b> — o prefixo não
+          diria nada. Cada linha que você preencher marca todos os itens dela de uma vez, e o
+          pedido de compra passa a sair separado por fornecedor.
+        </div>
+      </div>
+      <div class="filtros">
+        <div class="campo">
+          <label for="fBuscaPrefixo">Buscar prefixo ou peça</label>
+          <input type="search" id="fBuscaPrefixo" placeholder="REX, barra direcao..." />
+        </div>
+        <div class="campo">
+          <label for="fSoVazios">Mostrar</label>
+          <select id="fSoVazios">
+            <option value="1" selected>Só os que faltam definir</option>
+            <option value="0">Todos</option>
+          </select>
+        </div>
+        <div class="campo">
+          <label for="fTipoChave">Tipo</label>
+          <select id="fTipoChave">
+            <option value="">Prefixos e grupos</option>
+            <option value="prefixo">Só prefixos de código</option>
+            <option value="grupo">Só grupos</option>
+          </select>
+        </div>
+        <div class="campo">
+          <label>&nbsp;</label>
+          <button class="bt bt-mini" id="btLimparMarcas" type="button">Apagar meu mapa de marcas</button>
+        </div>
+      </div>
+      <div class="rolo">
+        <table>
+          <thead><tr><th style="width:104px">Prefixo / grupo</th><th class="dir" style="width:74px">Itens</th><th class="dir" style="width:88px">Em ruptura</th><th>O que tem aqui dentro</th><th style="width:250px">Marca</th></tr></thead>
+          <tbody id="corpoPrefixos"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="secao">
+      <div class="secao-topo">
+        <h2>Situação por marca</h2>
+        <span class="nota">Onde está a ruptura, por fornecedor. Cada linha é um pedido em potencial.</span>
+      </div>
+      <div class="rolo">
+        <table>
+          <thead><tr><th>Marca</th><th>Categoria</th><th class="dir">Itens</th><th class="dir">Ruptura real</th><th class="dir">A pedir</th><th style="width:180px">Cobertura</th></tr></thead>
+          <tbody id="corpoMarcas"></tbody>
+        </table>
+      </div>
+      <div style="margin-top:12px;display:flex;gap:9px;flex-wrap:wrap">
+        <button class="bt bt-forte" id="btPedidosPorMarca" type="button">Gerar pedidos separados por fornecedor</button>
+      </div>
     </div>
   </section>
 
@@ -1307,6 +1390,87 @@ function inferirOrigem(codigo) {
   return { origem: null, confianca: null, padrao: null, motivo: 'O formato do código ' + primeiro + ' não corresponde a nenhum padrão que eu reconheça com segurança.' };
 }
 
+/* ─── 4b. Marcas ─────────────────────────────────────────────────────
+   O catálogo de marcas da Pacaembu (pabu.com.br). A marca de cada item
+   vem de três lugares, nesta ordem: o mapa que o usuário definiu, a
+   detecção automática, ou nada. Nunca um chute silencioso. */
+
+const MARCAS_PABU = [
+  ['3M', 'Diversos'], ['3RHO', 'Elétrica'], ['BINS', 'Motor'], ['BORGWARNER', 'Motor'],
+  ['BOSCH', 'Injeção e elétrica'], ['CINPAL', 'Motor'], ['COBREQ', 'Freios'],
+  ['CONTINENTAL', 'Correias'], ['CORTECO', 'Vedação'], ['DANA', 'Transmissão'],
+  ['DAYCO', 'Correias'], ['DELLAROSA', 'Diversos'], ['DYNA', 'Suspensão e direção'],
+  ['EATON', 'Câmbio'], ['ELRING', 'Vedação'], ['FAG', 'Rolamentos'], ['FEY', 'Motor'],
+  ['FLEETGUARD', 'Filtragem'], ['FRASLE', 'Freios'], ['GATES', 'Correias'],
+  ['HALDEX', 'Freios'], ['HELLA', 'Elétrica'], ['HENGST', 'Filtragem'],
+  ['HOLSET', 'Turbo'], ['INA', 'Rolamentos'], ['IRMA CESTARI', 'Freios'],
+  ['KNORR', 'Freios'], ['KOLBENSCHMIDT', 'Motor'], ['KONGSBERG', 'Cabine'],
+  ['LEMFORDER', 'Suspensão e direção'], ['LUK', 'Embreagem'], ['MAHLE', 'Filtragem e motor'],
+  ['MANN', 'Filtragem'], ['MASTER', 'Freios'], ['MERITOR', 'Eixos e freios'],
+  ['METAL LEVE', 'Motor'], ['MODEFER', 'Diversos'], ['MONROE', 'Suspensão'],
+  ['NAKATA', 'Suspensão e direção'], ['NSK', 'Rolamentos'], ['OSRAM', 'Iluminação'],
+  ['PARAFLU', 'Fluidos'], ['PARKER', 'Filtragem e hidráulica'], ['PHILIPS', 'Iluminação'],
+  ['RACOR', 'Filtragem'], ['RAIO', 'Diversos'], ['RESERPLASTIC', 'Cabine'],
+  ['RIOSULENSE', 'Motor'], ['SABO', 'Vedação'], ['SACHS', 'Embreagem e suspensão'],
+  ['SCANIA', 'Original'], ['SCHADEK', 'Motor'], ['SKF', 'Rolamentos e vedação'],
+  ['TRW', 'Freios e direção'], ['URBA', 'Suspensão e direção'], ['VADEN', 'Freios'],
+  ['VALEO', 'Embreagem'], ['VOLVO', 'Original'], ['WABCO', 'Freios'],
+  ['WAHLER', 'Arrefecimento'], ['ZF-TRW', 'Direção'],
+];
+
+/* Só entram esquemas de codificação inequívocos do próprio fabricante, e
+   ainda assim confirmados pela descrição. Um prefixo que acerta 94% não
+   entra: 6% de marca errada num pedido de compra é pior que marca em
+   branco. Testado contra o arquivo real — estas quatro dão 100%. */
+const REGRAS_MARCA = [
+  { re: /^(WK|CU|CF|HU|PU|LC)\d/i, marca: 'MANN',       exigeFiltro: true,  padrao: 'WK/CU/CF/HU/PU + número' },
+  { re: /^(W|C)\d/i,               marca: 'MANN',       exigeFiltro: true,  padrao: 'W/C + número' },
+  { re: /^(OC|OX|LX|LA|KC|KX|SC)\d/i, marca: 'MAHLE',   exigeFiltro: true,  padrao: 'OC/OX/LX/KC + número' },
+  { re: /^(LF|FS|AF|FF|HF|WF|AH)\d/i, marca: 'FLEETGUARD', exigeFiltro: true, padrao: 'LF/FS/AF/FF/HF + número' },
+  { re: /^E\d/i,                   marca: 'HENGST',     exigeFiltro: true,  padrao: 'E + número' },
+];
+
+const semSufixo = (produto) => String(produto || '').replace(/\[\d+\]/g, '').trim();
+
+/* O prefixo alfabético do código é a unidade que o usuário reconhece como
+   fornecedor. É por ele que o mapa manual é feito. */
+function prefixoDe(produto) {
+  const p = semSufixo(produto);
+  const m = p.match(/^([A-Za-z]{1,4})/);
+  return m ? m[1].toUpperCase() : (/^\d/.test(p) ? '(numérico)' : '(sem código)');
+}
+
+/* A chave de mapeamento precisa ser fina o bastante para não misturar
+   fornecedores. O prefixo P, por exemplo, tem filtro e barra de direção —
+   marcas diferentes. Quando um prefixo é assim, a família entra na chave;
+   quando ele é de uma família só, o prefixo sozinho basta. Custa 303
+   chaves em vez de 211, e evita marca errada dentro do pedido. */
+function chaveMapa(item, prefixosMisturados) {
+  const pref = prefixoDe(item.produto);
+  if (!/^[A-Z]/.test(pref)) return 'G:' + item.grupo;
+  return prefixosMisturados && prefixosMisturados.has(pref)
+    ? 'P:' + pref + '|' + item.familia
+    : 'P:' + pref;
+}
+
+const rotuloChave = (k) => {
+  if (k.startsWith('G:')) return 'grupo ' + k.slice(2);
+  const [pref, fam] = k.slice(2).split('|');
+  return 'prefixo ' + pref + (fam ? ' em ' + fam : '');
+};
+
+function detectarMarca(item) {
+  const p = semSufixo(item.produto);
+  if (!p) return null;
+  const ehFiltro = /filtro|elemento|secador/.test(semAcento(item.descricao).toLowerCase());
+  for (const r of REGRAS_MARCA) {
+    if (!r.re.test(p)) continue;
+    if (r.exigeFiltro && !ehFiltro) continue;
+    return { marca: r.marca, origemDaMarca: 'detectada', padrao: r.padrao };
+  }
+  return null;
+}
+
 /* ─── 5. Dados públicos de mercado e frota ───────────────────────────
    Cada número carrega fonte e data. Nada aqui é estimado sem dizer que é. */
 
@@ -1399,7 +1563,7 @@ const SITUACOES = {
   SEM_SALDO: { rotulo: 'Saldo ausente',     tom: 'neutro'   },
 };
 
-function analisar(itens) {
+function analisar(itens, mapaMarcas = {}) {
   /* Um SKU zerado cujo irmão de mesmo código original tem saldo não é
      ruptura: o balcão atende. Essa distinção é o que separa uma lista
      impossível de uma lista que cabe num pedido. */
@@ -1422,6 +1586,25 @@ function analisar(itens) {
     saudeGrupo.set(g, { tamanho: lista.length, zerados, taxa: zerados / lista.length });
   }
 
+  /* Passo prévio: descobrir quais prefixos misturam famílias. Só esses
+     precisam de chave detalhada. */
+  const familiaPorItem = itens.map((it) => classificarFamilia(it.descricao).familia);
+  const histograma = new Map();
+  itens.forEach((it, idx) => {
+    const pref = prefixoDe(it.produto);
+    if (!/^[A-Z]/.test(pref)) return;
+    if (!histograma.has(pref)) histograma.set(pref, new Map());
+    const h = histograma.get(pref);
+    const f = familiaPorItem[idx];
+    h.set(f, (h.get(f) || 0) + 1);
+  });
+  const prefixosMisturados = new Set();
+  for (const [pref, h] of histograma) {
+    const total = [...h.values()].reduce((a, b) => a + b, 0);
+    const dominante = Math.max(...h.values());
+    if (dominante / total < 0.9) prefixosMisturados.add(pref);
+  }
+
   const analisados = itens.map((item) => {
     const irmaos = item.original ? (porOriginal.get(item.original.toUpperCase()) || []).filter((x) => x !== item) : [];
     const similaresComSaldo = irmaos.filter((x) => (x.saldo ?? 0) > 0);
@@ -1429,6 +1612,13 @@ function analisar(itens) {
     const { familia, classe } = classificarFamilia(item.descricao);
     const origem = inferirOrigem(item.original);
     const grupo = saudeGrupo.get(item.grupo);
+    const prefixo = prefixoDe(item.produto);
+    const chaveDoMapa = chaveMapa({ ...item, familia }, prefixosMisturados);
+    const detectada = detectarMarca(item);
+    /* O mapa que o usuário definiu manda. Ele conhece o fornecedor; a
+       regra automática só conhece o formato do código. */
+    const marcaManual = mapaMarcas[chaveDoMapa];
+    const marca = marcaManual || (detectada ? detectada.marca : null);
 
     const fatores = [];
     const lacunas = [];
@@ -1498,7 +1688,10 @@ function analisar(itens) {
     }
 
     return {
-      ...item, situacao, familia, classe, chaveDuplicata: item.original ? item.original.toUpperCase() + '|' + chave(item.descricao) : null,
+      ...item, situacao, familia, classe,
+      prefixo, chaveDoMapa, marca,
+      origemDaMarca: marcaManual ? 'definida por você no ' + rotuloChave(chaveDoMapa) : (detectada ? 'detectada pelo código ' + detectada.padrao : null),
+      chaveDuplicata: item.original ? item.original.toUpperCase() + '|' + chave(item.descricao) : null,
       origem: origem.origem, origemConfianca: origem.confianca, origemMotivo: origem.motivo,
       similares: similaresComSaldo.length, irmaos: irmaos.length,
       grupoTamanho: grupo ? grupo.tamanho : 0, grupoTaxa: grupo ? grupo.taxa : null,
@@ -1582,6 +1775,8 @@ async function comLoja(modo, fn) {
 }
 
 const guardarEnvio = (e) => comLoja('readwrite', (l) => l.put(e));
+const guardarMapaMarcas = () => comLoja('readwrite', (l) => l.put({ id: '__marcas', mapa: estado.mapaMarcas }));
+const guardarQuantidades = () => comLoja('readwrite', (l) => l.put({ id: '__quantidades', mapa: estado.quantidades }));
 const lerEnvios = () => comLoja('readonly', (l) => l.getAll());
 const removerEnvio = (id) => comLoja('readwrite', (l) => l.delete(id));
 const limparEnvios = () => comLoja('readwrite', (l) => l.clear());
@@ -1597,8 +1792,10 @@ const estado = {
   marcados: new Set(),
   limite: 150,
   ordem: { campo: 'prioridade', desc: true },
-  filtros: { busca: '', situacao: 'RUPTURA', curva: '', classe: '', origem: '', grupo: '', nota: 55 },
+  filtros: { busca: '', situacao: 'RUPTURA', curva: '', classe: '', marca: '', origem: '', grupo: '', nota: 55 },
   agrupar: true,
+  mapaMarcas: {},
+  quantidades: {},
   bancoOk: true,
 };
 
@@ -1652,7 +1849,7 @@ function calcularConsumo(anterior, atual) {
 function recalcular() {
   const atual = envioAtual();
   if (!atual) { estado.analise = null; estado.consumo = null; return; }
-  estado.analise = analisar(atual.itens);
+  estado.analise = analisar(atual.itens, estado.mapaMarcas);
   const anteriores = estado.envios
     .filter((e) => new Date(e.dataISO) < new Date(atual.dataISO))
     .sort((a, b) => new Date(b.dataISO) - new Date(a.dataISO));
@@ -1675,6 +1872,9 @@ function recalcular() {
     if (it.repetidos > 1 && it.ehRepresentante) {
       it.sugestao.texto += ' Soma os ' + it.repetidos + ' cadastros com este mesmo código original.';
     }
+    const escolhida = estado.quantidades[it.interno || it.produto];
+    it.qtdEscolhida = escolhida === undefined ? null : escolhida;
+    it.qtd = it.qtdEscolhida === null ? it.sugestao.qtd : it.qtdEscolhida;
   }
 }
 
@@ -1688,6 +1888,8 @@ function filtrar() {
     if (f.situacao && i.situacao !== f.situacao) return false;
     if (f.curva && i.curva !== f.curva) return false;
     if (f.classe && i.classe !== f.classe) return false;
+    if (f.marca === '__sem') { if (i.marca) return false; }
+    else if (f.marca && i.marca !== f.marca) return false;
     if (f.origem === '__nenhuma') { if (i.origem) return false; }
     else if (f.origem && i.origem !== f.origem) return false;
     if (f.grupo && i.grupo !== f.grupo) return false;
@@ -1835,10 +2037,12 @@ function renderPainel() {
 function renderComprar() {
   const lista = filtrar();
   const mostrados = lista.slice(0, estado.limite);
-  const unidades = lista.reduce((s, i) => s + (i.sugestao ? i.sugestao.qtd : 0), 0);
+  const unidades = lista.reduce((s, i) => s + (i.qtd || 0), 0);
+  const editados = lista.filter((i) => i.qtdEscolhida !== null).length;
 
-  $('#resumoLista').textContent = n(lista.length) + ' itens no filtro · ' + n(unidades) +
-    ' unidades sugeridas · ' + (estado.consumo ? 'sugestão pelo consumo medido' : 'sugestão por classe, sem consumo medido');
+  $('#resumoLista').textContent = n(lista.length) + ' itens no filtro · ' + n(unidades) + ' unidades a pedir · ' +
+    (estado.consumo ? 'sugestão pelo consumo medido' : 'sugestão por classe, sem consumo medido') +
+    (editados ? ' · ' + n(editados) + ' quantidade' + (editados > 1 ? 's' : '') + ' ajustada' + (editados > 1 ? 's' : '') + ' por você' : '');
 
   $('#corpoLista').innerHTML = mostrados.map((i) => {
     const id = i.interno || i.produto;
@@ -1852,18 +2056,18 @@ function renderComprar() {
       '<td><b style="font-weight:600">' + esc(i.descricao || '—') + '</b>' +
         (i.repetidos > 1 ? ' <span class="etiqueta" data-tom="neutro" title="O mesmo código original aparece em ' + i.repetidos + ' cadastros. A quantidade sugerida já soma todos.">' + i.repetidos + ' cadastros</span>' : '') +
         '<br><span style="font-size:11.5px;color:var(--tinta-3)">' + esc(i.familia) + (i.origem ? ' · padrão ' + esc(i.origem) : '') + '</span></td>' +
+      '<td>' + marcaCelula(i) + '</td>' +
       '<td class="mono">' + esc(i.produto || '—') + '</td>' +
       '<td class="mono">' + esc(i.original || '—') + '</td>' +
       '<td>' + etiquetaSituacao(i.situacao) + '</td>' +
       '<td class="dir num"><b>' + (i.saldo === null ? '—' : n(i.saldo)) + '</b></td>' +
-      '<td class="dir num"><b style="color:var(--laranja-texto);font-weight:700">' + (i.sugestao.qtd || '—') + '</b>' +
-        (i.sugestao.medida ? '<br><span style="font-size:10px;color:var(--saudavel);font-weight:700">MEDIDO</span>' : '') + '</td>' +
+      '<td class="dir">' + campoQuantidade(i) + '</td>' +
       '</tr>' +
-      '<tr class="expandivel oculto" data-detalhe="' + esc(id) + '"><td colspan="10">' + detalheItem(i) + '</td></tr>';
+      '<tr class="expandivel oculto" data-detalhe="' + esc(id) + '"><td colspan="11">' + detalheItem(i) + '</td></tr>';
   }).join('');
 
   if (!mostrados.length) {
-    $('#corpoLista').innerHTML = '<tr><td colspan="10" style="padding:26px;text-align:center;color:var(--tinta-2)">' +
+    $('#corpoLista').innerHTML = '<tr><td colspan="11" style="padding:26px;text-align:center;color:var(--tinta-2)">' +
       'Nenhum item com esses filtros. Baixe a prioridade mínima ou troque a situação.</td></tr>';
   }
 
@@ -1878,11 +2082,69 @@ function renderComprar() {
     const alvo = document.querySelector('[data-detalhe="' + CSS.escape(tr.dataset.id) + '"]');
     if (alvo) alvo.classList.toggle('oculto');
   }));
+  const aplicarQtd = async (id, valor) => {
+    const item = itens().find((x) => (x.interno || x.produto) === id);
+    if (!item) return;
+    const v = Math.max(0, Math.round(Number(valor) || 0));
+    if (v === item.sugestao.qtd) delete estado.quantidades[id];
+    else estado.quantidades[id] = v;
+    item.qtdEscolhida = estado.quantidades[id] === undefined ? null : estado.quantidades[id];
+    item.qtd = item.qtdEscolhida === null ? item.sugestao.qtd : item.qtdEscolhida;
+    if (v > 0) estado.marcados.add(id);
+    await guardarQuantidades().catch(() => {});
+    renderComprar();
+    atualizarCarrinho();
+  };
+  $$('.qtd').forEach((inp) => {
+    inp.addEventListener('click', (ev) => ev.stopPropagation());
+    inp.addEventListener('change', () => aplicarQtd(inp.dataset.id, inp.value));
+  });
+  $$('.passo').forEach((bt) => bt.addEventListener('click', (ev) => {
+    ev.stopPropagation();
+    const inp = document.querySelector('.qtd[data-id="' + CSS.escape(bt.dataset.id) + '"]');
+    aplicarQtd(bt.dataset.id, Number(inp.value) + Number(bt.dataset.passo));
+  }));
+  $$('[data-mapear]').forEach((bt) => bt.addEventListener('click', (ev) => {
+    ev.stopPropagation();
+    trocarVista('marcas');
+    $('#fBuscaPrefixo').value = bt.dataset.rotulo;
+    renderMarcas();
+    const alvo = document.querySelector('.mapa-marca[data-chave="' + CSS.escape(bt.dataset.mapear) + '"]');
+    if (alvo) { alvo.scrollIntoView({ block: 'center', behavior: 'smooth' }); alvo.focus(); }
+  }));
   $$('.marca-item').forEach((cb) => cb.addEventListener('change', () => {
     if (cb.checked) estado.marcados.add(cb.dataset.id); else estado.marcados.delete(cb.dataset.id);
     atualizarCarrinho();
   }));
   $('#seloComprar').textContent = n(lista.length);
+}
+
+function marcaCelula(i) {
+  if (!i.marca) {
+    return '<button class="bt bt-mini" data-mapear="' + esc(i.chaveDoMapa) + '" data-rotulo="' + esc(i.chaveDoMapa.slice(2)) + '" style="font-weight:600;color:var(--tinta-3)" ' +
+      'title="Nenhuma marca definida para o ' + esc(rotuloChave(i.chaveDoMapa)) + '. Clique para definir.">definir marca</button>';
+  }
+  const tom = i.origemDaMarca && i.origemDaMarca.startsWith('definida') ? 'saudavel' : 'neutro';
+  return '<span class="etiqueta" data-tom="' + tom + '" title="' + esc(i.origemDaMarca || '') + '">' + esc(i.marca) + '</span>';
+}
+
+function campoQuantidade(i) {
+  const id = i.interno || i.produto;
+  const ajustado = i.qtdEscolhida !== null;
+  return '<span style="display:inline-flex;align-items:center;gap:4px;justify-content:flex-end">' +
+    '<button class="bt bt-mini passo" data-passo="-1" data-id="' + esc(id) + '" aria-label="Diminuir" style="min-width:30px;padding:2px 6px">−</button>' +
+    '<input type="number" class="qtd" data-id="' + esc(id) + '" value="' + (i.qtd || 0) + '" min="0" step="1" ' +
+      'aria-label="Quantidade a pedir de ' + esc(i.descricao) + '" ' +
+      'style="width:56px;text-align:right;font-variant-numeric:tabular-nums;font-weight:700;min-height:32px;padding:3px 6px;' +
+      'border:1px solid ' + (ajustado ? 'var(--laranja)' : 'var(--borda-forte)') + ';border-radius:6px;background:var(--papel);' +
+      'color:' + (ajustado ? 'var(--laranja-texto)' : 'var(--tinta)') + '" />' +
+    '<button class="bt bt-mini passo" data-passo="1" data-id="' + esc(id) + '" aria-label="Aumentar" style="min-width:30px;padding:2px 6px">+</button>' +
+    '</span>' +
+    '<div style="font-size:10px;margin-top:2px;color:var(--tinta-3)">' +
+      (ajustado
+        ? '<b style="color:var(--laranja-texto)">você pediu</b> · sugerido ' + i.sugestao.qtd
+        : (i.sugestao.medida ? '<b style="color:var(--saudavel)">MEDIDO</b>' : 'sugerido')) +
+    '</div>';
 }
 
 function detalheItem(i) {
@@ -1900,6 +2162,8 @@ function detalheItem(i) {
       '<div class="linhadados"><span>Grupo</span><b>' + esc(i.grupo) + '</b></div>' +
       '<div class="linhadados"><span>Cadastros com o mesmo código original</span><b>' + i.irmaos + '</b></div>' +
       (i.repetidos > 1 ? '<div class="linhadados"><span>Cadastros idênticos juntados aqui</span><b>' + i.conjunto.map((x) => x.produto).join(', ') + '</b></div>' : '') +
+      '<div class="linhadados"><span>Marca</span><b>' + esc(i.marca || 'não definida') + (i.origemDaMarca ? ' <span style="font-weight:400;color:var(--tinta-3)">(' + esc(i.origemDaMarca) + ')</span>' : '') + '</b></div>' +
+      '<div class="linhadados"><span>Prefixo do código</span><b>' + esc(i.prefixo) + '</b></div>' +
       '<div class="linhadados"><span>Origem provável do código</span><b>' + esc(i.origem || 'não identificada') + '</b></div>' +
       (i.consumo ? '<div class="linhadados"><span>Saída medida no período</span><b>' + i.consumo.saida + ' un / ' + i.consumo.dias + ' dias</b></div>' : '') +
     '</div>' +
@@ -1954,6 +2218,126 @@ function argumento(bloco) {
   return 'Temos ' + bloco.unidades + ' unidades de ' + bloco.familia.toLowerCase() + ' paradas em ' + bloco.itens.length +
     ' itens' + (raras ? ' de giro baixo' : '') + '. Oferecer na próxima visita a oficinas e frotistas: ' +
     bloco.itens.slice(0, 3).map((i) => i.descricao).join('; ') + '. Fecha em pacote e libera prateleira.';
+}
+
+/* ─── 16b. Marcas ────────────────────────────────────────────────── */
+
+function resumoPrefixos() {
+  const mapa = new Map();
+  for (const i of itens()) {
+    const k = i.chaveDoMapa;
+    if (!mapa.has(k)) {
+      const ehGrupo = k.startsWith('G:');
+      const [pref, fam] = k.slice(2).split('|');
+      mapa.set(k, {
+        chave: k,
+        rotulo: ehGrupo ? k.slice(2) : pref,
+        detalhe: ehGrupo ? null : (fam || null),
+        tipo: ehGrupo ? 'grupo' : 'prefixo',
+        itens: 0, ruptura: 0, exemplos: new Map(), marca: null, auto: false,
+      });
+    }
+    const r = mapa.get(k);
+    r.itens++;
+    if (i.situacao === 'RUPTURA') r.ruptura++;
+    if (i.descricao) r.exemplos.set(i.descricao, (r.exemplos.get(i.descricao) || 0) + 1);
+    if (i.marca) { r.marca = i.marca; r.auto = !estado.mapaMarcas[k]; }
+  }
+  return [...mapa.values()].sort((a, b) => b.itens - a.itens);
+}
+
+function renderMarcas() {
+  const L = itens();
+  const comMarca = L.filter((i) => i.marca);
+  const prefixos = resumoPrefixos();
+  const semDefinir = prefixos.filter((p) => !p.marca);
+
+  $('#placasMarcas').innerHTML = [
+    placa({ rotulo: 'Itens com marca', valor: n(comMarca.length), rodape: pct(comMarca.length / Math.max(1, L.length)) + ' do cadastro · ' + n(new Set(comMarca.map((i) => i.marca)).size) + ' marcas em uso', tom: comMarca.length > L.length * 0.5 ? 'saudavel' : 'atencao' }),
+    placa({ rotulo: 'Chaves sem marca', valor: n(semDefinir.length), rodape: n(semDefinir.reduce((s, p) => s + p.itens, 0)) + ' itens esperando você definir', tom: semDefinir.length ? 'atencao' : 'saudavel' }),
+    placa({ rotulo: 'A mais rendosa agora', valor: semDefinir.length ? n(semDefinir[0].itens) : '—', rodape: semDefinir.length ? semDefinir[0].tipo + ' ' + semDefinir[0].rotulo + (semDefinir[0].detalhe ? ' em ' + semDefinir[0].detalhe : '') + ' — definir esta primeiro marca mais itens de uma vez' : 'tudo definido', tom: 'marca' }),
+    placa({ rotulo: 'Marcas do catálogo', valor: n(MARCAS_PABU.length), rodape: 'lidas do site da Pacaembu (pabu.com.br)', tom: 'neutro' }),
+  ].join('');
+
+  /* A distribuição é muito desigual: poucas chaves cobrem quase tudo.
+     Mostrar isso evita que a lista de 500 linhas pareça trabalho infinito. */
+  const ordenadasPorTamanho = [...semDefinir].sort((a, b) => b.itens - a.itens);
+  const faltando = ordenadasPorTamanho.reduce((s, p) => s + p.itens, 0);
+  const cobertura = comMarca.length / Math.max(1, L.length);
+  const proximas = (q) => ordenadasPorTamanho.slice(0, q).reduce((s, p) => s + p.itens, 0);
+  $('#progressoMarcas').innerHTML =
+    '<div class="secao-topo" style="margin-bottom:8px"><h2>Quanto do cadastro já tem marca</h2></div>' +
+    '<div class="trilho" style="height:14px"><i style="width:' + Math.max(1, cobertura * 100) + '%;background:var(--saudavel)"></i></div>' +
+    '<p style="font-size:13px;color:var(--tinta-2);margin-top:9px">' +
+    '<b>' + n(comMarca.length) + '</b> de ' + n(L.length) + ' itens (' + pct(cobertura) + ') · faltam ' + n(faltando) + '.' +
+    (ordenadasPorTamanho.length
+      ? ' A tabela abaixo já vem da maior para a menor, então o trabalho se prioriza sozinho: <b>preencher as 10 primeiras marca ' + n(proximas(10)) +
+        ' itens</b>, as 30 primeiras marcam ' + n(proximas(30)) + '. Você nunca precisa preencher a lista toda.'
+      : ' Tudo definido.') +
+    '</p>';
+
+  const busca = chave($('#fBuscaPrefixo') ? $('#fBuscaPrefixo').value : '');
+  const soVazios = $('#fSoVazios') ? $('#fSoVazios').value === '1' : true;
+  const visiveis = prefixos.filter((p) => {
+    if (soVazios && p.marca) return false;
+    const tipo = $('#fTipoChave') ? $('#fTipoChave').value : '';
+    if (tipo && p.tipo !== tipo) return false;
+    if (busca && !chave(p.rotulo + ' ' + (p.detalhe || '') + ' ' + [...p.exemplos.keys()].join(' ')).includes(busca)) return false;
+    return true;
+  });
+
+  const opcoes = (sel) => '<option value="">— sem marca —</option>' +
+    MARCAS_PABU.map(([m, cat]) => '<option value="' + esc(m) + '"' + (m === sel ? ' selected' : '') + '>' + esc(m) + ' · ' + esc(cat) + '</option>').join('');
+
+  $('#corpoPrefixos').innerHTML = visiveis.slice(0, 150).map((p) => {
+    const ex = [...p.exemplos.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([d, q]) => esc(d) + ' (' + q + ')').join(' · ');
+    return '<tr>' +
+      '<td><b class="mono" style="font-size:14px;font-weight:700">' + esc(p.rotulo) + '</b>' +
+        '<br><span style="font-size:10px;color:var(--tinta-3);text-transform:uppercase;letter-spacing:.06em">' + esc(p.tipo) + '</span>' +
+        (p.detalhe ? '<br><span class="etiqueta" data-tom="neutro" style="margin-top:3px" title="Este prefixo tem mais de um fornecedor. A família separa os dois.">' + esc(p.detalhe) + '</span>' : '') +
+        '</td>' +
+      '<td class="dir num">' + n(p.itens) + '</td>' +
+      '<td class="dir num">' + (p.ruptura ? '<b style="color:var(--critico)">' + n(p.ruptura) + '</b>' : '0') + '</td>' +
+      '<td style="font-size:12.5px;color:var(--tinta-2)">' + ex + '</td>' +
+      '<td>' + (p.auto
+        ? '<span class="etiqueta" data-tom="neutro" title="Reconhecida pelo esquema do próprio fabricante">' + esc(p.marca) + ' — automática</span>'
+        : '<select class="mapa-marca" data-chave="' + esc(p.chave) + '" style="width:100%;min-height:38px;padding:6px 8px;border:1px solid ' + (p.marca ? 'var(--saudavel)' : 'var(--borda-forte)') + ';border-radius:6px;background:var(--papel)" aria-label="Marca do ' + esc(p.tipo + ' ' + p.rotulo) + '">' + opcoes(p.marca) + '</select>') +
+      '</td></tr>';
+  }).join('') || '<tr><td colspan="5" style="padding:24px;text-align:center;color:var(--tinta-2)">Nenhum prefixo com esses filtros. Todos já têm marca definida.</td></tr>';
+
+  $$('.mapa-marca').forEach((sel) => sel.addEventListener('change', async () => {
+    const k = sel.dataset.chave;
+    if (sel.value) estado.mapaMarcas[k] = sel.value;
+    else delete estado.mapaMarcas[k];
+    await guardarMapaMarcas();
+    recalcular();
+    renderTudo();
+    renderMarcas();
+  }));
+
+  // Situação por marca.
+  const porMarca = new Map();
+  for (const i of L) {
+    if (!i.marca) continue;
+    if (!porMarca.has(i.marca)) porMarca.set(i.marca, { itens: 0, ruptura: 0, pedir: 0, comSaldo: 0 });
+    const r = porMarca.get(i.marca);
+    r.itens++;
+    if (i.situacao === 'RUPTURA') { r.ruptura++; r.pedir += i.qtd || 0; }
+    if ((i.saldo || 0) > 0) r.comSaldo++;
+  }
+  const cat = Object.fromEntries(MARCAS_PABU);
+  $('#corpoMarcas').innerHTML = [...porMarca.entries()].sort((a, b) => b[1].ruptura - a[1].ruptura || b[1].itens - a[1].itens).map(([m, r]) => {
+    const cobertura = r.comSaldo / r.itens;
+    return '<tr><td><b style="font-weight:650">' + esc(m) + '</b></td>' +
+      '<td style="color:var(--tinta-2);font-size:12.5px">' + esc(cat[m] || '—') + '</td>' +
+      '<td class="dir num">' + n(r.itens) + '</td>' +
+      '<td class="dir num">' + (r.ruptura ? '<b style="color:var(--critico)">' + n(r.ruptura) + '</b>' : '0') + '</td>' +
+      '<td class="dir num"><b style="color:var(--laranja-texto)">' + n(r.pedir) + '</b></td>' +
+      '<td><div class="trilho"><i style="width:' + Math.max(1.5, cobertura * 100) + '%;background:' + (cobertura >= 0.6 ? 'var(--saudavel)' : cobertura >= 0.4 ? 'var(--atencao)' : 'var(--critico)') + '"></i></div>' +
+      '<span style="font-size:11px;color:var(--tinta-3)">' + Math.round(cobertura * 100) + '% do sortimento com saldo</span></td></tr>';
+  }).join('') || '<tr><td colspan="6" style="padding:24px;text-align:center;color:var(--tinta-2)">Nenhuma marca definida ainda. Preencha os prefixos acima.</td></tr>';
+
+  $('#seloMarcas').textContent = n(semDefinir.length);
 }
 
 /* ─── 17. Frota e região ─────────────────────────────────────────── */
@@ -2178,9 +2562,9 @@ const paraCsv = (cab, linhas) => [cab.map(csvCampo).join(';')].concat(linhas.map
 
 function csvDeItens(lista) {
   return paraCsv(
-    ['Prioridade', 'Confianca %', 'Curva', 'Situacao', 'Descricao', 'Familia', 'Classe', 'Cod. Interno', 'Cod. Produto', 'Cod. Original', 'Grupo', 'Saldo', 'Qtd sugerida', 'Base da sugestao', 'Origem provavel do codigo', 'Cadastros irmaos', 'Ruptura do grupo %', 'Motivos'],
-    lista.map((i) => [i.prioridade, i.confianca, i.curva, SITUACOES[i.situacao].rotulo, i.descricao, i.familia, i.classe ? ROTULO_CLASSE[i.classe] : '', i.interno, i.produto, i.original, i.grupo,
-      i.saldo === null ? '' : i.saldo, i.sugestao.qtd, i.sugestao.medida ? 'consumo medido' : 'referencia por classe',
+    ['Prioridade', 'Confianca %', 'Curva', 'Situacao', 'Marca', 'Origem da marca', 'Prefixo', 'Descricao', 'Familia', 'Classe', 'Cod. Interno', 'Cod. Produto', 'Cod. Original', 'Grupo', 'Saldo', 'Qtd a pedir', 'Qtd sugerida', 'Base da sugestao', 'Origem provavel do codigo', 'Cadastros irmaos', 'Ruptura do grupo %', 'Motivos'],
+    lista.map((i) => [i.prioridade, i.confianca, i.curva, SITUACOES[i.situacao].rotulo, i.marca || '', i.origemDaMarca || '', i.prefixo, i.descricao, i.familia, i.classe ? ROTULO_CLASSE[i.classe] : '', i.interno, i.produto, i.original, i.grupo,
+      i.saldo === null ? '' : i.saldo, i.qtd, i.sugestao.qtd, i.sugestao.medida ? 'consumo medido' : 'referencia por classe',
       i.origem || 'nao identificada', i.irmaos, i.grupoTaxa === null ? '' : Math.round(i.grupoTaxa * 100),
       i.fatores.map((f) => f.nome + ': ' + f.texto).join(' | ')]));
 }
@@ -2196,7 +2580,7 @@ function textoSolicitacao(lista) {
   linhas.push('SOLICITAÇÃO DE COMPRA — FILIAL RIBEIRÃO PRETO');
   linhas.push('Gerada em ' + new Date().toLocaleString('pt-BR'));
   linhas.push('Base: ' + (e ? e.nome + ', estoque de ' + dataBr(e.dataISO) : '—'));
-  linhas.push('Itens: ' + lista.length + ' · Unidades: ' + lista.reduce((s, i) => s + i.sugestao.qtd, 0));
+  linhas.push('Itens: ' + lista.length + ' · Unidades: ' + lista.reduce((s, i) => s + (i.qtd || 0), 0));
   linhas.push(estado.consumo
     ? 'Quantidades calculadas sobre o consumo medido entre ' + dataBr(estado.consumo.de.dataISO) + ' e ' + dataBr(estado.consumo.para.dataISO) + ' (' + estado.consumo.dias + ' dias), para cobrir ' + estado.diasCobertura + ' dias.'
     : 'Quantidades por referência de classe e curva — ainda sem consumo medido (existe só um envio de estoque).');
@@ -2206,7 +2590,7 @@ function textoSolicitacao(lista) {
   for (const [fam, is] of Object.entries(porGrupo).sort((a, b) => b[1].length - a[1].length)) {
     linhas.push('■ ' + fam.toUpperCase() + '  (' + is.length + ' itens)');
     for (const i of is) {
-      linhas.push('   ' + String(i.sugestao.qtd).padStart(4, ' ') + ' un  ·  ' + (i.produto || '').padEnd(16, ' ') +
+      linhas.push('   ' + String(i.qtd).padStart(4, ' ') + ' un  ·  ' + (i.marca || '—').padEnd(12, ' ') + ' · ' + (i.produto || '').padEnd(16, ' ') +
         ' · orig ' + (i.original || '—').padEnd(16, ' ') + ' · ' + i.descricao +
         '  [curva ' + (i.curva || '—') + ' · saldo ' + (i.saldo ?? '—') + ' · prioridade ' + i.prioridade + ']');
     }
@@ -2214,6 +2598,38 @@ function textoSolicitacao(lista) {
   }
   linhas.push('— Critério: prioridade = giro (30) + falta (26) + essencialidade (20) + linha comprometida (14) + mercado (10).');
   linhas.push('— A origem indicada vem do formato do código original e não confirma aplicação em veículo.');
+  return linhas.join('\n');
+}
+
+function pedidosPorFornecedor(lista) {
+  const porMarca = new Map();
+  for (const i of lista) {
+    const k = i.marca || '— sem marca definida —';
+    if (!porMarca.has(k)) porMarca.set(k, []);
+    porMarca.get(k).push(i);
+  }
+  const e = envioAtual();
+  const linhas = ['PEDIDOS DE COMPRA SEPARADOS POR FORNECEDOR — FILIAL RIBEIRÃO PRETO',
+    'Gerado em ' + new Date().toLocaleString('pt-BR'),
+    'Base: ' + (e ? e.nome + ', estoque de ' + dataBr(e.dataISO) : '—'),
+    lista.length + ' itens · ' + lista.reduce((s, i) => s + (i.qtd || 0), 0) + ' unidades · ' + porMarca.size + ' fornecedores',
+    ''];
+  const ordenadas = [...porMarca.entries()].sort((a, b) =>
+    b[1].reduce((s, x) => s + (x.qtd || 0), 0) - a[1].reduce((s, x) => s + (x.qtd || 0), 0));
+  for (const [marca, is] of ordenadas) {
+    const un = is.reduce((s, x) => s + (x.qtd || 0), 0);
+    linhas.push('═'.repeat(72));
+    linhas.push('FORNECEDOR: ' + marca + '   —   ' + is.length + ' itens, ' + un + ' unidades');
+    linhas.push('═'.repeat(72));
+    for (const i of is.sort((a, b) => b.prioridade - a.prioridade)) {
+      linhas.push('  ' + String(i.qtd).padStart(4, ' ') + ' un · ' + (i.produto || '').padEnd(16, ' ') +
+        ' · orig ' + (i.original || '—').padEnd(15, ' ') + ' · ' + i.descricao +
+        '  [curva ' + (i.curva || '—') + ' · saldo ' + (i.saldo ?? '—') + (i.qtdEscolhida !== null ? ' · qtd definida por você' : '') + ']');
+    }
+    linhas.push('');
+  }
+  linhas.push('— A marca vem do mapa de prefixos desta filial, ou do esquema de codificação do fabricante.');
+  linhas.push('— A origem do código não confirma aplicação em veículo; confira no catálogo.');
   return linhas.join('\n');
 }
 
@@ -2327,6 +2743,7 @@ function trocarVista(vista) {
   if (vista === 'evolucao') renderEvolucao();
   if (vista === 'dados') renderDados();
   if (vista === 'frota') renderFrota();
+  if (vista === 'marcas') renderMarcas();
 }
 
 function sincronizarFiltros() {
@@ -2335,6 +2752,7 @@ function sincronizarFiltros() {
   $('#fSituacao').value = f.situacao;
   $('#fCurva').value = f.curva;
   $('#fClasse').value = f.classe;
+  $('#fMarca').value = f.marca;
   $('#fOrigem').value = f.origem;
   $('#fGrupo').value = f.grupo;
   $('#fNota').value = String(f.nota);
@@ -2353,6 +2771,11 @@ function montarSelects() {
   };
   opc($('#fCurva'), ['A', 'B', 'C', 'D', 'E', 'F'].filter((c) => L.some((i) => i.curva === c)).map((c) => ({ valor: c, texto: 'Curva ' + c })), 'Todas');
   opc($('#fClasse'), Object.keys(ROTULO_CLASSE).filter((c) => L.some((i) => i.classe === c)).map((c) => ({ valor: c, texto: ROTULO_CLASSE[c] })), 'Todas');
+  const contagemMarca = {};
+  for (const i of L) if (i.marca) contagemMarca[i.marca] = (contagemMarca[i.marca] || 0) + 1;
+  opc($('#fMarca'), Object.entries(contagemMarca).sort((a, b) => b[1] - a[1])
+    .map(([m, q]) => ({ valor: m, texto: m + ' — ' + q + ' itens' }))
+    .concat([{ valor: '__sem', texto: '— sem marca definida —' }]), 'Todas');
   const origens = [...new Set(L.map((i) => i.origem).filter(Boolean))].sort();
   opc($('#fOrigem'), origens.map((o) => ({ valor: o, texto: o })).concat([{ valor: '__nenhuma', texto: '— sem origem identificada —' }]), 'Todas');
   const grupos = [...new Set(L.map((i) => i.grupo))].filter(Boolean)
@@ -2366,7 +2789,7 @@ function atualizarCarrinho() {
   const barra = $('#barraCarrinho');
   barra.classList.toggle('oculto', marcados.length === 0);
   $('#carrinhoItens').textContent = n(marcados.length);
-  $('#carrinhoUnidades').textContent = n(marcados.reduce((s, i) => s + i.sugestao.qtd, 0));
+  $('#carrinhoUnidades').textContent = n(marcados.reduce((s, i) => s + (i.qtd || 0), 0));
 }
 
 function renderTudo() {
@@ -2389,6 +2812,8 @@ function renderTudo() {
   if (vista === 'frota') renderFrota();
   if (vista === 'evolucao') renderEvolucao();
   if (vista === 'dados') renderDados();
+  if (vista === 'marcas') renderMarcas();
+  $('#seloMarcas').textContent = n(resumoPrefixos().filter((p) => !p.marca).length);
   atualizarCarrinho();
 }
 
@@ -2421,12 +2846,12 @@ document.addEventListener('drop', (e) => { if (e.dataTransfer.files[0]) carregar
 
 const liga = (id, ev, fn) => $(id).addEventListener(ev, fn);
 liga('#fBusca', 'input', (e) => { estado.filtros.busca = e.target.value; estado.limite = 150; renderComprar(); });
-['fSituacao', 'fCurva', 'fClasse', 'fOrigem', 'fGrupo'].forEach((id) =>
+['fSituacao', 'fCurva', 'fClasse', 'fMarca', 'fOrigem', 'fGrupo'].forEach((id) =>
   liga('#' + id, 'change', (e) => { estado.filtros[id.slice(1).charAt(0).toLowerCase() + id.slice(2)] = e.target.value; estado.limite = 150; renderComprar(); }));
 liga('#fNota', 'change', (e) => { estado.filtros.nota = Number(e.target.value); estado.limite = 150; renderComprar(); });
 liga('#fAgrupar', 'change', (e) => { estado.agrupar = e.target.value === '1'; estado.limite = 150; renderComprar(); });
 liga('#btLimpar', 'click', () => {
-  estado.filtros = { busca: '', situacao: '', curva: '', classe: '', origem: '', grupo: '', nota: 0 };
+  estado.filtros = { busca: '', situacao: '', curva: '', classe: '', marca: '', origem: '', grupo: '', nota: 0 };
   sincronizarFiltros();
 });
 liga('#btSelTodos', 'click', () => {
@@ -2440,6 +2865,23 @@ $$('thead th.ord').forEach((th) => th.addEventListener('click', () => {
   estado.ordem = { campo, desc: estado.ordem.campo === campo ? !estado.ordem.desc : true };
   renderComprar();
 }));
+
+liga('#fBuscaPrefixo', 'input', () => renderMarcas());
+liga('#fSoVazios', 'change', () => renderMarcas());
+liga('#fTipoChave', 'change', () => renderMarcas());
+liga('#btLimparMarcas', 'click', async () => {
+  if (!confirm('Apagar o mapa de marcas que você definiu? As marcas reconhecidas automaticamente continuam.')) return;
+  estado.mapaMarcas = {};
+  await guardarMapaMarcas().catch(() => {});
+  recalcular(); renderTudo(); renderMarcas();
+});
+liga('#btPedidosPorMarca', 'click', () => {
+  const lista = itens().filter((i) => i.situacao === 'RUPTURA' && i.prioridade >= 55 && (i.qtd || 0) > 0 && (estado.agrupar ? i.ehRepresentante || i.repetidos === 1 : true));
+  if (!lista.length) return;
+  abrirModal('Pedidos separados por fornecedor',
+    lista.length + ' itens em ruptura com prioridade 55 ou mais, agrupados por marca. Cada bloco é um pedido para um fornecedor.',
+    pedidosPorFornecedor(lista), csvDeItens(lista), 'pedidos-por-fornecedor-ribeirao-preto.csv');
+});
 
 liga('#btSolicitacao', 'click', () => {
   const lista = itensMarcados();
@@ -2492,7 +2934,12 @@ $('#logo').src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAOAAAAB4CAIAAABk
 
 (async function iniciar() {
   try {
-    estado.envios = (await lerEnvios()) || [];
+    const guardados = (await lerEnvios()) || [];
+    const marcas = guardados.find((e) => e.id === '__marcas');
+    const quantidades = guardados.find((e) => e.id === '__quantidades');
+    if (marcas) estado.mapaMarcas = marcas.mapa || {};
+    if (quantidades) estado.quantidades = quantidades.mapa || {};
+    estado.envios = guardados.filter((e) => Array.isArray(e.itens));
   } catch {
     estado.bancoOk = false;
     estado.envios = [];

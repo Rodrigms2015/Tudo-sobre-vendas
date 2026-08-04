@@ -1,0 +1,897 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OPUS — Comandos</title>
+<meta name="description" content="Consulta rápida dos comandos de três letras do OPUS: cotação, pedido, nota fiscal, crédito, estoque e devolução.">
+<meta name="robots" content="noindex">
+</head>
+<body>
+<style>
+  :root {
+    --papel: #EEF1F2;
+    --superficie: #FFFFFF;
+    --superficie-2: #E4E9EB;
+    --tinta: #131C24;
+    --tinta-media: #4C5B66;
+    --tinta-fraca: #77868F;
+    --linha: #CFD8DC;
+    --acento: #A83E17;
+    --acento-fraco: #F0DED4;
+    --alerta: #8A6100;
+    --alerta-fraco: #F5E7C6;
+    --foco: #1B6E8C;
+    --raio: 3px;
+    --mono: ui-monospace, "SF Mono", "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
+    --texto: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --papel: #10161A;
+      --superficie: #182027;
+      --superficie-2: #212C33;
+      --tinta: #E3EAED;
+      --tinta-media: #A3B2BA;
+      --tinta-fraca: #7C8C95;
+      --linha: #2C3A42;
+      --acento: #E8875A;
+      --acento-fraco: #3A2318;
+      --alerta: #D8AE55;
+      --alerta-fraco: #33280F;
+      --foco: #58B6D6;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --papel: #10161A;
+    --superficie: #182027;
+    --superficie-2: #212C33;
+    --tinta: #E3EAED;
+    --tinta-media: #A3B2BA;
+    --tinta-fraca: #7C8C95;
+    --linha: #2C3A42;
+    --acento: #E8875A;
+    --acento-fraco: #3A2318;
+    --alerta: #D8AE55;
+    --alerta-fraco: #33280F;
+    --foco: #58B6D6;
+  }
+
+  :root[data-theme="light"] {
+    --papel: #EEF1F2;
+    --superficie: #FFFFFF;
+    --superficie-2: #E4E9EB;
+    --tinta: #131C24;
+    --tinta-media: #4C5B66;
+    --tinta-fraca: #77868F;
+    --linha: #CFD8DC;
+    --acento: #A83E17;
+    --acento-fraco: #F0DED4;
+    --alerta: #8A6100;
+    --alerta-fraco: #F5E7C6;
+    --foco: #1B6E8C;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--papel);
+    color: var(--tinta);
+    font-family: var(--texto);
+    font-size: 16px;
+    line-height: 1.5;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  .envelope {
+    max-width: 60rem;
+    margin: 0 auto;
+    padding: 0 1rem 4rem;
+  }
+
+  /* ---------- Cabeçalho ---------- */
+
+  .capa {
+    padding: 2rem 0 1.25rem;
+    border-bottom: 2px solid var(--tinta);
+  }
+
+  .etiqueta {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--acento);
+    margin: 0 0 0.5rem;
+  }
+
+  .capa h1 {
+    font-size: clamp(1.9rem, 6vw, 2.75rem);
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    margin: 0 0 0.6rem;
+    text-wrap: balance;
+  }
+
+  .capa p {
+    margin: 0;
+    max-width: 42ch;
+    color: var(--tinta-media);
+  }
+
+  .acesso {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.5rem;
+    margin-top: 1rem;
+    font-size: 0.875rem;
+    color: var(--tinta-media);
+  }
+
+  .acesso b {
+    font-family: var(--mono);
+    font-variant-numeric: tabular-nums;
+    color: var(--tinta);
+  }
+
+  /* ---------- Busca ---------- */
+
+  .barra {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: var(--papel);
+    padding: 0.75rem 0 0.5rem;
+    border-bottom: 1px solid var(--linha);
+  }
+
+  .campo {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: var(--superficie);
+    border: 1px solid var(--linha);
+    border-radius: var(--raio);
+    padding: 0 0.5rem 0 0.75rem;
+  }
+
+  .campo:focus-within {
+    border-color: var(--foco);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--foco) 30%, transparent);
+  }
+
+  .campo svg { flex: none; color: var(--tinta-fraca); }
+
+  #busca {
+    flex: 1;
+    min-width: 0;
+    height: 48px;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    font-size: 1rem;
+    outline: none;
+  }
+
+  #busca::placeholder { color: var(--tinta-fraca); }
+
+  #limpar {
+    flex: none;
+    width: 44px;
+    height: 44px;
+    border: 0;
+    border-radius: var(--raio);
+    background: none;
+    color: var(--tinta-media);
+    font-size: 1.25rem;
+    cursor: pointer;
+  }
+
+  #limpar:hover { background: var(--superficie-2); }
+
+  .filtros {
+    display: flex;
+    gap: 0.375rem;
+    overflow-x: auto;
+    padding: 0.5rem 0 0.125rem;
+    scrollbar-width: thin;
+  }
+
+  .chip {
+    flex: none;
+    min-height: 36px;
+    padding: 0.375rem 0.75rem;
+    border: 1px solid var(--linha);
+    border-radius: 999px;
+    background: var(--superficie);
+    color: var(--tinta-media);
+    font: inherit;
+    font-size: 0.8125rem;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+
+  .chip:hover { border-color: var(--tinta-fraca); color: var(--tinta); }
+
+  .chip[aria-pressed="true"] {
+    background: var(--tinta);
+    border-color: var(--tinta);
+    color: var(--papel);
+  }
+
+  .contagem {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--tinta-fraca);
+    padding-top: 0.5rem;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ---------- Lista de comandos ---------- */
+
+  .grupo { margin-top: 2rem; }
+
+  .grupo > h2 {
+    font-size: 0.8125rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--tinta-fraca);
+    margin: 0 0 0.5rem;
+    padding-bottom: 0.375rem;
+    border-bottom: 1px solid var(--linha);
+  }
+
+  .linhas {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .linha {
+    display: grid;
+    grid-template-columns: 5.5rem 1fr;
+    gap: 0 0.875rem;
+    align-items: baseline;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid var(--linha);
+  }
+
+  .codigo {
+    grid-row: span 2;
+    align-self: start;
+    min-height: 44px;
+    width: 100%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.375rem;
+    padding: 0.25rem 0.5rem;
+    border: 1px solid var(--linha);
+    border-radius: var(--raio);
+    background: var(--superficie);
+    color: var(--acento);
+    font-family: var(--mono);
+    font-size: 1.0625rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+  }
+
+  .codigo:hover { border-color: var(--acento); }
+
+  .codigo:focus-visible {
+    outline: 2px solid var(--foco);
+    outline-offset: 2px;
+  }
+
+  .codigo[data-copiado="1"] {
+    background: var(--acento-fraco);
+    border-color: var(--acento);
+  }
+
+  .codigo .aviso {
+    font-size: 0.6875rem;
+    letter-spacing: 0;
+    color: var(--tinta-fraca);
+  }
+
+  .oque { margin: 0; }
+
+  .oque em {
+    display: block;
+    font-style: normal;
+    font-size: 0.875rem;
+    color: var(--tinta-media);
+    margin-top: 0.125rem;
+  }
+
+  .conferir {
+    display: inline-block;
+    margin-left: 0.375rem;
+    padding: 0 0.375rem;
+    border-radius: var(--raio);
+    background: var(--alerta-fraco);
+    color: var(--alerta);
+    font-size: 0.6875rem;
+    font-family: var(--mono);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    vertical-align: 1px;
+  }
+
+  mark {
+    background: var(--acento-fraco);
+    color: inherit;
+    border-radius: 2px;
+  }
+
+  .vazio {
+    margin-top: 2rem;
+    padding: 1.5rem;
+    border: 1px dashed var(--linha);
+    border-radius: var(--raio);
+    background: var(--superficie);
+  }
+
+  .vazio p { margin: 0 0 0.75rem; color: var(--tinta-media); }
+  .vazio p:last-child { margin-bottom: 0; }
+
+  /* ---------- Blocos de regra ---------- */
+
+  .regras { margin-top: 3.5rem; }
+
+  .regras > h2 {
+    font-size: 1.375rem;
+    letter-spacing: -0.01em;
+    margin: 0 0 1rem;
+    padding-top: 1.5rem;
+    border-top: 2px solid var(--tinta);
+  }
+
+  .cartoes {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
+  }
+
+  .cartao {
+    background: var(--superficie);
+    border: 1px solid var(--linha);
+    border-radius: var(--raio);
+    padding: 1rem 1.125rem 1.125rem;
+  }
+
+  .cartao h3 {
+    font-size: 0.8125rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--acento);
+    margin: 0 0 0.75rem;
+  }
+
+  .cartao dl {
+    margin: 0;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.5rem 0.75rem;
+    align-items: baseline;
+  }
+
+  .cartao dt {
+    font-family: var(--mono);
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--tinta);
+    white-space: nowrap;
+  }
+
+  .cartao dd {
+    margin: 0;
+    font-size: 0.9375rem;
+    color: var(--tinta-media);
+  }
+
+  .cartao ul {
+    margin: 0;
+    padding-left: 1.1rem;
+    font-size: 0.9375rem;
+    color: var(--tinta-media);
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .cartao ul strong, .cartao dd strong { color: var(--tinta); }
+
+  .rolagem { overflow-x: auto; }
+
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 0.9375rem;
+    font-variant-numeric: tabular-nums;
+  }
+
+  th, td {
+    text-align: left;
+    padding: 0.5rem 0.75rem 0.5rem 0;
+    border-bottom: 1px solid var(--linha);
+    white-space: nowrap;
+  }
+
+  th {
+    font-size: 0.75rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--tinta-fraca);
+    font-weight: 600;
+  }
+
+  td:last-child, th:last-child { padding-right: 0; text-align: right; }
+
+  .proibido {
+    border-left: 3px solid var(--acento);
+    padding-left: 0.875rem;
+    margin: 0.875rem 0 0;
+    color: var(--tinta);
+    font-size: 0.9375rem;
+  }
+
+  .rodape {
+    margin-top: 3rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--linha);
+    font-size: 0.8125rem;
+    color: var(--tinta-fraca);
+  }
+
+  .rodape p { margin: 0 0 0.5rem; max-width: 60ch; }
+
+  @media (max-width: 30rem) {
+    .linha { grid-template-columns: 4.75rem 1fr; }
+    .codigo { font-size: 1rem; }
+  }
+
+  @media print {
+    .barra, #limpar { display: none; }
+    body { background: #fff; color: #000; }
+  }
+</style>
+
+<div class="envelope">
+
+  <header class="capa">
+    <p class="etiqueta">Consulta rápida · Balcão e vendas</p>
+    <h1>Comandos do OPUS</h1>
+    <p>Cada tela do sistema abre por um código de três letras. Digite abaixo o que você precisa fazer — ou o código, se já souber — e toque nele para copiar.</p>
+    <div class="acesso">
+      <span>Usuário de acesso: <b>31044</b></span>
+      <span>Trocar senha: <b>QCD</b></span>
+      <span>Busca geral em qualquer campo: <b>CTRL+A</b></span>
+    </div>
+  </header>
+
+  <div class="barra">
+    <div class="campo">
+      <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+        <circle cx="9" cy="9" r="6"></circle>
+        <path d="M13.5 13.5 18 18"></path>
+      </svg>
+      <input id="busca" type="search" autocomplete="off" spellcheck="false" placeholder="cotação, boleto, devolução, NFJ…" aria-label="Buscar comando ou tarefa">
+      <button id="limpar" type="button" hidden aria-label="Limpar busca">×</button>
+    </div>
+    <div class="filtros" id="filtros" role="group" aria-label="Filtrar por assunto"></div>
+    <p class="contagem" id="contagem"></p>
+  </div>
+
+  <main id="lista"></main>
+
+  <section class="regras">
+    <h2>Fora dos comandos</h2>
+
+    <div class="cartoes">
+
+      <article class="cartao">
+        <h3>Atalhos dentro da tela</h3>
+        <dl>
+          <dt>CTRL+A</dt>
+          <dd>Busca geral no campo (mostra todos). Na condição de pagamento, lista todos os prazos disponíveis; no status de pedido, marca as opções.</dd>
+          <dt>CTRL+B</dt>
+          <dd>Consulta encomenda na fábrica e os últimos preços. Aperte depois de colocar os itens na cotação para aparecer a opção de frete.</dd>
+          <dt>15</dt>
+          <dd>Valor a inserir para o sistema mostrar o percentual máximo de desconto.</dd>
+          <dt>H</dt>
+          <dd>No campo de data, traz o dia de hoje.</dd>
+        </dl>
+      </article>
+
+      <article class="cartao">
+        <h3>Finalizando o pedido</h3>
+        <dl>
+          <dt>MI</dt><dd>Mostrar itens da cotação</dd>
+          <dt>II</dt><dd>Incluir itens</dd>
+          <dt>AI</dt><dd>Alterar itens</dd>
+          <dt>EI</dt><dd>Excluir itens</dd>
+          <dt>MD</dt><dd>Mostrar desconto</dd>
+          <dt>AP</dt><dd>Alterar condição de pagamento</dd>
+          <dt>EC</dt><dd>Encerrar cotação</dd>
+          <dt>EP</dt><dd>Encerrar pedido</dd>
+          <dt>LP</dt><dd>Liberar pedido</dd>
+          <dt>AF</dt><dd>Aguardando finalização</dd>
+        </dl>
+      </article>
+
+      <article class="cartao">
+        <h3>Frete</h3>
+        <dl>
+          <dt>CIF</dt>
+          <dd>Frete pago pela empresa — ou pelo cliente em parte.</dd>
+          <dt>FOB</dt>
+          <dd>Pago somente pelo cliente.</dd>
+        </dl>
+        <h3 style="margin-top:1.25rem">Transferência entre filiais</h3>
+        <ul>
+          <li>Em <strong>NFQ</strong>, marque <strong>S</strong> no campo TF, escolha a filial e a quantidade de itens.</li>
+          <li>Depois use <strong>NFF</strong> para completar condição de pagamento, prazo e transporte.</li>
+        </ul>
+      </article>
+
+      <article class="cartao">
+        <h3>E-mails obrigatórios</h3>
+        <dl>
+          <dt>NDL</dt>
+          <dd>Sempre para <strong>Lilian e Vivian</strong> — devolução e cobrança.</dd>
+          <dt>NSA</dt>
+          <dd>Limite excedido: <strong>Pedro de Sá, Lucas e Diego</strong>.</dd>
+        </dl>
+        <p class="proibido">Em qualquer um dos dois, sempre emitir e enviar junto o Sintegra e a Receita.</p>
+      </article>
+
+      <article class="cartao">
+        <h3>Token do cliente</h3>
+        <ul>
+          <li>Consulta e geração do token: <strong>DBC</strong>.</li>
+          <li>Para trocar o e-mail que recebe o token, entre em <strong>NCA</strong>, cadastre o e-mail do cliente e selecione o departamento <strong>023 — token retirada</strong> (ou situação 9).</li>
+        </ul>
+      </article>
+
+      <article class="cartao">
+        <h3>Margem de referência</h3>
+        <dl>
+          <dt>7,32%</dt><dd>Consumidor final</dd>
+          <dt>17,07%</dt><dd>Revenda</dd>
+        </dl>
+        <p class="proibido">Rentabilidade abaixo da faixa bloqueia o pedido: emite em <strong>NGB</strong> e autoriza em <strong>NGF</strong>.</p>
+      </article>
+
+    </div>
+
+    <h2 style="margin-top:2.5rem">Regras do cartão de crédito</h2>
+
+    <div class="cartoes">
+      <article class="cartao">
+        <h3>Quem pode pagar</h3>
+        <ul>
+          <li>Só é aceito cartão <strong>em nome da empresa ou dos sócios</strong> que constam no quadro societário.</li>
+          <li>Cartão de sócio: o próprio sócio precisa usar.</li>
+          <li>Cartão da empresa: um funcionário identificado pode usar.</li>
+          <li>Cartão sem chip: o comprovante tem que ser assinado e precisa constar o vínculo de quem está usando com a empresa.</li>
+          <li>Pagamento à vista ou no cartão sempre em nome dos sócios ou da própria empresa — <strong>não se aceita pagamento de terceiros</strong>.</li>
+        </ul>
+        <p class="proibido">Proibido usar cartão de funcionário da Pacaembu.</p>
+      </article>
+
+      <article class="cartao">
+        <h3>Parcelamento — verificar a pré-nota em NFK</h3>
+        <p style="margin:0 0 0.75rem;font-size:0.9375rem;color:var(--tinta-media)">Consulte a PB/PV e olhe a condição de pagamento: <strong>01</strong> é à vista, parcela única. <strong>P3</strong> e <strong>P6</strong> permitem parcelar conforme o valor.</p>
+        <div class="rolagem">
+          <table>
+            <caption class="visually-hidden" style="text-align:left;font-size:0.75rem;color:var(--tinta-fraca);padding-bottom:0.25rem">Condição P3</caption>
+            <thead>
+              <tr><th scope="col">Valor da compra — P3</th><th scope="col">Parcelas</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>R$ 100,00 a R$ 300,99</td><td>2 vezes</td></tr>
+              <tr><td>Acima de R$ 301,00</td><td>Até 3 vezes</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="rolagem" style="margin-top:1rem">
+          <table>
+            <thead>
+              <tr><th scope="col">Valor da compra — P6</th><th scope="col">Parcelas</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Até R$ 1.000,00</td><td>Até 4 vezes</td></tr>
+              <tr><td>R$ 1.000,00 a R$ 2.000,00</td><td>Até 5 vezes</td></tr>
+              <tr><td>Acima de R$ 2.000,00</td><td>Até 6 vezes</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <footer class="rodape">
+    <p>Transcrito das anotações manuscritas do caderno OPUS. Onde a letra deixou dúvida, o comando está marcado com <span class="conferir">conferir</span> — teste no sistema antes de confiar.</p>
+    <p>Alguns códigos aparecem em mais de uma frente e abrem telas diferentes conforme o menu de onde você entra; as duas leituras estão registradas na mesma linha.</p>
+  </footer>
+
+</div>
+
+<script>
+  const COMANDOS = [
+    // Cotação e pedido
+    { c: "NEA", g: "pedido", d: "Fazer cotação e tirar pedido de venda", n: "Também usado para cadastrar a cotação do zero." },
+    { c: "NED", g: "pedido", d: "Consultar cotação" },
+    { c: "NEJ", g: "pedido", d: "Emitir e imprimir cotação" },
+    { c: "NEF", g: "pedido", d: "Cadastrar pedido", n: "Imprime a cotação." },
+    { c: "NEQ", g: "pedido", d: "Verificar rentabilidade da cotação" },
+    { c: "NEC", g: "pedido", d: "Consultar cotação por vendas", n: "Serve também para ver pedidos de dias anteriores." },
+    { c: "NFV", g: "pedido", d: "Cotação perdida por falta de estoque" },
+    { c: "NFQ", g: "pedido", d: "Manutenção de pedido", n: "Para transferência: marque S no campo TF, escolha a filial e a quantidade de itens." },
+    { c: "NFF", g: "pedido", d: "Pedido de venda casada via transferência", n: "Completa condição de pagamento, prazo e transporte do pedido." },
+    { c: "NEG", g: "pedido", d: "Pedido de transferência" },
+    { c: "NFB", g: "pedido", d: "Alterar o código do vendedor no pedido", n: "Só funciona com o pedido em separação." },
+    { c: "NFC", g: "pedido", d: "Cancelar pedido e solicitar cancelamento", n: "Também libera pedidos de venda casada (EP)." },
+    { c: "AKF", g: "pedido", d: "Unir PVs transferidas de uma ou mais filiais para o mesmo cliente" },
+    { c: "AKG", g: "pedido", d: "Converter os pedidos já elaborados (PJ), unificando em uma PV" },
+    { c: "AKH", g: "pedido", d: "Converter as PVs em uma única PV, unificando os itens de mesmo código" },
+
+    // Consultas de pedido
+    { c: "NFJ", g: "consulta", d: "Consultar pedido emitido e conferir as pendências de venda", n: "Traz condição de pagamento e valor. Junto com NFK, fecha a conferência completa do pedido." },
+    { c: "NFK", g: "consulta", d: "Status do pedido e verificação da pré-nota", n: "Na pré-nota você confere a condição de pagamento antes de fechar no cartão." },
+    { c: "NFU", g: "consulta", d: "Ver pedidos em separação" },
+    { c: "NFP", g: "consulta", d: "Consultar pedidos por cliente" },
+    { c: "NGC", g: "consulta", d: "Situação geral dos pedidos por status", n: "É a tela do faturamento. Data: H para hoje. Status: CTRL+A e marque as opções." },
+    { c: "NGK", g: "consulta", d: "Consultar pedidos pendentes" },
+    { c: "NEV", g: "consulta", d: "Ver pedido ainda não faturado", n: "Mesma informação do NFJ." },
+    { c: "NGG", g: "consulta", d: "Liberar pedidos em atendimento", n: "Traz também o parecer PEC com o histórico." },
+    { c: "NGF", g: "consulta", d: "Liberar e autorizar pedido bloqueado por rentabilidade" },
+    { c: "NGB", g: "consulta", d: "Emitir pedido bloqueado por rentabilidade" },
+    { c: "NGA", g: "consulta", d: "Listar pedidos com crédito bloqueado" },
+    { c: "NGM", g: "consulta", d: "Ver pré-nota" },
+    { c: "NGR", g: "consulta", d: "Verificar e remover pré-nota pelo pedido" },
+    { c: "NRD", g: "consulta", d: "Consultar o log de horários por pedido" },
+    { c: "QLK", g: "consulta", d: "Verificar pedidos por venda, separados por fábrica", v: true },
+
+    // Notas fiscais
+    { c: "DAG", g: "nf", d: "Cancelar nota fiscal eletrônica", n: "Cobre também outros cancelamentos." },
+    { c: "DGA", g: "nf", d: "Nota fiscal eletrônica" },
+    { c: "QRA", g: "nf", d: "Consultar nota fiscal do pedido inteiro" },
+    { c: "QRC", g: "nf", d: "Consultar notas fiscais" },
+    { c: "QRD", g: "nf", d: "Consultar notas fiscais por cliente" },
+    { c: "QRL", g: "nf", d: "Notas fiscais processadas — emitidas para o cliente", n: "Aparece também como consulta de notas fiscais e histórico de prazo." },
+    { c: "QRG", g: "nf", d: "Consultar nota fiscal", v: true },
+    { c: "QBL", g: "nf", d: "Relação da nota fiscal atrelada ao pedido" },
+    { c: "QD5", g: "nf", d: "Notas fiscais devolvidas", v: true },
+    { c: "RHH", g: "nf", d: "Consultar nota de débito" },
+    { c: "RHM", g: "nf", d: "Relação de notas de débito baixadas" },
+    { c: "NRT", g: "nf", d: "Relação de transporte por cliente" },
+
+    // Cliente, crédito e liberação
+    { c: "NCA", g: "cliente", d: "Liberar venda à vista ou expressa e consultar cadastro", n: "É aqui que se troca o e-mail que recebe o token: departamento 023, token retirada." },
+    { c: "NCE", g: "cliente", d: "Consultar dados do cliente pelo CNPJ", n: "Mostra o vínculo do vendedor no cadastro." },
+    { c: "NDB", g: "cliente", d: "Consultar crédito do cliente", n: "Mostra o vínculo do vendedor no cadastro." },
+    { c: "NSB", g: "cliente", d: "Grupo de clientes — CNPJs cadastrados no mesmo grupo" },
+    { c: "NSI", g: "cliente", d: "Dados dos clientes que compram pelo e-commerce", n: "Separa revenda de consumidor final." },
+    { c: "NSO", g: "cliente", d: "Liberar e-commerce para o cliente e para o vendedor" },
+    { c: "NCG", g: "cliente", d: "Relação de clientes por atividade e por município" },
+    { c: "NCL", g: "cliente", d: "Relação de clientes por situação — quem solicitou liberação", v: true },
+    { c: "NC9", g: "cliente", d: "Consultar assentamento", v: true },
+    { c: "NOT", g: "cliente", d: "Verificar o prazo médio do cliente" },
+    { c: "NJS", g: "cliente", d: "Alterar o vínculo do vendedor no cadastro", n: "Usado nos controles gerenciais." },
+    { c: "NWB", g: "cliente", d: "Consultar Boa Vista (SCPC) pelo sistema" },
+    { c: "NOX", g: "cliente", d: "Reabilitar vencimento programado" },
+    { c: "NDL", g: "cliente", d: "E-mail de devolução e cobrança", n: "Sempre para Lilian e Vivian, com Sintegra e Receita anexados." },
+    { c: "NSA", g: "cliente", d: "E-mail de limite excedido", n: "Sempre para Pedro de Sá, Lucas e Diego, com Sintegra e Receita anexados." },
+
+    // Financeiro
+    { c: "RCH", g: "financeiro", d: "Posição dos títulos do cliente e emissão de boleto", n: "É por aqui que se consulta o que o cliente já comprou." },
+    { c: "RCL", g: "financeiro", d: "Relação de títulos e boletos vencidos" },
+    { c: "RFI", g: "financeiro", d: "Emitir boletos" },
+    { c: "DDD", g: "financeiro", d: "Lote de recebimento — oficializa o lote" },
+    { c: "DBC", g: "financeiro", d: "Token" },
+    { c: "UBD", g: "financeiro", d: "Liberar SAPs — liberação de contas a pagar", n: "Também usado nos pagamentos de nota fiscal de custos." },
+    { c: "PCG", g: "financeiro", d: "Lançamento de despesas de viagem" },
+    { c: "DPD", g: "financeiro", d: "Manutenção do tempo de tolerância", v: true },
+
+    // Estoque e peças
+    { c: "AEE", g: "estoque", d: "Consultar a situação do estoque" },
+    { c: "AEF", g: "estoque", d: "Consultar a situação do estoque no Brasil inteiro" },
+    { c: "AEA", g: "estoque", d: "Movimentação do produto em estoque" },
+    { c: "AKA", g: "estoque", d: "Consultar itens do estoque e reservas" },
+    { c: "ACK", g: "estoque", d: "Relação de produtos por marca e por estoque", n: "Para saber o código da fábrica, procure pelo QRV." },
+    { c: "ACL", g: "estoque", d: "Verificar o código interno das peças" },
+    { c: "ARQ", g: "estoque", d: "Consultar pacote técnico — peças aplicadas por conjunto" },
+    { c: "AID", g: "estoque", d: "Verificar pedido de compra" },
+
+    // Devoluções e carcaças
+    { c: "GPO", g: "devolucao", d: "Devolução — liberar o controle, independente de filial" },
+    { c: "GPM", g: "devolucao", d: "Devolução por vendedor" },
+    { c: "GOB", g: "devolucao", d: "Rotina de devolução" },
+    { c: "GOD", g: "devolucao", d: "Manutenção nas SODs" },
+    { c: "GOG", g: "devolucao", d: "Aprovar ou rejeitar SOD" },
+    { c: "NCN", g: "devolucao", d: "Autorização de devolução à vista" },
+    { c: "NON", g: "devolucao", d: "Liberar crédito de devolução à vista" },
+    { c: "DHS", g: "devolucao", d: "Verificação do lote de carcaça", v: true },
+    { c: "DHJ", g: "devolucao", d: "Verificar coletas de carcaça" },
+    { c: "DH7", g: "devolucao", d: "Consultar coleta de carcaça, com mais opções", v: true },
+
+    // Metas, carteira e relatórios
+    { c: "QRV", g: "gestao", d: "Objetivos de venda e acompanhamento de meta mensal e diária", n: "Por fábrica, por vendedor e por filial. Mapa de objetivos da loja por fabricante e lançamento dos dias úteis do ano." },
+    { c: "QRQ", g: "gestao", d: "Imprimir a carteira de clientes por vendedor" },
+    { c: "GDV", g: "gestao", d: "Prontuário — controle de visitas dos vendedores", v: true },
+    { c: "NFI", g: "gestao", d: "Meta e faturamento mensal, mapa de vendas do vendedor", n: "Traz os valores vendidos no período e a comissão." },
+    { c: "NVE", g: "gestao", d: "Prazos e preços disponíveis para venda", n: "Imprime a lista." },
+    { c: "FAL", g: "gestao", d: "Relação da tabela do comparador", v: true },
+    { c: "NDG", g: "gestao", d: "Estoque parado: 00 a 3% e 60 a 10%", v: true },
+
+    // Sistema
+    { c: "QCD", g: "sistema", d: "Trocar a senha" },
+    { c: "DH4", g: "sistema", d: "Sem descrição anotada no caderno", v: true },
+    { c: "NUB", g: "sistema", d: "Sem descrição anotada no caderno", v: true },
+    { c: "QFF", g: "sistema", d: "Sem descrição anotada no caderno", v: true }
+  ];
+
+  const GRUPOS = [
+    { id: "todos", nome: "Todos" },
+    { id: "pedido", nome: "Cotação e pedido" },
+    { id: "consulta", nome: "Consulta de pedido" },
+    { id: "nf", nome: "Notas fiscais" },
+    { id: "cliente", nome: "Cliente e crédito" },
+    { id: "financeiro", nome: "Financeiro" },
+    { id: "estoque", nome: "Estoque e peças" },
+    { id: "devolucao", nome: "Devolução e carcaça" },
+    { id: "gestao", nome: "Metas e carteira" },
+    { id: "sistema", nome: "Sistema" }
+  ];
+
+  const busca = document.getElementById("busca");
+  const limpar = document.getElementById("limpar");
+  const filtros = document.getElementById("filtros");
+  const contagem = document.getElementById("contagem");
+  const lista = document.getElementById("lista");
+
+  let grupoAtivo = "todos";
+
+  // Normaliza sem mudar o comprimento da string: cada caractere vira sua base
+  // sem acento. Isso mantém as posições alinhadas para o destaque da busca.
+  const semAcento = (t) => Array.from(t)
+    .map((ch) => ch.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() || ch)
+    .join("");
+
+  COMANDOS.forEach((cmd) => {
+    cmd.busca = semAcento(cmd.c + " " + cmd.d + " " + (cmd.n || ""));
+  });
+
+  GRUPOS.forEach((g) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "chip";
+    b.textContent = g.nome;
+    b.dataset.grupo = g.id;
+    b.setAttribute("aria-pressed", String(g.id === "todos"));
+    b.addEventListener("click", () => {
+      grupoAtivo = g.id;
+      filtros.querySelectorAll(".chip").forEach((c) => {
+        c.setAttribute("aria-pressed", String(c.dataset.grupo === g.id));
+      });
+      desenhar();
+    });
+    filtros.appendChild(b);
+  });
+
+  function escapar(t) {
+    return t.replace(/[&<>"]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch]));
+  }
+
+  function destacar(texto, termo) {
+    const seguro = escapar(texto);
+    if (!termo) return seguro;
+    const alvo = semAcento(seguro);
+    let saida = "";
+    let i = 0;
+    let pos = alvo.indexOf(termo);
+    while (pos !== -1) {
+      saida += seguro.slice(i, pos) + "<mark>" + seguro.slice(pos, pos + termo.length) + "</mark>";
+      i = pos + termo.length;
+      pos = alvo.indexOf(termo, i);
+    }
+    return saida + seguro.slice(i);
+  }
+
+  function desenhar() {
+    const termo = semAcento(busca.value.trim());
+    limpar.hidden = busca.value === "";
+
+    const achados = COMANDOS.filter((cmd) => {
+      const noGrupo = grupoAtivo === "todos" || cmd.g === grupoAtivo;
+      return noGrupo && (!termo || cmd.busca.includes(termo));
+    });
+
+    contagem.textContent = achados.length === 1
+      ? "1 comando"
+      : achados.length + " comandos";
+
+    if (achados.length === 0) {
+      lista.innerHTML = '<div class="vazio">'
+        + "<p>Nenhum comando encontrado para <strong>" + escapar(busca.value.trim()) + "</strong>.</p>"
+        + "<p>Tente uma palavra do que você quer fazer — cotação, boleto, devolução, estoque, carcaça — ou limpe o filtro de assunto.</p>"
+        + "</div>";
+      return;
+    }
+
+    const porGrupo = new Map();
+    achados.forEach((cmd) => {
+      if (!porGrupo.has(cmd.g)) porGrupo.set(cmd.g, []);
+      porGrupo.get(cmd.g).push(cmd);
+    });
+
+    let html = "";
+    GRUPOS.forEach((g) => {
+      if (g.id === "todos" || !porGrupo.has(g.id)) return;
+      html += '<section class="grupo"><h2>' + g.nome + '</h2><ul class="linhas">';
+      porGrupo.get(g.id).forEach((cmd) => {
+        html += '<li class="linha">'
+          + '<button class="codigo" type="button" data-c="' + cmd.c + '" title="Copiar ' + cmd.c + '">'
+          + '<span>' + destacar(cmd.c, termo) + "</span></button>"
+          + '<p class="oque">' + destacar(cmd.d, termo)
+          + (cmd.v ? '<span class="conferir">conferir</span>' : "")
+          + (cmd.n ? "<em>" + destacar(cmd.n, termo) + "</em>" : "")
+          + "</p></li>";
+      });
+      html += "</ul></section>";
+    });
+    lista.innerHTML = html;
+  }
+
+  lista.addEventListener("click", (ev) => {
+    const botao = ev.target.closest(".codigo");
+    if (!botao) return;
+    const codigo = botao.dataset.c;
+    const marcar = () => {
+      botao.dataset.copiado = "1";
+      setTimeout(() => { delete botao.dataset.copiado; }, 1200);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(codigo).then(marcar, marcar);
+    } else {
+      const campo = document.createElement("textarea");
+      campo.value = codigo;
+      document.body.appendChild(campo);
+      campo.select();
+      try { document.execCommand("copy"); } catch (e) { /* sem área de transferência */ }
+      document.body.removeChild(campo);
+      marcar();
+    }
+  });
+
+  busca.addEventListener("input", desenhar);
+  limpar.addEventListener("click", () => {
+    busca.value = "";
+    busca.focus();
+    desenhar();
+  });
+
+  document.addEventListener("keydown", (ev) => {
+    if (ev.key === "/" && document.activeElement !== busca) {
+      ev.preventDefault();
+      busca.focus();
+    }
+    if (ev.key === "Escape" && document.activeElement === busca) {
+      busca.value = "";
+      desenhar();
+    }
+  });
+
+  desenhar();
+</script>
+</body>
+</html>

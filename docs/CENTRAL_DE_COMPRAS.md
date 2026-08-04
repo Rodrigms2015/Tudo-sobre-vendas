@@ -173,6 +173,24 @@ a sugestão, quando existe escolha.
 
 ---
 
+## 5c. Colunas opcionais: marca, custo e preço
+
+O relatório mínimo tem sete colunas. Se o export do Opus puder trazer mais três, a
+plataforma usa sem nenhuma configuração — basta a coluna existir, com qualquer um destes
+nomes:
+
+| Coluna | Nomes aceitos | O que destrava |
+|---|---|---|
+| Marca | `Marca`, `Fabricante`, `Fornecedor` | Marca exata em todo o cadastro. **Vence o mapa manual e a detecção por código** — cadastro do sistema é a verdade, inferência é remendo. |
+| Custo | `Custo`, `Custo medio`, `Preco custo`, `Valor custo` | Capital parado em reais, valor do pedido, valor por fornecedor, custo no CSV. |
+| Preço | `Preco`, `Preco venda`, `Valor venda` | Margem por item no CSV. |
+
+Valores em reais aceitam `1.234,56` e `1234.56`. **Sem custo no arquivo, nenhuma tela mostra
+valor em reais** — o campo some do layout em vez de exibir zero, pela mesma regra de que
+ausência não vira zero disfarçado.
+
+---
+
 ## 6. Dados públicos embutidos
 
 Todo número externo carrega fonte e data na própria ficha. Nada é estimado sem dizer que é.

@@ -1004,7 +1004,7 @@
   <div class="barra-fixa-interno">
     <div class="resumo">
       <b id="carrinhoItens">0</b> itens marcados ·
-      <b id="carrinhoUnidades">0</b> unidades sugeridas
+      <b id="carrinhoUnidades">0</b> unidades<span id="carrinhoValor"></span>
     </div>
     <div class="acoes">
       <button class="bt bt-claro bt-mini" id="btEsvaziar" type="button">Desmarcar</button>
@@ -1251,6 +1251,9 @@ const COLUNAS = [
   { campo: 'descricao', nomes: ['descricao', 'desc', 'produtodescricao'] },
   { campo: 'curva',     nomes: ['curva', 'classe', 'abc', 'curvaabc'] },
   { campo: 'saldo',     nomes: ['saldo', 'estoque', 'qtd', 'quantidade', 'saldoatual'] },
+  { campo: 'marca',     nomes: ['marca', 'fabricante', 'fornecedor'], opcional: true },
+  { campo: 'custo',     nomes: ['custo', 'customedio', 'precocusto', 'valorcusto', 'custounit'], opcional: true },
+  { campo: 'preco',     nomes: ['preco', 'precovenda', 'valorvenda', 'precopublico'], opcional: true },
 ];
 
 function mapearColunas(cabecalho) {
@@ -1264,8 +1267,18 @@ function mapearColunas(cabecalho) {
       if (col.nomes.some((n) => k === n || k.startsWith(n))) { mapa[col.campo] = i; break; }
     }
   });
-  for (const col of COLUNAS) if (mapa[col.campo] === undefined) faltando.push(col.campo);
+  for (const col of COLUNAS) if (!col.opcional && mapa[col.campo] === undefined) faltando.push(col.campo);
   return { mapa, faltando };
+}
+
+/* Valores em reais aceitam tanto 1.234,56 quanto 1234.56. */
+function paraDinheiro(v) {
+  if (typeof v === 'number') return Number.isFinite(v) ? v : null;
+  let t = String(v ?? '').trim().replace(/R\$/gi, '').replace(/\s/g, '');
+  if (!t || t === '-') return null;
+  if (t.includes(',')) t = t.replace(/\./g, '').replace(',', '.');
+  const n = Number(t);
+  return Number.isFinite(n) && n >= 0 ? n : null;
 }
 
 function paraInteiro(v) {
@@ -1305,6 +1318,9 @@ function normalizar(linhas) {
       descricao,
       curva: (pega(l, 'curva').toUpperCase().match(/[A-F]/) || [''])[0],
       saldo: paraInteiro(m.saldo === undefined ? null : l[m.saldo]),
+      marcaArquivo: pega(l, 'marca').toUpperCase() || null,
+      custo: m.custo === undefined ? null : paraDinheiro(l[m.custo]),
+      preco: m.preco === undefined ? null : paraDinheiro(l[m.preco]),
     });
   }
   if (!itens.length) throw new Error('O arquivo foi lido, mas não encontrei nenhum item abaixo do cabeçalho.');
@@ -1618,7 +1634,9 @@ function analisar(itens, mapaMarcas = {}) {
     /* O mapa que o usuário definiu manda. Ele conhece o fornecedor; a
        regra automática só conhece o formato do código. */
     const marcaManual = mapaMarcas[chaveDoMapa];
-    const marca = marcaManual || (detectada ? detectada.marca : null);
+    /* Marca vinda do próprio relatório é a verdade: nem mapa manual nem
+       regra de código competem com o cadastro do sistema. */
+    const marca = item.marcaArquivo || marcaManual || (detectada ? detectada.marca : null);
 
     const fatores = [];
     const lacunas = [];
@@ -1690,7 +1708,9 @@ function analisar(itens, mapaMarcas = {}) {
     return {
       ...item, situacao, familia, classe,
       prefixo, chaveDoMapa, marca,
-      origemDaMarca: marcaManual ? 'definida por você no ' + rotuloChave(chaveDoMapa) : (detectada ? 'detectada pelo código ' + detectada.padrao : null),
+      origemDaMarca: item.marcaArquivo ? 'veio no próprio relatório'
+        : (marcaManual ? 'definida por você no ' + rotuloChave(chaveDoMapa)
+        : (detectada ? 'detectada pelo código ' + detectada.padrao : null)),
       chaveDuplicata: item.original ? item.original.toUpperCase() + '|' + chave(item.descricao) : null,
       origem: origem.origem, origemConfianca: origem.confianca, origemMotivo: origem.motivo,
       similares: similaresComSaldo.length, irmaos: irmaos.length,
@@ -1807,6 +1827,13 @@ const pct = (v) => (v * 100).toFixed(v < 0.1 ? 1 : 0).replace('.', ',') + '%';
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const dataBr = (iso) => new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 const horaBr = (iso) => new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+const brl = (v) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: v >= 1000 ? 0 : 2 });
+/* Dinheiro só aparece quando o relatório trouxe custo. Sem custo, nenhuma
+   tela finge saber quanto vale — some do layout em vez de mostrar zero. */
+const temCusto = () => itens().some((i) => i.custo !== null && i.custo > 0);
+const valorDe = (i, qtd) => (i.custo === null ? null : i.custo * qtd);
+const somaValor = (lista, qtdDe) => lista.reduce((s, i) => s + (i.custo === null ? 0 : i.custo * qtdDe(i)), 0);
 
 const envioAtual = () => estado.envios.find((e) => e.id === estado.atualId) || null;
 const itens = () => (estado.analise ? estado.analise.itens : []);
@@ -1954,7 +1981,14 @@ function renderPainel() {
     placa({ rotulo: 'Em falta (saldo zero)', valor: n(zerados), rodape: pct(zerados / total) + ' do cadastro — número bruto, antes de filtrar', tom: 'atencao' }),
     placa({ rotulo: 'Ruptura real', valor: n(ruptura.length), rodape: 'Zerados sem nenhum similar com saldo. É a falta que o cliente sente.', tom: 'critico' }),
     placa({ rotulo: 'Prioridade alta', valor: n(alta.length), rodape: n(urgente.length) + ' com nota 70 ou mais — comprar nesta semana', tom: 'marca' }),
-    placa({ rotulo: 'Capital parado', valor: n(unidadesParadas), rodape: 'unidades em ' + n(excesso.length) + ' itens de giro baixo — vira lista de oportunidade', tom: 'parado' }),
+    placa({
+      rotulo: 'Capital parado',
+      valor: temCusto() ? brl(somaValor(excesso, (i) => i.saldo || 0)) : n(unidadesParadas),
+      rodape: temCusto()
+        ? n(unidadesParadas) + ' unidades em ' + n(excesso.length) + ' itens de giro baixo, a custo'
+        : 'unidades em ' + n(excesso.length) + ' itens de giro baixo — sem custo no relatório, o valor em reais não aparece',
+      tom: 'parado',
+    }),
   ].join('');
 
   const degraus = [
@@ -2040,7 +2074,9 @@ function renderComprar() {
   const unidades = lista.reduce((s, i) => s + (i.qtd || 0), 0);
   const editados = lista.filter((i) => i.qtdEscolhida !== null).length;
 
+  const valorLista = temCusto() ? somaValor(lista, (i) => i.qtd || 0) : null;
   $('#resumoLista').textContent = n(lista.length) + ' itens no filtro · ' + n(unidades) + ' unidades a pedir · ' +
+    (valorLista !== null ? brl(valorLista) + ' a custo · ' : '') +
     (estado.consumo ? 'sugestão pelo consumo medido' : 'sugestão por classe, sem consumo medido') +
     (editados ? ' · ' + n(editados) + ' quantidade' + (editados > 1 ? 's' : '') + ' ajustada' + (editados > 1 ? 's' : '') + ' por você' : '');
 
@@ -2159,6 +2195,7 @@ function detalheItem(i) {
     '<p style="font-size:31px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums">' + i.sugestao.qtd + '</p>' +
     '<p style="font-size:12.5px;color:var(--tinta-2);margin-top:7px">' + esc(i.sugestao.texto) + '</p>' +
     '<div style="margin-top:11px">' +
+      (i.custo !== null ? '<div class="linhadados"><span>Custo unitário · total do pedido</span><b>' + brl(i.custo) + ' · ' + brl(i.custo * i.qtd) + '</b></div>' : '') +
       '<div class="linhadados"><span>Grupo</span><b>' + esc(i.grupo) + '</b></div>' +
       '<div class="linhadados"><span>Cadastros com o mesmo código original</span><b>' + i.irmaos + '</b></div>' +
       (i.repetidos > 1 ? '<div class="linhadados"><span>Cadastros idênticos juntados aqui</span><b>' + i.conjunto.map((x) => x.produto).join(', ') + '</b></div>' : '') +
@@ -2562,9 +2599,14 @@ const paraCsv = (cab, linhas) => [cab.map(csvCampo).join(';')].concat(linhas.map
 
 function csvDeItens(lista) {
   return paraCsv(
-    ['Prioridade', 'Confianca %', 'Curva', 'Situacao', 'Marca', 'Origem da marca', 'Prefixo', 'Descricao', 'Familia', 'Classe', 'Cod. Interno', 'Cod. Produto', 'Cod. Original', 'Grupo', 'Saldo', 'Qtd a pedir', 'Qtd sugerida', 'Base da sugestao', 'Origem provavel do codigo', 'Cadastros irmaos', 'Ruptura do grupo %', 'Motivos'],
+    ['Prioridade', 'Confianca %', 'Curva', 'Situacao', 'Marca', 'Origem da marca', 'Prefixo', 'Descricao', 'Familia', 'Classe', 'Cod. Interno', 'Cod. Produto', 'Cod. Original', 'Grupo', 'Saldo', 'Custo unit', 'Preco venda', 'Qtd a pedir', 'Valor a pedir', 'Qtd sugerida', 'Base da sugestao', 'Origem provavel do codigo', 'Cadastros irmaos', 'Ruptura do grupo %', 'Motivos'],
     lista.map((i) => [i.prioridade, i.confianca, i.curva, SITUACOES[i.situacao].rotulo, i.marca || '', i.origemDaMarca || '', i.prefixo, i.descricao, i.familia, i.classe ? ROTULO_CLASSE[i.classe] : '', i.interno, i.produto, i.original, i.grupo,
-      i.saldo === null ? '' : i.saldo, i.qtd, i.sugestao.qtd, i.sugestao.medida ? 'consumo medido' : 'referencia por classe',
+      i.saldo === null ? '' : i.saldo,
+      i.custo === null ? '' : i.custo.toFixed(2).replace('.', ','),
+      i.preco === null ? '' : i.preco.toFixed(2).replace('.', ','),
+      i.qtd,
+      valorDe(i, i.qtd) === null ? '' : valorDe(i, i.qtd).toFixed(2).replace('.', ','),
+      i.sugestao.qtd, i.sugestao.medida ? 'consumo medido' : 'referencia por classe',
       i.origem || 'nao identificada', i.irmaos, i.grupoTaxa === null ? '' : Math.round(i.grupoTaxa * 100),
       i.fatores.map((f) => f.nome + ': ' + f.texto).join(' | ')]));
 }
@@ -2618,8 +2660,9 @@ function pedidosPorFornecedor(lista) {
     b[1].reduce((s, x) => s + (x.qtd || 0), 0) - a[1].reduce((s, x) => s + (x.qtd || 0), 0));
   for (const [marca, is] of ordenadas) {
     const un = is.reduce((s, x) => s + (x.qtd || 0), 0);
+    const vl = temCusto() ? somaValor(is, (x) => x.qtd || 0) : null;
     linhas.push('═'.repeat(72));
-    linhas.push('FORNECEDOR: ' + marca + '   —   ' + is.length + ' itens, ' + un + ' unidades');
+    linhas.push('FORNECEDOR: ' + marca + '   —   ' + is.length + ' itens, ' + un + ' unidades' + (vl !== null ? ', ' + brl(vl) + ' a custo' : ''));
     linhas.push('═'.repeat(72));
     for (const i of is.sort((a, b) => b.prioridade - a.prioridade)) {
       linhas.push('  ' + String(i.qtd).padStart(4, ' ') + ' un · ' + (i.produto || '').padEnd(16, ' ') +
@@ -2790,6 +2833,7 @@ function atualizarCarrinho() {
   barra.classList.toggle('oculto', marcados.length === 0);
   $('#carrinhoItens').textContent = n(marcados.length);
   $('#carrinhoUnidades').textContent = n(marcados.reduce((s, i) => s + (i.qtd || 0), 0));
+  $('#carrinhoValor').textContent = temCusto() ? ' · ' + brl(somaValor(marcados, (i) => i.qtd || 0)) + ' a custo' : '';
 }
 
 function renderTudo() {

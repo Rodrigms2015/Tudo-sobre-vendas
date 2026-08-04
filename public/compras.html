@@ -168,13 +168,88 @@
   .marca-txt h1 { font-size: 16px; font-weight: 650; letter-spacing: -.01em; }
   .marca-txt .sobrancelha { color: rgba(255, 255, 255, .62); }
   .topo-dir { margin-left: auto; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-  .topo-info {
-    font-size: 12px;
-    color: rgba(255, 255, 255, .72);
-    text-align: right;
-    line-height: 1.35;
+  /* Fichas de estado: dizem o que entrou e se gravou, sem precisar abrir aba. */
+  .estado-fichas { display: flex; gap: 8px; flex-wrap: wrap; }
+  .ficha-estado {
+    appearance: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255, 255, 255, .08);
+    border: 1px solid rgba(255, 255, 255, .18);
+    border-radius: 8px;
+    padding: 6px 11px;
+    min-height: 42px;
+    color: #fff;
+    cursor: pointer;
+    text-align: left;
+    font: inherit;
+    transition: background .15s, border-color .15s;
   }
-  .topo-info strong { color: #fff; font-weight: 600; }
+  .ficha-estado:hover { background: rgba(255, 255, 255, .16); border-color: rgba(255, 255, 255, .4); }
+  .ficha-estado .sinal {
+    width: 20px; height: 20px; border-radius: 50%;
+    display: grid; place-items: center;
+    font-size: 12px; font-weight: 800; flex-shrink: 0;
+  }
+  .ficha-estado[data-ok="sim"] .sinal { background: #1F8A5F; color: #fff; }
+  .ficha-estado[data-ok="nao"] .sinal { background: rgba(255,255,255,.16); color: rgba(255,255,255,.75); border: 1px dashed rgba(255,255,255,.5); }
+  .ficha-estado[data-ok="erro"] .sinal { background: #C4362B; color: #fff; }
+  .ficha-estado .txt { line-height: 1.25; min-width: 0; }
+  .ficha-estado .rot { font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: rgba(255,255,255,.62); }
+  .ficha-estado .val { font-size: 12.5px; font-weight: 600; white-space: nowrap; }
+  .ficha-estado[data-ok="nao"] .val { color: rgba(255,255,255,.75); font-weight: 500; }
+
+  /* Passos da tela inicial. */
+  .passos { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); width: 100%; text-align: left; }
+  .passo {
+    background: var(--papel);
+    border: 1px solid var(--borda);
+    border-left: 4px solid var(--borda-forte);
+    border-radius: var(--raio);
+    padding: 16px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+  }
+  .passo[data-estado="feito"] { border-left-color: var(--saudavel); }
+  .passo[data-estado="agora"] { border-left-color: var(--laranja); box-shadow: var(--sombra); }
+  .passo[data-estado="depois"] { opacity: .82; }
+  .passo .cab { display: flex; align-items: center; gap: 10px; }
+  .passo .n {
+    width: 26px; height: 26px; border-radius: 50%;
+    display: grid; place-items: center;
+    font-size: 13px; font-weight: 800; flex-shrink: 0;
+    background: var(--chao); color: var(--tinta-2);
+  }
+  .passo[data-estado="feito"] .n { background: var(--saudavel); color: #fff; }
+  .passo[data-estado="agora"] .n { background: var(--laranja); color: #26160A; }
+  .passo h4 { margin: 0; font-size: 14.5px; font-weight: 650; }
+  .passo p { font-size: 13px; color: var(--tinta-2); line-height: 1.5; }
+  .passo .confirma { font-size: 12.5px; color: var(--saudavel); font-weight: 600; }
+
+  /* Aviso flutuante de confirmação. */
+  .recado {
+    position: fixed;
+    left: 50%; bottom: 26px;
+    transform: translateX(-50%);
+    background: var(--marinho-fundo);
+    color: #fff;
+    border-left: 4px solid var(--saudavel);
+    border-radius: 10px;
+    padding: 13px 18px;
+    box-shadow: var(--sombra-alta);
+    z-index: 60;
+    max-width: min(560px, 92vw);
+    font-size: 13.5px;
+    line-height: 1.45;
+    display: flex;
+    gap: 11px;
+    align-items: flex-start;
+  }
+  .recado[data-tom="erro"] { border-left-color: var(--critico); }
+  .recado b { display: block; font-size: 14px; margin-bottom: 2px; }
+  .recado .fechar { margin-left: auto; background: none; border: 0; color: rgba(255,255,255,.7); cursor: pointer; font-size: 18px; line-height: 1; padding: 0 2px; }
 
   /* ── Navegação ───────────────────────────────────────────────── */
   .abas {
@@ -631,8 +706,8 @@
       </div>
     </div>
     <div class="topo-dir">
-      <div class="topo-info" id="topoInfo"></div>
-      <button class="bt bt-claro bt-mini" id="btImportarTopo" type="button">Carregar estoque</button>
+      <div class="estado-fichas" id="estadoFichas"></div>
+      <button class="bt bt-claro bt-mini" id="btImportarTopo" type="button">Carregar arquivo</button>
     </div>
   </div>
 </header>
@@ -640,13 +715,13 @@
 <nav class="abas" aria-label="Seções">
   <div class="abas-interno" role="tablist">
     <button class="aba" role="tab" data-vista="painel" aria-selected="true">Painel</button>
-    <button class="aba" role="tab" data-vista="comprar" aria-selected="false">Comprar <span class="selo" id="seloComprar">0</span></button>
-    <button class="aba" role="tab" data-vista="oportunidades" aria-selected="false">Oportunidades <span class="selo" id="seloOport">0</span></button>
-    <button class="aba" role="tab" data-vista="demanda" aria-selected="false">Demanda <span class="selo" id="seloDemanda">0</span></button>
-    <button class="aba" role="tab" data-vista="marcas" aria-selected="false">Marcas <span class="selo" id="seloMarcas">0</span></button>
+    <button class="aba" role="tab" data-vista="comprar" aria-selected="false" title="Itens que passam nos filtros da lista de compra agora">Comprar <span class="selo" id="seloComprar">0</span></button>
+    <button class="aba" role="tab" data-vista="oportunidades" aria-selected="false" title="Itens com saldo alto e giro baixo — o que os vendedores têm para empurrar">Oportunidades <span class="selo" id="seloOport">0</span></button>
+    <button class="aba" role="tab" data-vista="demanda" aria-selected="false" title="Itens zerados que tiveram venda comprovada — a compra que não pode esperar">Demanda <span class="selo" id="seloDemanda">0</span></button>
+    <button class="aba" role="tab" data-vista="marcas" aria-selected="false" title="Prefixos e grupos que ainda não têm marca definida">Marcas <span class="selo" id="seloMarcas">0</span></button>
     <button class="aba" role="tab" data-vista="frota" aria-selected="false">Frota &amp; Região</button>
     <button class="aba" role="tab" data-vista="evolucao" aria-selected="false">Evolução</button>
-    <button class="aba" role="tab" data-vista="dados" aria-selected="false">Dados</button>
+    <button class="aba" role="tab" data-vista="dados" aria-selected="false" title="O que está carregado, o que está gravado e a qualidade do cadastro">Situação</button>
   </div>
 </nav>
 
@@ -655,19 +730,19 @@
   <!-- Estado sem dados: é a primeira coisa que qualquer pessoa vê ao abrir o link. -->
   <section id="semDados" class="secao">
     <div class="vazio" id="zonaSolta">
-      <div class="sobrancelha">Nenhum estoque carregado neste navegador</div>
-      <h3>Arraste o arquivo de estoque aqui</h3>
+      <div class="sobrancelha">Arraste um arquivo para qualquer lugar da tela</div>
+      <h3>Dois relatórios do Opus, na ordem que você quiser</h3>
       <p>
-        Aceita o <b>.xls</b> exportado do sistema (o mesmo arquivo, sem editar) ou um <b>.csv</b>.
-        O arquivo é lido dentro do seu navegador e fica guardado só neste aparelho — nada é enviado
-        para servidor nenhum. Quem abrir este link vê esta tela, não os seus dados.
+        A página reconhece sozinha qual é qual pelo cabeçalho. Tudo é lido <b>dentro do seu navegador</b>
+        e fica gravado só neste aparelho — nada vai para servidor nenhum, e quem abrir este link vê esta
+        tela, não os seus dados.
       </p>
-      <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
+      <div class="passos" id="passos"></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:4px">
         <button class="bt bt-forte" id="btEscolher" type="button">Escolher arquivo</button>
         <button class="bt" id="btExemplo" type="button">Ver com dados de exemplo</button>
       </div>
       <input type="file" id="arquivo" accept=".xls,.xlsx,.csv,.txt" class="oculto" />
-      <p class="sobrancelha" style="margin-top:4px">Colunas esperadas: Cód. Interno · Cód. Produto · Cód. Original · Grupo · Descrição · Curva · Saldo</p>
     </div>
   </section>
 
@@ -1044,6 +1119,11 @@
 
   <!-- ── DADOS ───────────────────────────────────────────────── -->
   <section class="vista" id="vista-dados" hidden>
+    <div class="secao">
+      <div class="secao-topo"><h2>O que está carregado agora</h2><span class="nota">Se não está escrito aqui, não entrou.</span></div>
+      <div class="grade" id="situacaoCartoes"></div>
+    </div>
+
     <div class="secao">
       <div class="secao-topo"><h2>Envios guardados</h2><span class="nota">Ficam neste navegador. Trocar de aparelho começa do zero.</span></div>
       <div class="rolo">
@@ -2101,10 +2181,24 @@ async function comLoja(modo, fn) {
   });
 }
 
-const guardarEnvio = (e) => comLoja('readwrite', (l) => l.put(e));
+async function gravarVerificado(registro, contar) {
+  /* Gravar sem conferir e o mesmo que nao saber se gravou. Escreve, le de
+     volta e compara a contagem - so entao a tela diz "salvo". */
+  await comLoja('readwrite', (l) => l.put(registro));
+  const lido = await comLoja('readonly', (l) => l.get(registro.id));
+  if (!lido) throw new Error('gravou mas nao voltou na leitura');
+  const esperado = contar(registro), obtido = contar(lido);
+  if (esperado !== obtido) throw new Error('voltou incompleto: ' + obtido + ' de ' + esperado);
+  estado.gravacao = { ok: true, em: new Date().toISOString(), erro: null };
+  return obtido;
+}
+
+const guardarEnvio = (e) => gravarVerificado(e, (r) => (r.itens || []).length);
 const guardarMapaMarcas = () => comLoja('readwrite', (l) => l.put({ id: '__marcas', mapa: estado.mapaMarcas }));
 const guardarQuantidades = () => comLoja('readwrite', (l) => l.put({ id: '__quantidades', mapa: estado.quantidades }));
-const guardarMovimentos = (nome) => comLoja('readwrite', (l) => l.put({ id: '__movimentos', nome, em: new Date().toISOString(), movimentos: estado.movimentos }));
+const guardarMovimentos = (nome) => gravarVerificado(
+  { id: '__movimentos', nome, em: new Date().toISOString(), movimentos: estado.movimentos },
+  (r) => (r.movimentos || []).length);
 const lerEnvios = () => comLoja('readonly', (l) => l.getAll());
 const removerEnvio = (id) => comLoja('readwrite', (l) => l.delete(id));
 const limparEnvios = () => comLoja('readwrite', (l) => l.clear());
@@ -2126,6 +2220,9 @@ const estado = {
   resumoDemanda: null,
   mapaMarcas: {},
   quantidades: {},
+  gravacao: { ok: null, em: null, erro: null },
+  nomeMovimentos: null,
+  emMovimentos: null,
   bancoOk: true,
 };
 
@@ -2146,6 +2243,35 @@ const valorDe = (i, qtd) => (i.custo === null ? null : i.custo * qtd);
 const somaValor = (lista, qtdDe) => lista.reduce((s, i) => s + (i.custo === null ? 0 : i.custo * qtdDe(i)), 0);
 
 const envioAtual = () => estado.envios.find((e) => e.id === estado.atualId) || null;
+
+/* Uma fonte so para "o que esta carregado". Cabecalho, tela inicial e aba
+   Situacao leem daqui, entao nao existe chance de um dizer uma coisa e o
+   outro dizer outra. */
+function situacaoDoSistema() {
+  const e = envioAtual();
+  const R = estado.resumoDemanda;
+  const L = itens();
+  const chaves = L.length ? resumoPrefixos() : [];
+  const semMarca = chaves.filter((c) => !c.marca);
+  return {
+    estoque: e ? {
+      ok: true, nome: e.nome, data: e.dataISO, itens: e.itens.length,
+      envios: estado.envios.length,
+      unidades: e.itens.reduce((s, i) => s + (i.saldo || 0), 0),
+    } : { ok: false },
+    movimentacao: R ? {
+      ok: true, nome: estado.nomeMovimentos, inicio: R.inicio, fim: R.fim,
+      dias: R.dias, lancamentos: R.linhas, filiais: R.filiais, produtos: R.produtosComVenda,
+    } : { ok: false },
+    marcas: L.length ? {
+      itensComMarca: L.filter((i) => i.marca).length, itens: L.length,
+      chavesDefinidas: chaves.length - semMarca.length, chaves: chaves.length,
+      itensSemMarca: semMarca.reduce((s, c) => s + c.itens, 0),
+    } : null,
+    ajustes: Object.keys(estado.quantidades).length,
+    gravacao: estado.gravacao,
+  };
+}
 const itens = () => (estado.analise ? estado.analise.itens : []);
 
 /* Nome legível para um grupo, deduzido da família que mais aparece nele. */
@@ -2950,6 +3076,54 @@ function renderEvolucao() {
 /* ─── 19. Dados e qualidade ──────────────────────────────────────── */
 
 function renderDados() {
+  const st = situacaoDoSistema();
+  const cartao = ({ rot, ok, valor, linhas, acao }) =>
+    '<div class="ficha" style="border-left:4px solid ' + (ok ? 'var(--saudavel)' : 'var(--borda-forte)') + '">' +
+    '<div class="sobrancelha">' + esc(rot) + '</div>' +
+    '<div style="font-size:19px;font-weight:700;line-height:1.2">' +
+      (ok ? '<span style="color:var(--saudavel)">\u2713</span> ' : '<span style="color:var(--tinta-3)">\u2014</span> ') + esc(valor) + '</div>' +
+    '<div>' + linhas.map((l) => '<div class="linhadados"><span>' + esc(l[0]) + '</span><b>' + esc(l[1]) + '</b></div>').join('') + '</div>' +
+    (acao ? '<div style="margin-top:auto;padding-top:9px">' + acao + '</div>' : '') + '</div>';
+
+  const g = st.gravacao;
+  $('#situacaoCartoes').innerHTML = [
+    cartao({
+      rot: 'Relatório de estoque', ok: st.estoque.ok,
+      valor: st.estoque.ok ? n(st.estoque.itens) + ' itens' : 'não carregado',
+      linhas: st.estoque.ok
+        ? [['Arquivo', st.estoque.nome], ['Data do estoque', dataBr(st.estoque.data)],
+           ['Unidades em estoque', n(st.estoque.unidades)], ['Envios guardados', String(st.estoque.envios)]]
+        : [['O que falta', 'subir o relatório de estoque']],
+      acao: '<button class="bt bt-mini" data-abrir-arquivo="1" type="button">' + (st.estoque.ok ? 'Carregar outro' : 'Carregar agora') + '</button>',
+    }),
+    cartao({
+      rot: 'Relatório de movimentação', ok: st.movimentacao.ok,
+      valor: st.movimentacao.ok ? n(st.movimentacao.lancamentos) + ' lançamentos' : 'não carregado',
+      linhas: st.movimentacao.ok
+        ? [['Arquivo', st.movimentacao.nome || '—'],
+           ['Período', dataBr(st.movimentacao.inicio) + ' a ' + dataBr(st.movimentacao.fim)],
+           ['Dias cobertos', String(st.movimentacao.dias)],
+           ['Filial no arquivo', st.movimentacao.filiais.join(', ') || '—'],
+           ['Peças com venda', n(st.movimentacao.produtos)]]
+        : [['O que muda com ele', 'a quantidade sugerida passa a vir da venda real'],
+           ['Sem ele', 'a sugestão é só referência por classe e curva']],
+      acao: '<button class="bt bt-mini" data-abrir-arquivo="1" type="button">' + (st.movimentacao.ok ? 'Carregar outro' : 'Carregar agora') + '</button>',
+    }),
+    cartao({
+      rot: 'Gravação neste navegador', ok: !!g.ok && !g.erro,
+      valor: g.erro ? 'falhou' : g.ok ? 'confirmada' : 'nada gravado ainda',
+      linhas: g.erro
+        ? [['Erro', g.erro], ['O que isso significa', 'os dados valem só enquanto esta aba estiver aberta']]
+        : g.ok
+        ? [['Última gravação', new Date(g.em).toLocaleString('pt-BR')],
+           ['Como foi conferida', 'escrevi, li de volta e a contagem bateu'],
+           ['Chaves com marca (suas + automáticas)', st.marcas ? st.marcas.chavesDefinidas + ' de ' + st.marcas.chaves : '0'],
+           ['Quantidades que você ajustou', String(st.ajustes)]]
+        : [['Situação', 'nenhum arquivo foi carregado ainda']],
+    }),
+  ].join('');
+  $$('[data-abrir-arquivo]').forEach((b) => b.addEventListener('click', () => $('#arquivo').click()));
+
   $('#corpoEnvios').innerHTML = [...estado.envios].sort((a, b) => new Date(b.dataISO) - new Date(a.dataISO)).map((e) => {
     const zerados = e.itens.filter((i) => i.saldo === 0).length;
     const unidades = e.itens.reduce((s, i) => s + (i.saldo || 0), 0);
@@ -3142,9 +3316,22 @@ async function carregarArquivo(file) {
     if (iMov >= 0) {
       const movimentos = normalizarMovimentacao(linhas, iMov);
       estado.movimentos = movimentos;
-      try { await guardarMovimentos(nome); } catch { estado.bancoOk = false; }
+      estado.nomeMovimentos = nome;
+      let gravados = null;
+      try { gravados = await guardarMovimentos(nome); }
+      catch (err) { estado.gravacao = { ok: false, em: null, erro: err.message || String(err) }; }
       recalcular();
       renderTudo();
+      const R = estado.resumoDemanda;
+      if (estado.gravacao.ok) {
+        recado('Movimentação carregada e gravada',
+          n(movimentos.length) + ' lançamentos de ' + dataBr(R.inicio) + ' a ' + dataBr(R.fim) + ' (' + R.dias + ' dias). ' +
+          'Conferi a gravação: ' + n(gravados) + ' linhas voltaram do banco. A sugestão de compra agora usa venda medida.');
+      } else {
+        recado('Movimentação carregada, mas NÃO gravada',
+          n(movimentos.length) + ' lançamentos foram lidos e já valem nesta tela, mas não consegui gravar neste navegador (' +
+          estado.gravacao.erro + '). Se fechar a aba, vai precisar subir de novo.', 'erro');
+      }
       trocarVista(estado.analise ? 'demanda' : 'painel');
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
@@ -3160,14 +3347,26 @@ async function carregarArquivo(file) {
     estado.envios.push(envio);
     estado.atualId = envio.id;
     estado.marcados.clear();
-    try { await guardarEnvio(envio); }
-    catch { estado.bancoOk = false; }
+    let gravados = null;
+    try { gravados = await guardarEnvio(envio); }
+    catch (err) { estado.gravacao = { ok: false, em: null, erro: err.message || String(err) }; }
     recalcular();
     renderTudo();
+    const zerados = itensLidos.filter((i) => i.saldo === 0).length;
+    if (estado.gravacao.ok) {
+      recado('Estoque carregado e gravado',
+        n(itensLidos.length) + ' itens de ' + dataBr(envio.dataISO) + ', ' + n(zerados) + ' com saldo zero. ' +
+        'Conferi a gravação: ' + n(gravados) + ' itens voltaram do banco.' +
+        (estado.resumoDemanda ? '' : ' Falta a movimentação para a sugestão virar venda medida.'));
+    } else {
+      recado('Estoque carregado, mas NÃO gravado',
+        n(itensLidos.length) + ' itens já valem nesta tela, mas não consegui gravar neste navegador (' +
+        estado.gravacao.erro + '). Se fechar a aba, vai precisar subir de novo.', 'erro');
+    }
     trocarVista('painel');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   } catch (err) {
-    alert('Não consegui ler o arquivo.\n\n' + (err && err.message ? err.message : err));
+    recado('Não consegui ler ' + nome, (err && err.message ? err.message : String(err)), 'erro');
   }
 }
 
@@ -3282,18 +3481,108 @@ function atualizarCarrinho() {
   $('#carrinhoValor').textContent = temCusto() ? ' · ' + brl(somaValor(marcados, (i) => i.qtd || 0)) + ' a custo' : '';
 }
 
+const RECADO_ID = 'recadoAtual';
+
+/* Confirmação explícita depois de cada carga. Some sozinha, mas fica tempo
+   suficiente para ser lida — e some na hora se a pessoa fechar. */
+function recado(titulo, texto, tom = 'ok') {
+  const antigo = document.getElementById(RECADO_ID);
+  if (antigo) antigo.remove();
+  const el = document.createElement('div');
+  el.className = 'recado';
+  el.id = RECADO_ID;
+  el.setAttribute('role', 'status');
+  el.dataset.tom = tom;
+  el.innerHTML = '<span class="sinal" aria-hidden="true" style="font-size:17px">' + (tom === 'erro' ? '!' : '\u2713') + '</span>' +
+    '<span><b>' + esc(titulo) + '</b>' + esc(texto) + '</span>' +
+    '<button class="fechar" type="button" aria-label="Fechar aviso">\u00d7</button>';
+  el.querySelector('.fechar').addEventListener('click', () => el.remove());
+  document.body.appendChild(el);
+  setTimeout(() => { if (document.getElementById(RECADO_ID) === el) el.remove(); }, tom === 'erro' ? 14000 : 9000);
+}
+
+function renderEstado() {
+  const st = situacaoDoSistema();
+  const fichas = [];
+
+  fichas.push({
+    ok: st.estoque.ok ? 'sim' : 'nao',
+    rot: 'Estoque',
+    val: st.estoque.ok ? n(st.estoque.itens) + ' itens · ' + dataBr(st.estoque.data) : 'não carregado',
+    titulo: st.estoque.ok
+      ? 'Arquivo ' + st.estoque.nome + ' — ' + n(st.estoque.itens) + ' itens, ' + n(st.estoque.unidades) + ' unidades. Clique para ver a situação completa.'
+      : 'Nenhum relatório de estoque carregado. Clique para carregar.',
+  });
+
+  fichas.push({
+    ok: st.movimentacao.ok ? 'sim' : 'nao',
+    rot: 'Movimentação',
+    val: st.movimentacao.ok ? n(st.movimentacao.lancamentos) + ' lanç. · ' + st.movimentacao.dias + ' dias' : 'não carregada',
+    titulo: st.movimentacao.ok
+      ? 'Arquivo ' + (st.movimentacao.nome || '—') + ' — de ' + dataBr(st.movimentacao.inicio) + ' a ' + dataBr(st.movimentacao.fim) + '. A sugestão de compra usa esta venda medida.'
+      : 'Sem movimentação, a quantidade sugerida é só referência por classe. Clique para carregar.',
+  });
+
+  const g = st.gravacao;
+  fichas.push({
+    ok: g.erro ? 'erro' : g.ok ? 'sim' : 'nao',
+    rot: 'Gravado',
+    val: g.erro ? 'falhou' : g.ok ? 'confirmado' : 'nada ainda',
+    titulo: g.erro
+      ? 'Não consegui gravar neste navegador: ' + g.erro + '. Os dados valem só enquanto a aba estiver aberta.'
+      : g.ok
+      ? 'Gravado e conferido às ' + new Date(g.em).toLocaleTimeString('pt-BR') + '. Escrevi, li de volta e a contagem bateu — fecha e abre que continua aqui.'
+      : 'Nada foi gravado ainda neste navegador.',
+  });
+
+  $('#estadoFichas').innerHTML = fichas.map((f) =>
+    '<button class="ficha-estado" data-ok="' + f.ok + '" data-ir="dados" type="button" title="' + esc(f.titulo) + '">' +
+    '<span class="sinal" aria-hidden="true">' + (f.ok === 'sim' ? '\u2713' : f.ok === 'erro' ? '!' : '\u2026') + '</span>' +
+    '<span class="txt"><span class="rot">' + esc(f.rot) + '</span><br><span class="val">' + esc(f.val) + '</span></span></button>').join('');
+  $$('#estadoFichas .ficha-estado').forEach((b) => b.addEventListener('click', () => trocarVista('dados')));
+
+  // Passos da tela inicial.
+  const passos = [
+    {
+      n: 1, titulo: 'Relatório de estoque',
+      feito: st.estoque.ok,
+      p: 'O arquivo com Cód. Interno, Cód. Produto, Cód. Original, Grupo, Descrição, Curva e Saldo. É o que diz o que existe e quanto tem.',
+      confirma: st.estoque.ok ? n(st.estoque.itens) + ' itens carregados de ' + st.estoque.nome : null,
+    },
+    {
+      n: 2, titulo: 'Relatório de movimentação',
+      feito: st.movimentacao.ok,
+      p: 'Movimentação de Produto, com Data, TP (E/S) e Quantidade. É o que transforma a sugestão de compra em venda medida, no lugar de estimativa.',
+      confirma: st.movimentacao.ok
+        ? n(st.movimentacao.lancamentos) + ' lançamentos, ' + dataBr(st.movimentacao.inicio) + ' a ' + dataBr(st.movimentacao.fim)
+        : null,
+    },
+    {
+      n: 3, titulo: 'Marcas dos fornecedores',
+      feito: !!(st.marcas && st.marcas.chavesDefinidas > 0),
+      p: 'Opcional, e você faz uma vez só. Sem isso tudo funciona — com isso o pedido sai separado por fornecedor.',
+      confirma: st.marcas && st.marcas.itensComMarca
+        ? n(st.marcas.itensComMarca) + ' de ' + n(st.marcas.itens) + ' itens já têm marca'
+        : null,
+    },
+  ];
+  const primeiroPendente = passos.find((x) => !x.feito);
+  $('#passos').innerHTML = passos.map((x) => {
+    const estadoPasso = x.feito ? 'feito' : (primeiroPendente && primeiroPendente.n === x.n ? 'agora' : 'depois');
+    return '<div class="passo" data-estado="' + estadoPasso + '">' +
+      '<div class="cab"><span class="n">' + (x.feito ? '\u2713' : x.n) + '</span><h4>' + esc(x.titulo) + '</h4></div>' +
+      '<p>' + esc(x.p) + '</p>' +
+      (x.confirma ? '<div class="confirma">\u2713 ' + esc(x.confirma) + '</div>'
+        : '<div style="font-size:12.5px;color:var(--tinta-3)">' + (estadoPasso === 'agora' ? 'É o próximo passo.' : 'Ainda não feito.') + '</div>') +
+      '</div>';
+  }).join('');
+}
+
 function renderTudo() {
   const temDados = itens().length > 0;
   $('#semDados').classList.toggle('oculto', temDados);
   $$('.vista').forEach((v) => { if (temDados) v.classList.remove('oculto'); else v.classList.add('oculto'); });
-  const e = envioAtual();
-  $('#topoInfo').innerHTML = temDados && e
-    ? 'Estoque de <strong>' + dataBr(e.dataISO) + '</strong> · <strong>' + n(itens().length) + '</strong> itens<br>' +
-      (estado.resumoDemanda
-        ? '<strong>' + n(estado.resumoDemanda.linhas) + '</strong> movimentos · venda medida em ' + estado.resumoDemanda.dias + ' dias'
-        : estado.consumo ? 'consumo medido em ' + estado.consumo.dias + ' dias'
-        : 'sem movimentação carregada — sugestão por classe')
-    : 'nenhum estoque carregado';
+  renderEstado();
   if (!temDados) { $('#seloComprar').textContent = '0'; $('#seloOport').textContent = '0'; atualizarCarrinho(); return; }
   montarSelects();
   renderPainel();
@@ -3456,8 +3745,20 @@ $('#logo').src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAOAAAAB4CAIAAABk
     estado.atualId = [...estado.envios].sort((a, b) => new Date(b.dataISO) - new Date(a.dataISO))[0].id;
     recalcular();
   }
+  if (estado.envios.length || estado.movimentos) {
+    estado.gravacao = { ok: true, em: new Date().toISOString(), erro: null };
+  }
   renderTudo();
   trocarVista('painel');
+  const st = situacaoDoSistema();
+  if (st.estoque.ok || st.movimentacao.ok) {
+    recado('Recuperado deste navegador',
+      [st.estoque.ok ? n(st.estoque.itens) + ' itens de estoque' : null,
+       st.movimentacao.ok ? n(st.movimentacao.lancamentos) + ' lançamentos de movimentação' : null,
+       st.marcas && st.marcas.chavesDefinidas ? st.marcas.chavesDefinidas + ' chaves com marca' : null,
+       st.ajustes ? st.ajustes + ' quantidades ajustadas por você' : null,
+      ].filter(Boolean).join(' · ') + '. Nada se perdeu.');
+  }
 })();
 </script>
 </body>

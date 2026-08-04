@@ -154,6 +154,35 @@ lista de compra mais próxima do consumo real da filial.
 
 ---
 
+## 3c. Saber o que entrou e o que gravou
+
+Uma ferramenta de decisão que deixa dúvida sobre o próprio estado não é usável: se a pessoa
+não sabe se o arquivo entrou, ela não confia no número que está lendo. Três mecanismos
+resolvem isso, e os três leem da **mesma função** (`situacaoDoSistema()`), então nunca
+divergem entre si.
+
+**1. Fichas no cabeçalho, sempre visíveis.** Estoque, Movimentação e Gravado, cada uma com
+sinal (`✓`, `…`, `!`), o número do que entrou e um resumo ao passar o mouse. Clicar leva à aba
+Situação. Não é preciso abrir nada para saber onde se está.
+
+**2. Confirmação depois de cada carga.** Um aviso nomeia o que entrou com números conferíveis
+— *"28.908 lançamentos de 05/01 a 31/07 (208 dias). Conferi a gravação: 28.908 linhas voltaram
+do banco."* Ao reabrir a página, outro aviso lista o que foi recuperado.
+
+**3. Gravação verificada, não presumida.** `gravarVerificado()` escreve, **lê de volta** e
+compara a contagem. Só depois disso a tela diz "gravado". Se falhar, a ficha fica vermelha e o
+aviso diz em texto claro que os dados valem apenas enquanto a aba estiver aberta — em vez de
+falhar em silêncio, como antes.
+
+A tela inicial virou **três passos numerados** com estado próprio (feito / é o próximo /
+ainda não), e a aba `Dados` virou **Situação**, abrindo com três cartões: qual arquivo, de
+quando, quantas linhas, e quando foi a última gravação conferida.
+
+Os selos das abas ganharam legenda ao passar o mouse — um número sem rótulo (`336`, `516`) não
+informa nada.
+
+---
+
 ## 4. Origem provável do código — o que ela é e o que ela não é
 
 > **A origem é inferida pelo formato do código original, não por catálogo de aplicação.**

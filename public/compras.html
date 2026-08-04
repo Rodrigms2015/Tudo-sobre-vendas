@@ -781,10 +781,10 @@
           </select>
         </div>
         <div class="campo">
-          <label for="fAgrupar">Cadastros repetidos</label>
+          <label for="fAgrupar">Variantes fiscais</label>
           <select id="fAgrupar">
-            <option value="1" selected>Juntar numa linha só</option>
-            <option value="0">Mostrar todos separados</option>
+            <option value="1" selected>Juntar variantes fiscais</option>
+            <option value="0">Mostrar cada cadastro</option>
           </select>
         </div>
         <div class="campo">
@@ -1724,6 +1724,25 @@ const SITUACOES = {
   SEM_SALDO: { rotulo: 'Saldo ausente',     tom: 'neutro'   },
 };
 
+/* Um mesmo item existe em vários cadastros porque o tratamento fiscal muda
+   (ICMS, substituição, origem). Não é erro de cadastro: é como a empresa
+   precisa comprar e faturar. O sufixo [2], [3], [5] marca essas variantes.
+
+   Isso cria duas relações que NÃO são a mesma coisa:
+
+   - Grupo fiscal: mesmo código base e mesma descrição. É a MESMA peça, do
+     MESMO fornecedor. Vira uma linha só na compra, somando saldo e venda.
+   - Equivalente: mesmo código original, marcas diferentes. Cobre o balcão
+     (o cliente é atendido), mas é outra compra, de outro fornecedor.
+
+   Confundir as duas ou inventa ruptura que não existe, ou junta marcas
+   diferentes no mesmo pedido. */
+const chaveFiscal = (item) => {
+  const b = semSufixo(item.produto).toUpperCase();
+  const d = chave(item.descricao);
+  return b && d ? b + '|' + d : null;
+};
+
 function analisar(itens, mapaMarcas = {}, resumo = null) {
   /* Com venda medida, "giro" deixa de ser a letra da curva e passa a ser
      quanto o item realmente saiu. A escala é relativa à própria carteira:
@@ -1749,9 +1768,16 @@ function analisar(itens, mapaMarcas = {}, resumo = null) {
   const porOriginal = new Map();
   for (const it of itens) {
     if (!it.original) continue;
-    const k = it.original.toUpperCase();
+    const k = it.original.toUpperCase() + '|' + chave(it.descricao);
     if (!porOriginal.has(k)) porOriginal.set(k, []);
     porOriginal.get(k).push(it);
+  }
+  const porFiscal = new Map();
+  for (const it of itens) {
+    const k = chaveFiscal(it);
+    if (!k) continue;
+    if (!porFiscal.has(k)) porFiscal.set(k, []);
+    porFiscal.get(k).push(it);
   }
 
   const porGrupo = new Map();
@@ -1785,8 +1811,14 @@ function analisar(itens, mapaMarcas = {}, resumo = null) {
   }
 
   const analisados = itens.map((item) => {
-    const irmaos = item.original ? (porOriginal.get(item.original.toUpperCase()) || []).filter((x) => x !== item) : [];
+    /* Atende o balcão quem tem a peça: o irmão fiscal ou o equivalente. */
+    const kOriginal = item.original ? item.original.toUpperCase() + '|' + chave(item.descricao) : null;
+    const kFiscal = chaveFiscal(item);
+    const irmaosFiscais = (kFiscal ? porFiscal.get(kFiscal) || [] : []).filter((x) => x !== item);
+    const equivalentes = (kOriginal ? porOriginal.get(kOriginal) || [] : []).filter((x) => x !== item && !irmaosFiscais.includes(x));
+    const irmaos = irmaosFiscais.concat(equivalentes);
     const similaresComSaldo = irmaos.filter((x) => (x.saldo ?? 0) > 0);
+    const fiscaisComSaldo = irmaosFiscais.filter((x) => (x.saldo ?? 0) > 0);
     const situacao = situacaoDe(item, similaresComSaldo.length > 0);
     const { familia, classe } = classificarFamilia(item.descricao);
     const origem = inferirOrigem(item.original);
@@ -1832,7 +1864,12 @@ function analisar(itens, mapaMarcas = {}, resumo = null) {
     } else {
       let f = 0, texto = '';
       if (situacao === 'RUPTURA') { f = 1.0; texto = 'Saldo zero e nenhum similar com o mesmo código original tem saldo. O balcão perde a venda.'; }
-      else if (situacao === 'COBERTA') { f = 0.22; texto = 'Saldo zero, mas ' + similaresComSaldo.length + ' cadastro' + (similaresComSaldo.length > 1 ? 's' : '') + ' com o mesmo código original ainda tem saldo (' + similaresComSaldo.map((x) => x.produto + ': ' + x.saldo).slice(0, 3).join(', ') + '). Atende, mas o cadastro está duplicado.'; }
+      else if (situacao === 'COBERTA') {
+        f = 0.22;
+        texto = fiscaisComSaldo.length
+          ? 'Saldo zero neste cadastro, mas o mesmo item em outro cadastro fiscal tem peça (' + fiscaisComSaldo.map((x) => x.produto + ': ' + x.saldo).slice(0, 3).join(', ') + '). O balcão atende — é a mesma peça, só entra com imposto diferente.'
+          : 'Saldo zero, mas ' + similaresComSaldo.length + ' equivalente' + (similaresComSaldo.length > 1 ? 's' : '') + ' de mesmo código original tem saldo (' + similaresComSaldo.map((x) => x.produto + ': ' + x.saldo).slice(0, 3).join(', ') + '). Atende o cliente, mas é outra marca.';
+      }
       else if (item.saldo === 1) { f = 0.70; texto = 'Última peça na prateleira. A próxima venda zera o item.'; }
       else if (situacao === 'RISCO') { f = 0.50; texto = 'Saldo ' + item.saldo + ', dentro da faixa de risco para curva ' + item.curva + '.'; }
       else if (situacao === 'EXCESSO') { f = 0.0; texto = 'Saldo ' + item.saldo + ' — acima do necessário para curva ' + item.curva + '. Não é caso de compra.'; }
@@ -1886,7 +1923,7 @@ function analisar(itens, mapaMarcas = {}, resumo = null) {
       origemDaMarca: item.marcaArquivo ? 'veio no próprio relatório'
         : (marcaManual ? 'definida por você no ' + rotuloChave(chaveDoMapa)
         : (detectada ? 'detectada pelo código ' + detectada.padrao : null)),
-      chaveDuplicata: item.original ? item.original.toUpperCase() + '|' + chave(item.descricao) : null,
+      chaveDuplicata: kFiscal,
       origem: origem.origem, origemConfianca: origem.confianca, origemMotivo: origem.motivo,
       similares: similaresComSaldo.length, irmaos: irmaos.length,
       grupoTamanho: grupo ? grupo.tamanho : 0, grupoTaxa: grupo ? grupo.taxa : null,
@@ -2193,7 +2230,7 @@ function recalcular() {
     it.demandaUsada = demanda;
     it.sugestao = sugerirQuantidade({ ...it, saldo }, consumo, estado.diasCobertura, demanda);
     if (it.repetidos > 1 && it.ehRepresentante) {
-      it.sugestao.texto += ' Soma os ' + it.repetidos + ' cadastros com este mesmo código original.';
+      it.sugestao.texto += ' Soma as ' + it.repetidos + ' variantes fiscais da mesma peça.';
     }
     const escolhida = estado.quantidades[it.interno || it.produto];
     it.qtdEscolhida = escolhida === undefined ? null : escolhida;
@@ -2290,7 +2327,7 @@ function renderPainel() {
   const degraus = [
     { rot: 'Itens no cadastro', v: total, exp: 'Tudo o que existe na filial.' },
     { rot: 'Com saldo zero', v: zerados, exp: 'A lista que o sistema entrega hoje. Grande demais para virar pedido.' },
-    { rot: 'Ruptura real', v: ruptura.length, exp: n(cobertas) + ' zerados saem daqui porque outro cadastro com o mesmo código original ainda tem peça.' },
+    { rot: 'Ruptura real', v: ruptura.length, exp: n(cobertas) + ' zerados saem daqui: ou a mesma peça em outro cadastro fiscal tem saldo, ou um equivalente de mesmo código original atende o balcão.' },
     { rot: 'Prioridade 55 ou mais', v: alta.length, exp: 'Sobra o que junta giro, essencialidade e linha comprometida.' },
     { rot: 'Prioridade 70 ou mais', v: urgente.length, exp: 'O pedido desta semana.' },
   ];
@@ -2388,7 +2425,7 @@ function renderComprar() {
       '<td>' + barraPrioridade(i.prioridade) + '</td>' +
       '<td>' + (i.curva ? '<span class="curva" data-c="' + i.curva + '">' + i.curva + '</span>' : '<span class="etiqueta" data-tom="neutro">sem curva</span>') + '</td>' +
       '<td><b style="font-weight:600">' + esc(i.descricao || '—') + '</b>' +
-        (i.repetidos > 1 ? ' <span class="etiqueta" data-tom="neutro" title="O mesmo código original aparece em ' + i.repetidos + ' cadastros. A quantidade sugerida já soma todos.">' + i.repetidos + ' cadastros</span>' : '') +
+        (i.repetidos > 1 ? ' <span class="etiqueta" data-tom="neutro" title="Mesma peça em ' + i.repetidos + ' cadastros fiscais. Saldo e venda somados; escolha o cadastro na hora de faturar.">' + i.repetidos + ' variantes fiscais</span>' : '') +
         '<br><span style="font-size:11.5px;color:var(--tinta-3)">' + esc(i.familia) + (i.origem ? ' · padrão ' + esc(i.origem) : '') + '</span></td>' +
       '<td>' + marcaCelula(i) + '</td>' +
       '<td class="mono">' + esc(i.produto || '—') + '</td>' +
@@ -2498,8 +2535,9 @@ function detalheItem(i) {
     '<div style="margin-top:11px">' +
       (i.custo !== null ? '<div class="linhadados"><span>Custo unitário · total do pedido</span><b>' + brl(i.custo) + ' · ' + brl(i.custo * i.qtd) + '</b></div>' : '') +
       '<div class="linhadados"><span>Grupo</span><b>' + esc(i.grupo) + '</b></div>' +
-      '<div class="linhadados"><span>Cadastros com o mesmo código original</span><b>' + i.irmaos + '</b></div>' +
-      (i.repetidos > 1 ? '<div class="linhadados"><span>Cadastros idênticos juntados aqui</span><b>' + i.conjunto.map((x) => x.produto).join(', ') + '</b></div>' : '') +
+      '<div class="linhadados"><span>Equivalentes de mesmo código original</span><b>' + i.irmaos + (i.irmaos ? ' cadastro' + (i.irmaos > 1 ? 's' : '') : '') + '</b></div>' +
+      (i.repetidos > 1 ? '<div class="linhadados"><span>Variantes fiscais somadas aqui</span><b>' +
+        i.conjunto.map((x) => x.produto + ' (' + (x.saldo ?? '—') + ')').join(', ') + '</b></div>' : '') +
       '<div class="linhadados"><span>Marca</span><b>' + esc(i.marca || 'não definida') + (i.origemDaMarca ? ' <span style="font-weight:400;color:var(--tinta-3)">(' + esc(i.origemDaMarca) + ')</span>' : '') + '</b></div>' +
       '<div class="linhadados"><span>Prefixo do código</span><b>' + esc(i.prefixo) + '</b></div>' +
       '<div class="linhadados"><span>Origem provável do código</span><b>' + esc(i.origem || 'não identificada') + '</b></div>' +
@@ -2601,7 +2639,7 @@ function renderDemanda() {
 
   $('#corpoZeradoVendendo').innerHTML = zeradoVendendo.slice(0, 40).map((i) =>
     '<tr><td><b style="font-weight:600">' + esc(i.demandaUsada.descricao || i.descricao) + '</b>' +
-      (i.repetidos > 1 ? ' <span class="etiqueta" data-tom="neutro">' + i.repetidos + ' cadastros</span>' : '') +
+      (i.repetidos > 1 ? ' <span class="etiqueta" data-tom="neutro">' + i.repetidos + ' variantes fiscais</span>' : '') +
       '<br><span class="mono" style="color:var(--tinta-3)">' + esc(i.produto) + '</span> ' +
       (i.curva ? '<span class="curva" data-c="' + i.curva + '">' + i.curva + '</span>' : '') + '</td>' +
     '<td>' + (i.marca ? '<span class="etiqueta" data-tom="neutro">' + esc(i.marca) + '</span>' : '<span style="color:var(--tinta-3);font-size:12px">—</span>') + '</td>' +
@@ -2947,7 +2985,7 @@ function renderDados() {
   const descCurta = L.filter((i) => i.descricao && i.descricao.length >= 19).length;
 
   const fichas = [
-    { t: 'Cadastros repetidos', v: n(recadastros), p: 'Itens cujo código de produto traz sufixo [2], [3], [5] — o mesmo item cadastrado várias vezes. Isso infla a lista de falta e divide o saldo real entre cadastros. É a causa de a falta bruta parecer maior do que é.', tom: 'atencao' },
+    { t: 'Variantes fiscais', v: n(recadastros), p: 'Itens com sufixo [2], [3], [5] no código: a mesma peça cadastrada mais de uma vez porque entra com tratamento fiscal diferente. Não é erro — é como a empresa precisa comprar e faturar. A plataforma junta essas variantes numa linha só na hora de comprar, somando saldo e venda, e mostra quais cadastros entraram.', tom: 'neutro' },
     { t: 'Sem código original', v: n(semOriginal), p: 'Sem o código original não dá para reconhecer a origem nem cruzar com similar. São os itens que ficam de fora do cruzamento com a frota.', tom: semOriginal > L.length * 0.15 ? 'atencao' : 'neutro' },
     { t: 'Descrição truncada', v: n(descCurta), p: 'Descrições cortadas em 19 caracteres na exportação. Se o relatório puder sair com a descrição inteira, a classificação por família melhora bastante.', tom: 'neutro' },
     { t: 'Sem curva ABC', v: n(semCurva), p: 'Sem curva, o componente de giro não pontua e o item aparece com nota mais baixa do que talvez mereça.', tom: semCurva ? 'atencao' : 'saudavel' },

@@ -21,15 +21,35 @@ O corte acontece em quatro degraus, e cada degrau diz o que descartou:
 |---|---:|---|
 | Cadastro inteiro | 9.387 | — |
 | Saldo zero | 4.742 | o que tem saldo |
-| **Ruptura real** | **1.778** | 2.964 zerados cujo **similar de mesmo código original ainda tem peça** |
-| Prioridade ≥ 55 | 2.638 | o que não junta giro, essencialidade e linha comprometida |
-| Prioridade ≥ 70 | 598 | o pedido da semana |
+| **Ruptura real** | **1.126** | 3.616 zerados cuja **variante fiscal ou equivalente ainda tem peça** |
+| Prioridade ≥ 55 | 780 | o que não junta giro medido, essencialidade e linha comprometida |
+| Prioridade ≥ 70 | 42 | o pedido da semana |
 
-O degrau do meio é o que mais paga. **Quase dois terços da "falta" não é falta**: é o mesmo
-item cadastrado duas, três, cinco vezes (sufixos `[2]`, `[3]`, `[5]` no código de produto),
-com o saldo parado em um dos cadastros e zero nos outros. São 4.050 cadastros repetidos no
-arquivo. Na aba **Comprar** eles são juntados numa linha só, com a quantidade somando o
-conjunto — senão o pedido sai com a mesma lâmpada três vezes.
+O degrau do meio é o que mais paga: **três quartos da "falta" não é falta.**
+
+### Variante fiscal e equivalente não são a mesma coisa
+
+Um item existe em vários cadastros porque o **tratamento fiscal muda** — ICMS, substituição,
+origem. O sufixo `[2]`, `[3]`, `[5]` marca essas variantes. **Não é erro de cadastro**: é como
+a empresa precisa comprar e faturar. São 4.050 cadastros assim no arquivo.
+
+Daí saem duas relações, e confundi-las custa caro nos dois sentidos:
+
+| Relação | Como se reconhece | O que significa |
+|---|---|---|
+| **Variante fiscal** | mesmo código base + mesma descrição (`4644TX-140C` e `4644TX-140C[5]`) | Mesma peça, mesmo fornecedor. Uma linha só na compra, somando saldo e venda. |
+| **Equivalente** | mesmo `Cód. Original` + mesma descrição, códigos base diferentes (`AF4223` Fleetguard e `CF21540` Mann) | Atende o balcão, mas é **outra marca, outra compra, outro fornecedor**. Nunca entra na mesma linha de pedido. |
+
+As duas cobrem o cliente, então as duas tiram o item da ruptura. Só a primeira vira uma linha
+de compra somada.
+
+Agrupar só por `Cód. Original`, como a primeira versão fazia, perdia **700 itens** cujas
+variantes fiscais não têm código original preenchido — eles apareciam como ruptura enquanto o
+cadastro irmão tinha 46 unidades na prateleira. Corrigido isso, a ruptura real caiu de 1.778
+para 1.126.
+
+Juntar os dois conceitos seria o erro oposto: o pedido sairia misturando Fleetguard e Mann
+na mesma linha.
 
 ---
 

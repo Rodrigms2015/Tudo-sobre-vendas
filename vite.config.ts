@@ -30,7 +30,12 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,jpg,ico,webmanifest}'],
+        // `carpa.html` é uma ferramenta avulsa, autossuficiente e distribuída
+        // por arquivo. Precachear serviria uma cópia velha depois de atualizada,
+        // e o fallback de navegação devolveria a aplicação no lugar dela.
+        globIgnores: ['carpa.html'],
         navigateFallback: 'index.html',
+        navigateFallbackDenylist: [/^\/carpa\.html$/],
         cleanupOutdatedCaches: true,
       },
     }),

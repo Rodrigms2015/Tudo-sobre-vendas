@@ -1,0 +1,2722 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#0A0A0B" />
+<title>PAINEL CARPA — Acesso x Compra</title>
+<meta name="description" content="Quem acessa a plataforma e compra, quem so consulta preco. Painel offline, um arquivo so." />
+<style>
+:root{
+  --preto:#0A0A0B; --carbono:#121316; --grafite:#1C1E23; --aco:#2A2D34; --aco2:#3A3E47;
+  --cinza:#8A9099; --branco:#F5F6F7; --amarelo:#F2B705; --ambar:#D98C00;
+  --vermelho:#D64545; --verde:#3E9E6A; --azul:#4A7FB5;
+  /* series validadas contra o fundo --carbono */
+  --s-sala:#5B8FD4; --s-ecom:#BC7F26;
+  --r:6px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{
+  background:var(--preto); color:var(--branco); font-size:15px; line-height:1.5;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-variant-numeric:tabular-nums}
+h1,h2,h3{line-height:1.15;font-weight:700}
+a{color:var(--azul)}
+:focus-visible{outline:2px solid var(--amarelo);outline-offset:2px;border-radius:3px}
+button,input,select,textarea{font:inherit;color:inherit}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* ---------- casca ---------- */
+.casca{max-width:1600px;margin:0 auto;padding:0 16px}
+/* Cabecalho e abas grudam juntos: assim nao existe constante de altura
+   para desalinhar quando o conteudo do topo quebra em duas linhas. */
+.cabecalho{position:sticky;top:0;z-index:40;background:var(--carbono)}
+header.topo{border-bottom:1px solid var(--aco);background:var(--carbono)}
+.topo-in{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:12px 0}
+.marca{display:flex;align-items:baseline;gap:10px}
+.marca b{font-size:18px;letter-spacing:.14em}
+.marca span{font-size:11px;color:var(--cinza);letter-spacing:.18em;text-transform:uppercase}
+.selo{margin-left:auto;display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:12px;color:var(--cinza)}
+.pill{border:1px solid var(--aco);border-radius:999px;padding:3px 10px;background:var(--grafite)}
+.pill.viva{border-color:var(--verde);color:var(--verde)}
+
+nav.abas{display:flex;gap:2px;overflow-x:auto;border-bottom:1px solid var(--aco);background:var(--carbono);scrollbar-width:thin}
+nav.abas button{
+  background:none;border:0;border-bottom:2px solid transparent;color:var(--cinza);
+  padding:0 16px;min-height:48px;white-space:nowrap;cursor:pointer;font-size:14px;font-weight:600;letter-spacing:.02em
+}
+nav.abas button:hover{color:var(--branco);background:var(--grafite)}
+nav.abas button[aria-current="page"]{color:var(--branco);border-bottom-color:var(--amarelo)}
+nav.abas .conta{display:inline-block;margin-left:6px;font-size:11px;background:var(--aco);border-radius:999px;padding:1px 7px;color:var(--branco);font-weight:700}
+nav.abas .conta.alerta{background:var(--vermelho)}
+
+/* Precisa ser mais específico que .casca, senão o padding lateral dela
+   zera o respiro do topo e o primeiro título encosta nas abas. */
+main.casca{padding-top:22px;padding-bottom:80px}
+.vista[hidden]{display:none}
+.secao{margin-bottom:28px}
+.secao>h2{font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--cinza);margin-bottom:12px;display:flex;align-items:center;gap:10px}
+.secao>h2::after{content:"";flex:1;height:1px;background:var(--aco)}
+.sub{color:var(--cinza);font-size:13px;margin-bottom:14px;max-width:78ch}
+
+/* ---------- cartoes de metrica ---------- */
+.metricas{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}
+.metrica{background:var(--carbono);border:1px solid var(--aco);border-radius:var(--r);padding:14px}
+.metrica .rot{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--cinza);display:block;margin-bottom:6px}
+.metrica .val{font-size:30px;font-weight:700;line-height:1.05;letter-spacing:-.02em}
+.metrica .val.sm{font-size:22px}
+.metrica .nota{font-size:12px;color:var(--cinza);margin-top:6px;line-height:1.35}
+.metrica.perigo{border-color:var(--vermelho)}
+.metrica.perigo .val{color:var(--vermelho)}
+.metrica.bom .val{color:var(--verde)}
+.metrica.aviso .val{color:var(--ambar)}
+
+/* ---------- barra sala x ecom ---------- */
+.split{background:var(--carbono);border:1px solid var(--aco);border-radius:var(--r);padding:16px}
+.split .barra{display:flex;height:34px;border-radius:4px;overflow:hidden;background:var(--grafite);gap:2px}
+.split .barra i{display:block}
+.split .leg{display:flex;gap:18px;margin-top:12px;flex-wrap:wrap;font-size:13px}
+.split .leg span{display:flex;align-items:center;gap:7px;color:var(--cinza)}
+.split .leg b{color:var(--branco);font-weight:700}
+.chave{width:10px;height:10px;border-radius:2px;flex:none}
+
+/* ---------- tabela ---------- */
+.rolo{overflow-x:auto;border:1px solid var(--aco);border-radius:var(--r);background:var(--carbono)}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--aco);white-space:nowrap;vertical-align:middle}
+thead th{
+  position:sticky;top:0;background:var(--grafite);z-index:2;font-size:11px;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--cinza);font-weight:700;border-bottom:1px solid var(--aco2)
+}
+thead th.ord{cursor:pointer;user-select:none}
+thead th.ord:hover{color:var(--branco)}
+thead th .seta{color:var(--amarelo)}
+tbody tr:hover{background:#171A1F}
+td.num,th.num{text-align:right;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-variant-numeric:tabular-nums}
+td.nome{white-space:normal;min-width:210px;max-width:320px}
+td.nome small{display:block;color:var(--cinza);font-size:11px}
+.zero{color:var(--aco2)}
+tfoot td{background:var(--grafite);font-weight:700;border-bottom:0}
+
+/* ---------- chips de estado ---------- */
+.chip{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:2px 9px;font-size:11px;font-weight:700;letter-spacing:.04em;border:1px solid;white-space:nowrap}
+.chip .pt{width:7px;height:7px;border-radius:50%;flex:none;background:currentColor}
+.c-bloq{color:var(--vermelho);border-color:var(--vermelho);background:rgba(214,69,69,.10)}
+.c-aviso{color:var(--ambar);border-color:var(--ambar);background:rgba(217,140,0,.10)}
+.c-bom{color:var(--verde);border-color:var(--verde);background:rgba(62,158,106,.10)}
+.c-neutro{color:var(--cinza);border-color:var(--aco2);background:var(--grafite)}
+.c-info{color:var(--s-sala);border-color:var(--s-sala);background:rgba(91,143,212,.10)}
+
+/* ---------- fila de decisao ---------- */
+.fila{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:12px}
+.caso{background:var(--carbono);border:1px solid var(--aco);border-left:3px solid var(--aco2);border-radius:var(--r);padding:14px;display:flex;flex-direction:column;gap:10px}
+.caso.g-bloq{border-left-color:var(--vermelho)}
+.caso.g-aviso{border-left-color:var(--ambar)}
+.caso.g-neutro{border-left-color:var(--cinza)}
+.caso.decidido{opacity:.55}
+.caso h3{font-size:15px}
+.caso h3 small{display:block;font-weight:400;color:var(--cinza);font-size:11px;margin-top:2px;letter-spacing:.06em}
+.evid{display:grid;grid-template-columns:repeat(auto-fit,minmax(88px,1fr));gap:8px;background:var(--grafite);border-radius:4px;padding:9px}
+.evid div{min-width:0}
+.evid .k{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--cinza);display:block}
+.evid .v{font-size:15px;font-weight:700;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.porque{font-size:13px;color:var(--branco);line-height:1.45}
+.porque b{color:var(--amarelo);font-weight:700}
+.fatores{list-style:none;font-size:12px;color:var(--cinza);display:flex;flex-direction:column;gap:3px}
+.fatores li{padding-left:14px;position:relative;white-space:normal}
+.fatores li::before{content:"—";position:absolute;left:0;color:var(--aco2)}
+.fatores li.lacuna{color:var(--ambar)}
+.fatores li.lacuna::before{content:"?";font-weight:700}
+.acoes{display:flex;gap:6px;flex-wrap:wrap;margin-top:auto}
+.obs{width:100%;background:var(--grafite);border:1px solid var(--aco);border-radius:4px;padding:8px 10px;min-height:44px;font-size:13px;resize:vertical}
+.obs::placeholder{color:var(--aco2)}
+
+/* ---------- botoes ---------- */
+button.b{border:1px solid var(--aco2);background:var(--grafite);color:var(--branco);border-radius:4px;
+  padding:0 14px;min-height:44px;cursor:pointer;font-size:13px;font-weight:600;display:inline-flex;align-items:center;gap:7px}
+button.b:hover{background:var(--aco);border-color:var(--cinza)}
+button.b.primario{background:var(--amarelo);color:#1A1400;border-color:var(--amarelo);font-weight:700}
+button.b.primario:hover{background:#ffc71f}
+button.b.perigo[aria-pressed="true"]{background:var(--vermelho);border-color:var(--vermelho);color:#fff}
+button.b.ok[aria-pressed="true"]{background:var(--verde);border-color:var(--verde);color:#04180E}
+button.b.espera[aria-pressed="true"]{background:var(--ambar);border-color:var(--ambar);color:#1A1000}
+button.b.mini{min-height:34px;padding:0 10px;font-size:12px}
+button.b:disabled{opacity:.4;cursor:not-allowed}
+
+/* ---------- controles ---------- */
+.barra-ctrl{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.busca{flex:1;min-width:200px;background:var(--carbono);border:1px solid var(--aco);border-radius:4px;padding:0 12px;min-height:44px}
+select.sel{background:var(--carbono);border:1px solid var(--aco);border-radius:4px;padding:0 10px;min-height:44px;cursor:pointer}
+.reguas{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;background:var(--carbono);border:1px solid var(--aco);border-radius:var(--r);padding:16px}
+.regua label{display:block;font-size:12px;color:var(--cinza);margin-bottom:8px}
+.regua label b{color:var(--branco);font-size:15px;font-family:ui-monospace,monospace}
+.regua input[type=range]{width:100%;accent-color:var(--amarelo);height:28px}
+.regua .exp{font-size:11px;color:var(--aco2);margin-top:4px;line-height:1.4}
+
+/* ---------- dropzone ---------- */
+.solta{border:2px dashed var(--aco2);border-radius:var(--r);background:var(--carbono);padding:34px 20px;text-align:center;transition:border-color .15s,background .15s}
+.solta.sobre{border-color:var(--amarelo);background:#16171B}
+.solta h3{font-size:17px;margin-bottom:6px}
+.solta p{color:var(--cinza);font-size:13px;max-width:60ch;margin:0 auto 14px}
+.log{margin-top:14px;font-size:12px;font-family:ui-monospace,monospace;display:flex;flex-direction:column;gap:4px;max-height:280px;overflow:auto}
+.log div{padding:6px 10px;border-radius:4px;background:var(--carbono);border-left:2px solid var(--aco2);white-space:pre-wrap;word-break:break-word}
+.log div.ok{border-left-color:var(--verde)}
+.log div.err{border-left-color:var(--vermelho);color:var(--vermelho)}
+.log div.warn{border-left-color:var(--ambar);color:var(--ambar)}
+
+/* ---------- cartoes de arquivo aceito ---------- */
+.aceitos{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;margin-top:16px}
+.aceito{background:var(--carbono);border:1px solid var(--aco);border-radius:var(--r);padding:12px}
+.aceito b{display:block;font-size:13px;margin-bottom:4px}
+.aceito code{font-size:11px;color:var(--amarelo);font-family:ui-monospace,monospace}
+.aceito p{font-size:12px;color:var(--cinza);margin-top:5px;line-height:1.4}
+
+/* ---------- vendedor ---------- */
+.vends{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:12px}
+.vend{background:var(--carbono);border:1px solid var(--aco);border-radius:var(--r);padding:14px;display:flex;flex-direction:column;gap:10px}
+.vend .cab{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+.vend .cab b{font-size:16px}
+.vend .cab span{font-size:11px;color:var(--cinza);font-family:ui-monospace,monospace}
+.medidor{height:8px;border-radius:4px;background:var(--grafite);overflow:hidden;display:flex;gap:2px}
+.medidor i{display:block}
+.linhas{display:flex;flex-direction:column;gap:5px;font-size:12px}
+.linhas div{display:flex;justify-content:space-between;gap:10px;color:var(--cinza)}
+.linhas div b{color:var(--branco);font-family:ui-monospace,monospace}
+.linhas div.mal b{color:var(--vermelho)}
+
+/* ---------- linha do tempo ---------- */
+.spark{display:flex;align-items:flex-end;gap:2px;height:26px}
+.spark i{width:7px;background:var(--s-ecom);border-radius:2px 2px 0 0;min-height:2px;display:block}
+.spark i.vazio{background:var(--aco)}
+
+/* ---------- vazio ---------- */
+.vazio{border:1px solid var(--aco);border-radius:var(--r);background:var(--carbono);padding:34px 20px;text-align:center}
+.vazio h3{font-size:16px;margin-bottom:6px}
+.vazio p{color:var(--cinza);font-size:13px;max-width:56ch;margin:0 auto 16px}
+
+/* ---------- gaveta ---------- */
+.gaveta{position:fixed;inset:0;background:rgba(0,0,0,.72);display:flex;justify-content:flex-end;z-index:60}
+.gaveta[hidden]{display:none}
+.gaveta .painel{background:var(--carbono);border-left:1px solid var(--aco);width:min(560px,100%);height:100%;overflow:auto;padding:20px}
+.gaveta .painel h2{font-size:20px;margin-bottom:4px}
+.gaveta .painel .cod{font-family:ui-monospace,monospace;color:var(--cinza);font-size:12px;margin-bottom:16px}
+.ficha{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--aco);border:1px solid var(--aco);border-radius:var(--r);overflow:hidden;margin-bottom:16px}
+.ficha div{background:var(--carbono);padding:10px 12px}
+.ficha .k{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--cinza);display:block;margin-bottom:3px}
+.ficha .v{font-family:ui-monospace,monospace;font-size:14px;font-weight:700}
+
+footer{border-top:1px solid var(--aco);padding:20px 0 40px;color:var(--cinza);font-size:12px;line-height:1.6}
+footer b{color:var(--branco)}
+
+@media (max-width:640px){
+  body{font-size:15px}
+  .metrica .val{font-size:24px}
+  nav.abas button{padding:0 12px;min-height:52px}
+  .casca{padding:0 12px}
+}
+@media print{
+  body{background:#fff;color:#000}
+  nav.abas,.barra-ctrl,.acoes,footer,.solta{display:none}
+  .vista[hidden]{display:block}
+}
+</style>
+</head>
+<body>
+<div class="cabecalho">
+<header class="topo">
+  <div class="casca topo-in">
+    <div class="marca"><b>PAINEL CARPA</b><span>Acesso &times; Compra</span></div>
+    <div class="selo">
+      <span class="pill" id="seloComp">sem competência</span>
+      <span class="pill" id="seloBase">sem base</span>
+      <span class="pill viva" id="seloOff">offline · sem rede</span>
+    </div>
+  </div>
+</header>
+
+<nav class="abas casca" id="abas" role="tablist" aria-label="Seções do painel"></nav>
+</div>
+
+<main class="casca">
+
+<!-- ====================== PAINEL ====================== -->
+<section class="vista" id="v-painel" role="tabpanel" aria-label="Painel">
+  <div id="painelVazio"></div>
+  <div id="painelCheio" hidden>
+
+    <div class="secao">
+      <h2>Onde o faturamento entra</h2>
+      <div class="split">
+        <div class="barra" id="barraCanal" role="img" aria-labelledby="legCanal"></div>
+        <div class="leg" id="legCanal"></div>
+      </div>
+    </div>
+
+    <div class="secao">
+      <h2>A pergunta do mês</h2>
+      <p class="sub">Quem entra na plataforma e compra, e quem entra só para tirar preço. Todo número abaixo sai de um arquivo importado — nenhum é estimado.</p>
+      <div class="metricas" id="metricasChave"></div>
+    </div>
+
+    <div class="secao">
+      <h2>Cobertura da base</h2>
+      <div class="metricas" id="metricasBase"></div>
+    </div>
+
+    <div class="secao">
+      <h2>Concentração — quem sustenta o e-commerce</h2>
+      <p class="sub">Ordenado por faturamento e-commerce no mês. Se poucos nomes carregam quase tudo, a plataforma ainda não virou hábito da carteira.</p>
+      <div class="rolo"><table id="tbTopo"></table></div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ====================== BLOQUEIO ====================== -->
+<section class="vista" id="v-bloqueio" role="tabpanel" aria-label="Fila de bloqueio" hidden>
+  <div class="secao">
+    <h2>Régua de decisão</h2>
+    <p class="sub">Mexa aqui e a fila inteira se refaz na hora. Nada é gravado até você decidir cliente a cliente.</p>
+    <div class="reguas" id="reguas"></div>
+  </div>
+
+  <div class="secao">
+    <h2>Fila de decisão</h2>
+    <p class="sub">Cada caso mostra a evidência que o colocou aqui. <b>Bloquear</b> corta o acesso, <b>Manter</b> tira da fila, <b>Observar</b> deixa em quarentena até o mês que vem. A observação vai junto na exportação.</p>
+    <div class="barra-ctrl">
+      <input class="busca" id="buscaFila" type="search" placeholder="Buscar cliente, código ou vendedor" aria-label="Buscar na fila" />
+      <select class="sel" id="filtroFilaGrau" aria-label="Filtrar por veredito"></select>
+      <select class="sel" id="filtroFilaVend" aria-label="Filtrar por vendedor"></select>
+      <select class="sel" id="filtroFilaDec" aria-label="Filtrar por decisão">
+        <option value="pendente">Pendentes</option>
+        <option value="todos">Todas as decisões</option>
+        <option value="BLOQUEAR">Marcados: bloquear</option>
+        <option value="MANTER">Marcados: manter</option>
+        <option value="OBSERVAR">Marcados: observar</option>
+      </select>
+      <button class="b mini" id="btnFilaLimpa" type="button">Desfazer decisões</button>
+    </div>
+    <div class="fila" id="fila"></div>
+  </div>
+</section>
+
+<!-- ====================== CLIENTES ====================== -->
+<section class="vista" id="v-clientes" role="tabpanel" aria-label="Clientes" hidden>
+  <div class="secao">
+    <h2>Todos os clientes cruzados</h2>
+    <p class="sub">Cada linha é um cliente único (código Pacaembu), com o que o relatório Sala&times;eCom, o cadastro da plataforma e a carteira dizem sobre ele. Clique para abrir a ficha.</p>
+    <div class="barra-ctrl">
+      <input class="busca" id="buscaCli" type="search" placeholder="Buscar por nome, código, CNPJ ou vendedor" aria-label="Buscar cliente" />
+      <select class="sel" id="filtroCliGrau" aria-label="Filtrar por veredito"></select>
+      <select class="sel" id="filtroCliVend" aria-label="Filtrar por vendedor"></select>
+      <select class="sel" id="filtroCliCanal" aria-label="Filtrar por canal">
+        <option value="">Todos os canais</option>
+        <option value="REVENDA">Revenda</option>
+        <option value="CONSUMIDOR">Consumidor</option>
+      </select>
+      <span class="pill mono" id="contaCli">0</span>
+    </div>
+    <div class="rolo"><table id="tbClientes"></table></div>
+  </div>
+</section>
+
+<!-- ====================== VENDEDORES ====================== -->
+<section class="vista" id="v-vendedores" role="tabpanel" aria-label="Vendedores" hidden>
+  <div class="secao">
+    <h2>Placar por vendedor</h2>
+    <p class="sub">A barra mostra a carteira dividida entre quem compra pela plataforma, quem tem cadastro parado e quem só consulta preço. Ordenado por faturamento e-commerce.</p>
+    <div class="vends" id="vends"></div>
+  </div>
+  <div class="secao">
+    <h2>Carteira em números</h2>
+    <div class="rolo"><table id="tbVends"></table></div>
+  </div>
+</section>
+
+<!-- ====================== IMPORTAR ====================== -->
+<section class="vista" id="v-importar" role="tabpanel" aria-label="Importar" hidden>
+  <div class="secao">
+    <h2>Jogue os arquivos aqui</h2>
+    <p class="sub">O painel lê o arquivo, descobre sozinho o que ele é e cruza com o que já existe. Não precisa converter nada, não precisa de internet, nada sai deste computador.</p>
+    <div class="solta" id="solta">
+      <h3>Arraste os arquivos para cá</h3>
+      <p>PDF do Sala&times;eCom direto do OPUSCase, planilha de cadastros da plataforma, carteira dos vendedores, ou um pacote <code>.json</code> que outro gestor te mandou.</p>
+      <button class="b primario" id="btnEscolher" type="button">Escolher arquivos</button>
+      <input type="file" id="arquivos" multiple accept=".pdf,.xlsx,.csv,.txt,.json" hidden />
+      <div class="log" id="log"></div>
+    </div>
+
+    <div class="aceitos">
+      <div class="aceito"><b>Mapa de Atend. Sala &times; eCom</b><code>PCN5I5 / PCN5I6 &middot; .pdf</code>
+        <p>Consumidor e Revenda. É daqui que saem os acessos do mês, o que foi faturado na sala e o que foi faturado no e-commerce.</p></div>
+      <div class="aceito"><b>Clientes da plataforma</b><code>Clientes_Carpa &middot; .xlsx</code>
+        <p>Cadastros, acessos dos últimos 30 dias, CNPJ, último acesso e status. É o que liga o login à conta.</p></div>
+      <div class="aceito"><b>Carteira por vendedor</b><code>C_&lt;praça&gt; &middot; .xlsx</code>
+        <p>Uma aba por vendedor, com média dos 4 meses e última compra. Dá dono a cada cliente.</p></div>
+      <div class="aceito"><b>Pacote do painel</b><code>pacote-carpa-AAAAMM.json</code>
+        <p>Estado inteiro, com decisões e observações. Abra o mesmo HTML, solte o pacote e você vê exatamente a mesma tela.</p></div>
+      <div class="aceito"><b>Planilha de volta do vendedor</b><code>Carteira_&lt;nome&gt; &middot; .xlsx / .csv</code>
+        <p>Baixe do Google Sheets depois que o vendedor preencher e solte aqui: as colunas <b>Decisão</b> e <b>Observação</b> voltam para dentro do painel.</p></div>
+      <div class="aceito"><b>Qualquer CSV</b><code>separador , ; ou tab</code>
+        <p>Reconhecido pelos nomes das colunas. Acentuação em UTF-8 ou Latin-1, tanto faz.</p></div>
+    </div>
+  </div>
+
+  <div class="secao">
+    <h2>O que já está carregado</h2>
+    <div class="rolo"><table id="tbFontes"></table></div>
+    <div class="barra-ctrl" style="margin-top:12px">
+      <button class="b" id="btnZerar" type="button">Apagar tudo e recomeçar</button>
+    </div>
+  </div>
+</section>
+
+<!-- ====================== EXPORTAR ====================== -->
+<section class="vista" id="v-exportar" role="tabpanel" aria-label="Exportar" hidden>
+  <div class="secao">
+    <h2>Para mandar ao outro gestor</h2>
+    <p class="sub">O caminho mais curto: um arquivo só, que abre sozinho e já vem com tudo dentro — inclusive as suas decisões e observações.</p>
+    <div class="metricas">
+      <div class="metrica">
+        <span class="rot">Recomendado</span>
+        <div class="val sm">Painel + dados</div>
+        <p class="nota">Gera um HTML novo com todos os dados embutidos. A pessoa dá dois cliques e vê a mesma tela que você — sem instalar nada, sem importar nada.</p>
+        <div class="acoes" style="margin-top:12px"><button class="b primario" id="expHtml" type="button">Gerar HTML completo</button></div>
+      </div>
+      <div class="metrica">
+        <span class="rot">Alternativa</span>
+        <div class="val sm">Pacote .json</div>
+        <p class="nota">Só os dados. Mande junto com este mesmo HTML: a pessoa abre o HTML e solta o pacote na aba Importar.</p>
+        <div class="acoes" style="margin-top:12px"><button class="b" id="expJson" type="button">Baixar pacote</button></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="secao">
+    <h2>Planilhas</h2>
+    <p class="sub">Abrem no Excel e no Google Sheets. As colunas <b>Decisão</b> e <b>Observação</b> voltam para o painel se você soltar a planilha preenchida na aba Importar.</p>
+    <div class="metricas">
+      <div class="metrica">
+        <span class="rot">Tudo</span><div class="val sm">Planilha geral</div>
+        <p class="nota">Abas: Resumo, Clientes, Fila de bloqueio, Por vendedor, Cadastros da plataforma, Lacunas.</p>
+        <div class="acoes" style="margin-top:12px"><button class="b" id="expGeral" type="button">Baixar .xlsx</button></div>
+      </div>
+      <div class="metrica">
+        <span class="rot">Carteiras</span><div class="val sm">Uma aba por vendedor</div>
+        <p class="nota">Um arquivo com uma aba por vendedor. Bom para subir de uma vez no Google Sheets.</p>
+        <div class="acoes" style="margin-top:12px"><button class="b" id="expCarteiras" type="button">Baixar .xlsx</button></div>
+      </div>
+      <div class="metrica">
+        <span class="rot">Carteiras</span><div class="val sm">Um arquivo por vendedor</div>
+        <p class="nota">Para mandar no particular de cada um. Baixa vários arquivos seguidos — o navegador pode pedir permissão.</p>
+        <div class="acoes" style="margin-top:12px"><button class="b" id="expPorVend" type="button">Baixar separados</button></div>
+      </div>
+      <div class="metrica">
+        <span class="rot">Bloqueio</span><div class="val sm">Fila de decisão</div>
+        <p class="nota">Só a fila, com veredito, evidência, decisão e observação. É o anexo do e-mail para quem opera a plataforma.</p>
+        <div class="acoes" style="margin-top:12px"><button class="b" id="expFila" type="button">Baixar .xlsx</button></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="secao">
+    <h2>Como o ciclo fecha</h2>
+    <div class="rolo"><table id="tbCiclo"></table></div>
+  </div>
+</section>
+
+<!-- ====================== HISTÓRICO ====================== -->
+<section class="vista" id="v-historico" role="tabpanel" aria-label="Histórico" hidden>
+  <div class="secao">
+    <h2>Mês a mês</h2>
+    <p class="sub">Cada PDF do Sala&times;eCom que você importar entra como uma competência. Com dois ou mais meses dá para ver se a plataforma está virando hábito ou se é sempre o mesmo punhado de clientes.</p>
+    <div class="rolo"><table id="tbHist"></table></div>
+  </div>
+  <div class="secao">
+    <h2>Quem mudou de comportamento</h2>
+    <p class="sub">Comparação entre a competência mais recente e a anterior. Só aparece com pelo menos dois meses importados.</p>
+    <div id="mudancas"></div>
+  </div>
+</section>
+
+<!-- ====================== MÉTODO ====================== -->
+<section class="vista" id="v-metodo" role="tabpanel" aria-label="Método" hidden>
+  <div class="secao">
+    <h2>Como o veredito é montado</h2>
+    <p class="sub">Nenhuma linha deste painel chega a uma conclusão sem dizer de onde ela veio. Quando falta dado, o painel diz que falta — não chuta.</p>
+    <div class="rolo"><table id="tbMetodo"></table></div>
+  </div>
+  <div class="secao">
+    <h2>Regras que o painel não quebra</h2>
+    <div class="rolo"><table id="tbRegras"></table></div>
+  </div>
+  <div class="secao">
+    <h2>De onde vem cada número</h2>
+    <div class="rolo"><table id="tbOrigem"></table></div>
+  </div>
+</section>
+
+</main>
+
+<div class="gaveta" id="gaveta" hidden>
+  <div class="painel" role="dialog" aria-modal="true" aria-labelledby="gavetaTit" id="gavetaPainel"></div>
+</div>
+
+<footer class="casca">
+  <p><b>PAINEL CARPA</b> — leitura local de PDF e planilha, cruzamento e decisão. Roda sem internet: não há nenhuma chamada de rede neste arquivo, nada é enviado a lugar nenhum.</p>
+  <p>Decisões e observações ficam guardadas neste navegador. Para levar junto, exporte o pacote ou o HTML completo.</p>
+</footer>
+<script>
+"use strict";
+/* =====================================================================
+   PAINEL CARPA — leitores e escritores de arquivo, nativos do navegador.
+
+   Nada aqui usa biblioteca externa nem rede. XLSX é lido descompactando
+   o ZIP com DecompressionStream; PDF é lido inflando os streams e pegando
+   os operadores de texto. Isso é o que permite o arquivo ser um só.
+   ===================================================================== */
+
+/* ---------- bytes e texto ---------- */
+
+const CP1252 = {128:'€',130:'‚',131:'ƒ',132:'„',133:'…',134:'†',
+  135:'‡',136:'ˆ',137:'‰',138:'Š',139:'‹',140:'Œ',142:'Ž',
+  145:'‘',146:'’',147:'“',148:'”',149:'•',150:'–',151:'—',
+  152:'˜',153:'™',154:'š',155:'›',156:'œ',158:'ž',159:'Ÿ'};
+
+/**
+ * Um byte, um caractere — sem tradução nenhuma. É o que permite procurar
+ * marcadores dentro do arquivo sem que a posição na string deixe de bater
+ * com a posição em bytes.
+ */
+function bytesParaBin(bytes){
+  let s = '';
+  const passo = 8192;
+  for (let i = 0; i < bytes.length; i += passo){
+    s += String.fromCharCode.apply(null, bytes.subarray(i, i + passo));
+  }
+  return s;
+}
+
+/** Texto legível em Windows-1252. Não use para calcular deslocamento. */
+function bytesParaLatin(bytes){
+  return bytesParaBin(bytes).replace(/[\u0080-\u009f]/g,
+    (c) => CP1252[c.charCodeAt(0)] || c);
+}
+
+/** Tenta UTF-8; se os bytes não formarem UTF-8 válido, cai para Windows-1252. */
+function decodificar(bytes){
+  try { return new TextDecoder('utf-8', { fatal: true }).decode(bytes); }
+  catch { return bytesParaLatin(bytes); }
+}
+
+async function inflar(bytes, formato){
+  if (typeof DecompressionStream === 'undefined') {
+    throw new Error('Este navegador não descompacta arquivos. Use Chrome, Edge, Firefox ou Safari atualizados.');
+  }
+  const fluxo = new Blob([bytes]).stream().pipeThrough(new DecompressionStream(formato));
+  return new Uint8Array(await new Response(fluxo).arrayBuffer());
+}
+
+/* ---------- ZIP: leitura ---------- */
+
+function u16(v, p){ return v.getUint16(p, true); }
+function u32(v, p){ return v.getUint32(p, true); }
+
+/** Devolve { nome: Uint8Array } lendo o diretório central do ZIP. */
+async function lerZip(buffer){
+  const b = new Uint8Array(buffer);
+  const v = new DataView(buffer);
+  let fim = -1;
+  for (let i = b.length - 22; i >= 0 && i > b.length - 66000; i--){
+    if (u32(v, i) === 0x06054b50){ fim = i; break; }
+  }
+  if (fim < 0) throw new Error('não é um arquivo .xlsx válido (fim do ZIP não encontrado)');
+
+  const qtd = u16(v, fim + 10);
+  let p = u32(v, fim + 16);
+  const saida = {};
+
+  for (let i = 0; i < qtd; i++){
+    if (u32(v, p) !== 0x02014b50) break;
+    const metodo = u16(v, p + 10);
+    const tamComp = u32(v, p + 20);
+    const tamNome = u16(v, p + 28);
+    const tamExtra = u16(v, p + 30);
+    const tamCom = u16(v, p + 32);
+    const desloc = u32(v, p + 42);
+    const nome = bytesParaLatin(b.subarray(p + 46, p + 46 + tamNome));
+    p += 46 + tamNome + tamExtra + tamCom;
+
+    if (u32(v, desloc) !== 0x04034b50) continue;
+    const ini = desloc + 30 + u16(v, desloc + 26) + u16(v, desloc + 28);
+    const cru = b.subarray(ini, ini + tamComp);
+    saida[nome] = metodo === 0 ? cru : await inflar(cru, 'deflate-raw');
+  }
+  return saida;
+}
+
+/* ---------- ZIP: escrita (sem compressão, só CRC) ---------- */
+
+const TABELA_CRC = (() => {
+  const t = new Uint32Array(256);
+  for (let n = 0; n < 256; n++){
+    let c = n;
+    for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+    t[n] = c >>> 0;
+  }
+  return t;
+})();
+
+function crc32(bytes){
+  let c = 0xFFFFFFFF;
+  for (let i = 0; i < bytes.length; i++) c = TABELA_CRC[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8);
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+
+/** entradas: [{nome, texto}] -> Blob de ZIP com entradas armazenadas. */
+function escreverZip(entradas){
+  const cod = new TextEncoder();
+  const locais = [];
+  const centrais = [];
+  let desloc = 0;
+
+  for (const e of entradas){
+    const nome = cod.encode(e.nome);
+    const dados = cod.encode(e.texto);
+    const crc = crc32(dados);
+
+    const lh = new Uint8Array(30 + nome.length);
+    const lv = new DataView(lh.buffer);
+    lv.setUint32(0, 0x04034b50, true);
+    lv.setUint16(4, 20, true);
+    lv.setUint16(8, 0, true);          // método 0 = armazenado
+    lv.setUint32(14, crc, true);
+    lv.setUint32(18, dados.length, true);
+    lv.setUint32(22, dados.length, true);
+    lv.setUint16(26, nome.length, true);
+    lh.set(nome, 30);
+    locais.push(lh, dados);
+
+    const ch = new Uint8Array(46 + nome.length);
+    const cv = new DataView(ch.buffer);
+    cv.setUint32(0, 0x02014b50, true);
+    cv.setUint16(4, 20, true);
+    cv.setUint16(6, 20, true);
+    cv.setUint16(10, 0, true);
+    cv.setUint32(16, crc, true);
+    cv.setUint32(20, dados.length, true);
+    cv.setUint32(24, dados.length, true);
+    cv.setUint16(28, nome.length, true);
+    cv.setUint32(42, desloc, true);
+    ch.set(nome, 46);
+    centrais.push(ch);
+
+    desloc += lh.length + dados.length;
+  }
+
+  const tamCentral = centrais.reduce((s, c) => s + c.length, 0);
+  const fim = new Uint8Array(22);
+  const fv = new DataView(fim.buffer);
+  fv.setUint32(0, 0x06054b50, true);
+  fv.setUint16(8, entradas.length, true);
+  fv.setUint16(10, entradas.length, true);
+  fv.setUint32(12, tamCentral, true);
+  fv.setUint32(16, desloc, true);
+
+  return new Blob([...locais, ...centrais, fim], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+}
+
+/* ---------- XLSX: leitura ---------- */
+
+const FMT_DATA_PADRAO = new Set([14,15,16,17,18,19,20,21,22,27,30,36,45,46,47,50,57]);
+
+function letrasParaCol(ref){
+  let n = 0;
+  for (let i = 0; i < ref.length; i++){
+    const c = ref.charCodeAt(i);
+    if (c < 65 || c > 90) break;
+    n = n * 26 + (c - 64);
+  }
+  return n - 1;
+}
+
+function serialParaData(n){
+  // Serial do Excel: dia 1 = 1899-12-31 no calendário do Excel (que crê em 1900 bissexto).
+  const ms = Math.round((n - 25569) * 86400000);
+  const d = new Date(ms);
+  if (isNaN(d.getTime())) return null;
+  const p = (x) => String(x).padStart(2, '0');
+  return `${d.getUTCFullYear()}-${p(d.getUTCMonth() + 1)}-${p(d.getUTCDate())}`;
+}
+
+/** Devolve [{ nome, linhas: [[celula,...]] }] — células sempre string. */
+async function lerXlsx(buffer){
+  const z = await lerZip(buffer);
+  const xml = (caminho) => {
+    if (!z[caminho]) return null;
+    return new DOMParser().parseFromString(decodificar(z[caminho]), 'application/xml');
+  };
+
+  // textos compartilhados
+  const compart = [];
+  const ss = xml('xl/sharedStrings.xml');
+  if (ss) for (const si of ss.getElementsByTagName('si')){
+    let t = '';
+    for (const n of si.getElementsByTagName('t')) t += n.textContent;
+    compart.push(t);
+  }
+
+  // estilos -> quais índices são data
+  const ehData = [];
+  const st = xml('xl/styles.xml');
+  if (st){
+    const fmts = {};
+    for (const nf of st.getElementsByTagName('numFmt')){
+      fmts[nf.getAttribute('numFmtId')] = (nf.getAttribute('formatCode') || '').toLowerCase();
+    }
+    const xfs = st.getElementsByTagName('cellXfs')[0];
+    if (xfs) for (const xf of xfs.getElementsByTagName('xf')){
+      const id = xf.getAttribute('numFmtId') || '0';
+      const cod = fmts[id];
+      ehData.push(FMT_DATA_PADRAO.has(+id) || (!!cod && /[ymd]/.test(cod) && !/(\[|red)/.test(cod)));
+    }
+  }
+
+  // nomes das abas na ordem do workbook
+  const rels = {};
+  const rl = xml('xl/_rels/workbook.xml.rels');
+  if (rl) for (const r of rl.getElementsByTagName('Relationship')){
+    rels[r.getAttribute('Id')] = r.getAttribute('Target').replace(/^\/?xl\//, '').replace(/^\//, '');
+  }
+  const wb = xml('xl/workbook.xml');
+  const abas = [];
+  if (wb) for (const sh of wb.getElementsByTagName('sheet')){
+    const rid = sh.getAttribute('r:id') || sh.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships', 'id');
+    abas.push({ nome: sh.getAttribute('name'), alvo: rels[rid] });
+  }
+
+  const saida = [];
+  let n = 0;
+  for (const aba of abas){
+    n++;
+    const caminho = 'xl/' + (aba.alvo || `worksheets/sheet${n}.xml`);
+    const doc = xml(caminho) || xml(`xl/worksheets/sheet${n}.xml`);
+    if (!doc) continue;
+    const linhas = [];
+    for (const row of doc.getElementsByTagName('row')){
+      const linha = [];
+      for (const c of row.getElementsByTagName('c')){
+        const col = letrasParaCol(c.getAttribute('r') || '');
+        const tipo = c.getAttribute('t');
+        let valor = '';
+        if (tipo === 'inlineStr'){
+          for (const t of c.getElementsByTagName('t')) valor += t.textContent;
+        } else {
+          const v = c.getElementsByTagName('v')[0];
+          const bruto = v ? v.textContent : '';
+          if (tipo === 's') valor = compart[+bruto] ?? '';
+          else if (tipo === 'b') valor = bruto === '1' ? 'VERDADEIRO' : 'FALSO';
+          else if (tipo === 'e') valor = '';
+          else {
+            const s = +(c.getAttribute('s') || 0);
+            valor = (ehData[s] && bruto !== '' && !isNaN(+bruto) && +bruto > 0)
+              ? (serialParaData(+bruto) || bruto)
+              : bruto;
+          }
+        }
+        if (col >= 0) linha[col] = String(valor).trim();
+      }
+      for (let i = 0; i < linha.length; i++) if (linha[i] === undefined) linha[i] = '';
+      linhas.push(linha);
+    }
+    saida.push({ nome: aba.nome, linhas });
+  }
+  return saida;
+}
+
+/* ---------- XLSX: escrita ---------- */
+
+function escXml(s){
+  return String(s ?? '').replace(/[&<>"']/g, (c) =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' }[c]))
+    // XML 1.0 não aceita caracteres de controle
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '');
+}
+
+function colParaLetras(n){
+  let s = '';
+  n++;
+  while (n > 0){ const r = (n - 1) % 26; s = String.fromCharCode(65 + r) + s; n = Math.floor((n - 1) / 26); }
+  return s;
+}
+
+function nomeAbaValido(nome, usados){
+  let n = String(nome).replace(/[\\/*?:[\]]/g, ' ').trim().slice(0, 28) || 'Aba';
+  let base = n, i = 2;
+  while (usados.has(n.toLowerCase())){ n = `${base} ${i++}`.slice(0, 31); }
+  usados.add(n.toLowerCase());
+  return n;
+}
+
+/**
+ * abas: [{ nome, linhas: [[valor,...]] }]. Primeira linha vira cabeçalho em negrito.
+ * Números viram número de verdade na planilha; o resto vai como texto.
+ */
+function escreverXlsx(abas){
+  const usados = new Set();
+  const prontas = abas.map((a) => ({ nome: nomeAbaValido(a.nome, usados), linhas: a.linhas || [] }));
+
+  const folhas = prontas.map((aba, idx) => {
+    const linhas = aba.linhas.map((linha, li) => {
+      const celulas = linha.map((valor, ci) => {
+        const ref = colParaLetras(ci) + (li + 1);
+        const estilo = li === 0 ? ' s="1"' : '';
+        if (valor === null || valor === undefined || valor === '') return `<c r="${ref}"${estilo}/>`;
+        if (li > 0 && typeof valor === 'number' && isFinite(valor)){
+          return `<c r="${ref}"><v>${valor}</v></c>`;
+        }
+        return `<c r="${ref}"${estilo} t="inlineStr"><is><t xml:space="preserve">${escXml(valor)}</t></is></c>`;
+      }).join('');
+      return `<row r="${li + 1}">${celulas}</row>`;
+    }).join('');
+    const largura = Math.max(1, ...aba.linhas.map((l) => l.length));
+    const cols = `<cols><col min="1" max="1" width="13" customWidth="1"/><col min="2" max="2" width="34" customWidth="1"/><col min="3" max="${largura}" width="15" customWidth="1"/></cols>`;
+    const congelar = `<sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>`;
+    const filtro = aba.linhas.length > 1 ? `<autoFilter ref="A1:${colParaLetras(largura - 1)}${aba.linhas.length}"/>` : '';
+    return {
+      nome: `xl/worksheets/sheet${idx + 1}.xml`,
+      texto: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
+        `<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">` +
+        congelar + cols + `<sheetData>${linhas}</sheetData>` + filtro + `</worksheet>`,
+    };
+  });
+
+  const tipos = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
+    `<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">` +
+    `<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>` +
+    `<Default Extension="xml" ContentType="application/xml"/>` +
+    `<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>` +
+    `<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>` +
+    prontas.map((_, i) => `<Override PartName="/xl/worksheets/sheet${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('') +
+    `</Types>`;
+
+  const relsRaiz = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
+    `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">` +
+    `<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`;
+
+  const workbook = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
+    `<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" ` +
+    `xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>` +
+    prontas.map((a, i) => `<sheet name="${escXml(a.nome)}" sheetId="${i + 1}" r:id="rId${i + 1}"/>`).join('') +
+    `</sheets></workbook>`;
+
+  const relsWb = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
+    `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">` +
+    prontas.map((_, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i + 1}.xml"/>`).join('') +
+    `</Relationships>`;
+
+  const estilos = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
+    `<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">` +
+    `<fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font></fonts>` +
+    `<fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill>` +
+    `<fill><patternFill patternType="solid"><fgColor rgb="FF1C1E23"/><bgColor indexed="64"/></patternFill></fill></fills>` +
+    `<borders count="1"><border/></borders>` +
+    `<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>` +
+    `<cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>` +
+    `<xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"/></cellXfs>` +
+    `</styleSheet>`;
+
+  return escreverZip([
+    { nome: '[Content_Types].xml', texto: tipos },
+    { nome: '_rels/.rels', texto: relsRaiz },
+    { nome: 'xl/workbook.xml', texto: workbook },
+    { nome: 'xl/_rels/workbook.xml.rels', texto: relsWb },
+    { nome: 'xl/styles.xml', texto: estilos },
+    ...folhas,
+  ]);
+}
+
+/* ---------- PDF: extração de texto ---------- */
+
+function desescaparPdf(s){
+  let saida = '';
+  for (let i = 0; i < s.length; i++){
+    if (s[i] !== '\\'){ saida += s[i]; continue; }
+    const p = s[++i];
+    if (p === undefined) break;
+    if (p >= '0' && p <= '7'){
+      let oct = p;
+      while (oct.length < 3 && s[i + 1] >= '0' && s[i + 1] <= '7') oct += s[++i];
+      const cod = parseInt(oct, 8);
+      saida += (cod >= 128 && cod < 160 && CP1252[cod]) ? CP1252[cod] : String.fromCharCode(cod);
+    }
+    else if (p === 'n') saida += '\n';
+    else if (p === 'r') saida += '\r';
+    else if (p === 't') saida += '\t';
+    else if (p === 'b' || p === 'f') saida += ' ';
+    else if (p === '\n') { /* continuação de linha */ }
+    else saida += p;
+  }
+  return saida;
+}
+
+/**
+ * Extrai as linhas de texto de um PDF de relatório em fonte monoespaçada.
+ * Funciona porque o gerador escreve uma linha inteira por operador Tj,
+ * preservando o espaçamento original das colunas.
+ */
+async function lerPdfLinhas(buffer){
+  const b = new Uint8Array(buffer);
+  const cru = bytesParaBin(b);
+  const linhas = [];
+  const marca = /stream\r?\n/g;
+  let m;
+
+  while ((m = marca.exec(cru)) !== null){
+    // "endstream" também termina em "stream": sem esta guarda o leitor
+    // casaria dentro da palavra de fechamento e leria lixo adiante.
+    if (cru.slice(m.index - 3, m.index) === 'end') continue;
+
+    const ini = m.index + m[0].length;
+    const fim = cru.indexOf('endstream', ini);
+    if (fim < 0) continue;
+    marca.lastIndex = fim + 9;
+
+    // DecompressionStream recusa byte sobrando: a quebra de linha que o PDF
+    // põe antes de "endstream" não faz parte do fluxo comprimido.
+    let corte = fim;
+    while (corte > ini && (b[corte - 1] === 10 || b[corte - 1] === 13)) corte--;
+
+    const fatia = b.subarray(ini, corte);
+    let texto;
+    try { texto = bytesParaLatin(await inflar(fatia, 'deflate')); }
+    catch {
+      // stream não comprimido, ou com filtro que não sabemos ler
+      texto = bytesParaLatin(fatia);
+      if (!/\)\s*Tj/.test(texto)) continue;
+    }
+    const op = /\(((?:\\.|[^\\()])*)\)\s*Tj/gs;
+    let t;
+    while ((t = op.exec(texto)) !== null) linhas.push(desescaparPdf(t[1]));
+  }
+  return linhas;
+}
+
+/* ---------- CSV ---------- */
+
+function lerCsv(texto){
+  const limpo = texto.replace(/^﻿/, '');
+  const primeira = limpo.split(/\r?\n/)[0] || '';
+  const cont = (c) => (primeira.split(c).length - 1);
+  const sep = [[',', cont(',')], [';', cont(';')], ['\t', cont('\t')]].sort((a, b) => b[1] - a[1])[0][0];
+
+  const linhas = [];
+  let campo = '', linha = [], aspas = false;
+  for (let i = 0; i < limpo.length; i++){
+    const c = limpo[i];
+    if (aspas){
+      if (c === '"'){ if (limpo[i + 1] === '"'){ campo += '"'; i++; } else aspas = false; }
+      else campo += c;
+    } else if (c === '"') aspas = true;
+    else if (c === sep){ linha.push(campo.trim()); campo = ''; }
+    else if (c === '\n'){ linha.push(campo.trim()); linhas.push(linha); linha = []; campo = ''; }
+    else if (c !== '\r') campo += c;
+  }
+  if (campo !== '' || linha.length){ linha.push(campo.trim()); linhas.push(linha); }
+  return linhas.filter((l) => l.some((x) => x !== ''));
+}
+
+/* ---------- download ---------- */
+
+function baixar(blob, nome){
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = nome;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+}
+</script>
+<script>
+"use strict";
+/* =====================================================================
+   PAINEL CARPA — normalização, cruzamento e veredito.
+
+   Três princípios que o motor não quebra:
+   1. Falta de dado é `null`, nunca zero. Zero vendido é um fato; dado
+      ausente não é. Quem confunde os dois inventa conclusão.
+   2. Nenhum veredito sai sem fator. Se não há evidência, há lacuna
+      declarada — nunca os dois vazios.
+   3. Duas medidas de janelas diferentes nunca viram uma só. Os acessos
+      do mês (relatório) e os acessos de 30 dias (plataforma) andam
+      lado a lado e são mostrados separados.
+   ===================================================================== */
+
+const CHAVE_ARMAZEM = 'painel-carpa-v1';
+
+const REGUAS_PADRAO = {
+  minAcessos: 5,      // a partir de quantos acessos a consulta deixa de ser eventual
+  minRetorno: 150,    // R$ faturados no e-commerce por acesso para a consulta se pagar
+  salvoConduto: true, // quem tem média nos 3 meses não cai direto no bloqueio
+};
+
+let BASE = baseVazia();
+let PORTA = null;   // pacote embutido no próprio arquivo, se houver
+
+function baseVazia(){
+  return {
+    versao: 1,
+    gerado: null,
+    competencias: {},
+    cadastros: [],
+    carteira: {},
+    vendNomes: {},
+    decisoes: {},
+    observacoes: {},
+    reguas: { ...REGUAS_PADRAO },
+    fontes: [],
+  };
+}
+
+/* ---------- conversões ---------- */
+
+/** Número no formato brasileiro. Devolve null quando não há dado — nunca 0. */
+function numBr(s){
+  if (s === null || s === undefined) return null;
+  let t = String(s).trim();
+  if (t === '' || t === '-' || t === '--') return null;
+  const neg = /^\(.*\)$/.test(t) || /-$/.test(t);
+  t = t.replace(/[()\s%R$]/g, '').replace(/-$/, '');
+  if (t === '') return null;
+  if (t.includes(',')) t = t.replace(/\./g, '').replace(',', '.');
+  else if ((t.match(/\./g) || []).length > 1) t = t.replace(/\./g, '');
+  if (t.startsWith('.')) t = '0' + t;
+  const n = Number(t);
+  if (!isFinite(n)) return null;
+  return neg && n > 0 ? -n : n;
+}
+
+function inteiro(s){
+  const n = numBr(s);
+  return n === null ? null : Math.round(n);
+}
+
+/** Código do cliente sem zeros à esquerda, para casar fontes diferentes. */
+function codCliente(s){
+  if (s === null || s === undefined) return '';
+  const d = String(s).replace(/\D/g, '').replace(/^0+/, '');
+  return d;
+}
+
+function soDigitos(s){ return String(s ?? '').replace(/\D/g, ''); }
+function raizCnpj(s){ const d = soDigitos(s); return d.length >= 8 ? d.slice(0, 8) : ''; }
+
+function compRotulo(aamm){
+  const s = String(aamm || '');
+  if (s.length !== 4) return s;
+  return `${s.slice(2)}/20${s.slice(0, 2)}`;
+}
+function compOrdem(aamm){ return String(aamm || ''); }
+
+const ehZero = (n) => n !== null && n !== undefined && Math.abs(n) < 0.005;
+const val = (n) => (n === null || n === undefined ? 0 : n);
+
+/* ---------- normalização de texto ---------- */
+
+function semAcento(s){
+  return String(s ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+function chaveCol(s){
+  return semAcento(s).toLowerCase().replace(/[^a-z0-9]+/g, '');
+}
+
+/** Casa cabeçalhos por aproximação, para a planilha não quebrar se mudar de nome. */
+function acharCol(cabecalho, ...candidatos){
+  const chaves = cabecalho.map(chaveCol);
+  for (const c of candidatos){
+    const alvo = chaveCol(c);
+    let i = chaves.indexOf(alvo);
+    if (i >= 0) return i;
+    i = chaves.findIndex((k) => k && (k.startsWith(alvo) || alvo.startsWith(k)));
+    if (i >= 0) return i;
+  }
+  return -1;
+}
+
+/* =====================================================================
+   LEITURA 1 — Mapa de Atend. Sala x eCom (PDF do OPUSCase)
+   ===================================================================== */
+
+const CAMPOS_ESPELHO = [
+  'codigo','fc','vend','razao','aamm','nfSala','nfEcom','vlSala','vlEcom','vlTotal',
+  'itSala','itEcom','media3m','pctEcom','rentSala','rentEcom','przSala','przEcom',
+  'contratoIni','contratoFim','fPT','fLR','fVP','acessos','fRC','fIE',
+];
+
+/** A régua de tracinhos do relatório define as colunas. Lemos ela, não chutamos. */
+function fatiasDaRegua(linha){
+  const fatias = [];
+  // Um traço só também é coluna: as três de marcação (P, L, V) têm
+  // largura 1. Exigir dois traços faria todas as colunas escorregarem.
+  const re = /-+/g;
+  let m;
+  while ((m = re.exec(linha)) !== null) fatias.push([m.index, m.index + m[0].length]);
+  return fatias;
+}
+
+function ehLinhaRegua(l){
+  const t = l.trim();
+  if (t.length < 100) return false;
+  if (!/^-/.test(t)) return false;
+  return /^[-\s]+$/.test(t) && fatiasDaRegua(t).length >= 20;
+}
+
+function absorverPdfSalaEcom(linhas, nomeArquivo){
+  let canal = null, praca = '', fatias = null, largura = 0;
+  const espelhos = [];
+  const avisos = [];
+
+  for (const cru of linhas){
+    const l = cru.replace(/\t/g, ' ');
+
+    if (/Mapa de Atend\./i.test(l)){
+      canal = /Revend/i.test(l) ? 'REVENDA' : (/Consum/i.test(l) ? 'CONSUMIDOR' : canal);
+      continue;
+    }
+    if (!praca){
+      const p = l.match(/^\|\s*(\d{2})\s*-\s*([A-ZÀ-Ú][A-ZÀ-Ú\s.'-]{3,40}?)\s{2,}/);
+      if (p) praca = `${p[1]} - ${p[2].trim()}`;
+    }
+    if (ehLinhaRegua(l)){ fatias = fatiasDaRegua(l); largura = l.length; continue; }
+    if (!fatias) continue;
+    if (!/^\s*\d{5,6}\s/.test(l)) continue;
+
+    const pad = l.length < largura ? l + ' '.repeat(largura - l.length) : l;
+    const bruto = fatias.map(([a, b]) => pad.slice(a, b).trim());
+    if (bruto.length < 24) continue;
+
+    const r = {};
+    CAMPOS_ESPELHO.forEach((c, i) => { r[c] = bruto[i] ?? ''; });
+    if (!/^\d{4,6}$/.test(r.codigo) || !/^\d{4}$/.test(r.aamm)) continue;
+
+    espelhos.push({
+      codigo: codCliente(r.codigo),
+      codigoBruto: r.codigo,
+      fc: r.fc,
+      vend: r.vend,
+      razao: r.razao,
+      aamm: r.aamm,
+      canal: canal || 'INDEFINIDO',
+      praca,
+      nfSala: inteiro(r.nfSala), nfEcom: inteiro(r.nfEcom),
+      vlSala: numBr(r.vlSala), vlEcom: numBr(r.vlEcom), vlTotal: numBr(r.vlTotal),
+      itSala: inteiro(r.itSala), itEcom: inteiro(r.itEcom),
+      media3m: numBr(r.media3m), pctEcom: numBr(r.pctEcom),
+      rentSala: numBr(r.rentSala), rentEcom: numBr(r.rentEcom),
+      przSala: numBr(r.przSala), przEcom: numBr(r.przEcom),
+      contratoIni: r.contratoIni || null, contratoFim: r.contratoFim || null,
+      acessos: inteiro(r.acessos),
+      flags: [r.fPT, r.fLR, r.fVP, r.fRC, r.fIE].filter(Boolean).join(' '),
+      origem: nomeArquivo,
+    });
+  }
+
+  if (!fatias) avisos.push('não achei o cabeçalho de colunas do relatório');
+  if (!canal) avisos.push('não achei se é Consumidor ou Revenda — gravado como INDEFINIDO');
+  return { espelhos, canal, praca, avisos };
+}
+
+/** Mesma estrutura, mas vinda de planilha/CSV já normalizado (reimportação). */
+function absorverTabelaSalaEcom(linhas, nomeArquivo){
+  const cab = linhas[0];
+  const c = {
+    codigo: acharCol(cab, 'Código', 'Codigo', 'Código Cliente'),
+    razao: acharCol(cab, 'Cliente', 'Razão Social', 'Razao Social'),
+    aamm: acharCol(cab, 'Competência', 'AAMM'),
+    canal: acharCol(cab, 'Canal'),
+    vend: acharCol(cab, 'Vendedor (código)', 'Vend'),
+    acessos: acharCol(cab, 'Acessos no mês', 'Acessos'),
+    vlSala: acharCol(cab, 'R$ Sala', 'Faturamento Sala'),
+    vlEcom: acharCol(cab, 'R$ e-commerce', 'Faturamento e-commerce'),
+    media3m: acharCol(cab, 'Média 3 meses', 'Media 3 meses'),
+  };
+  const espelhos = [];
+  for (const l of linhas.slice(1)){
+    const cod = codCliente(l[c.codigo]);
+    if (!cod) continue;
+    const aamm = String(l[c.aamm] || '').replace(/\D/g, '').slice(-4);
+    espelhos.push({
+      codigo: cod, codigoBruto: String(l[c.codigo]).trim(),
+      razao: (l[c.razao] || '').trim(), aamm: aamm || null,
+      canal: (l[c.canal] || 'INDEFINIDO').toUpperCase(),
+      vend: (l[c.vend] || '').trim(), fc: '', praca: '',
+      nfSala: null, nfEcom: null,
+      vlSala: numBr(l[c.vlSala]), vlEcom: numBr(l[c.vlEcom]),
+      vlTotal: val(numBr(l[c.vlSala])) + val(numBr(l[c.vlEcom])),
+      itSala: null, itEcom: null,
+      media3m: numBr(l[c.media3m]), pctEcom: null,
+      rentSala: null, rentEcom: null, przSala: null, przEcom: null,
+      contratoIni: null, contratoFim: null,
+      acessos: inteiro(l[c.acessos]), flags: '', origem: nomeArquivo,
+    });
+  }
+  return { espelhos, avisos: [] };
+}
+
+function gravarEspelhos(espelhos){
+  let novos = 0, trocados = 0;
+  const comps = new Set();
+  for (const e of espelhos){
+    const aamm = e.aamm || 'sem-competencia';
+    comps.add(aamm);
+    if (!BASE.competencias[aamm]){
+      BASE.competencias[aamm] = { aamm, rotulo: compRotulo(aamm), praca: e.praca || '', espelhos: {} };
+    }
+    if (e.praca && !BASE.competencias[aamm].praca) BASE.competencias[aamm].praca = e.praca;
+    const k = `${e.codigo}|${e.canal}`;
+    if (BASE.competencias[aamm].espelhos[k]) trocados++; else novos++;
+    BASE.competencias[aamm].espelhos[k] = e;
+  }
+  return { novos, trocados, comps: [...comps] };
+}
+
+/* =====================================================================
+   LEITURA 2 — cadastros da plataforma
+   ===================================================================== */
+
+function absorverCadastros(linhas, nomeArquivo){
+  const cab = linhas[0];
+  const c = {
+    cad: acharCol(cab, 'Código de Cadastro'),
+    tipoU: acharCol(cab, 'Tipo de Usuário'),
+    tipoC: acharCol(cab, 'Tipo de Cliente'),
+    nome: acharCol(cab, 'Nome'),
+    empresa: acharCol(cab, 'Empresa'),
+    ac30: acharCol(cab, 'Acessos Últimos 30 Dias', 'Acessos'),
+    codPac: acharCol(cab, 'Código Cliente Pacaembu', 'Codigo Cliente'),
+    cnpj: acharCol(cab, 'CNPJ/CPF', 'CNPJ'),
+    email: acharCol(cab, 'E-Mail'),
+    emailPed: acharCol(cab, 'E-Mail(s) Envio Pedido'),
+    ultimo: acharCol(cab, 'Último Acesso'),
+    status: acharCol(cab, 'Status Cadastro'),
+    ip: acharCol(cab, 'IP Cadastro'),
+    fat90: acharCol(cab, 'Faturamento 90 dias'),
+    bloq: acharCol(cab, 'bloqueio'),
+  };
+
+  const lidos = [];
+  for (const l of linhas.slice(1)){
+    if (!l || !String(l[c.cad] ?? '').trim()) continue;
+    const g = (i) => (i >= 0 ? String(l[i] ?? '').trim() : '');
+    lidos.push({
+      cadastro: g(c.cad),
+      tipoUsuario: (g(c.tipoU) || '').toUpperCase(),
+      praca: g(c.tipoC),
+      nome: g(c.nome),
+      empresa: g(c.empresa),
+      acessos30d: inteiro(g(c.ac30)),
+      codigo: codCliente(g(c.codPac)),
+      codigoBruto: g(c.codPac),
+      cnpj: soDigitos(g(c.cnpj)),
+      email: g(c.email),
+      emailPedido: g(c.emailPed),
+      ultimoAcesso: g(c.ultimo).slice(0, 10) || null,
+      status: g(c.status),
+      ip: g(c.ip),
+      fat90d: numBr(g(c.fat90)),
+      marcaOriginal: g(c.bloq) || null,
+      origem: nomeArquivo,
+    });
+  }
+  const porChave = new Map(BASE.cadastros.map((x) => [x.cadastro, x]));
+  for (const x of lidos) porChave.set(x.cadastro, x);
+  BASE.cadastros = [...porChave.values()];
+  return { total: lidos.length, externos: lidos.filter((x) => x.tipoUsuario !== 'INTERNO').length };
+}
+
+/* =====================================================================
+   LEITURA 3 — carteira por vendedor
+   ===================================================================== */
+
+function absorverCarteira(abas, nomeArquivo){
+  let vendedores = 0, clientes = 0;
+  const meses = new Set();
+
+  for (const aba of abas){
+    const linhas = aba.linhas || [];
+    if (linhas.length < 2) continue;
+    let iCab = linhas.findIndex((l) => acharCol(l, 'Vend') === 0 && acharCol(l, 'Cliente', 'Cliente Nome') > 0);
+    if (iCab < 0) continue;
+    const cab = linhas[iCab];
+    const c = {
+      vend: acharCol(cab, 'Vend'),
+      cli: acharCol(cab, 'Cliente', 'Cliente Nome'),
+      tipo: acharCol(cab, 'Tipo'),
+      fi: acharCol(cab, 'Fi'),
+      frota: acharCol(cab, 'Frot.', 'Frota'),
+      media: acharCol(cab, 'MÉDIA 4M', 'MÉIDA 4M', 'MEDIA 4M', 'Média 4M'),
+      ultVl: acharCol(cab, 'Vl U.Com'),
+      ultDt: acharCol(cab, 'Dt U.Com'),
+    };
+    const colsMes = [];
+    cab.forEach((h, i) => {
+      const m = semAcento(String(h)).match(/^\s*faturamento\s+(.+?)\s*$/i);
+      if (m) colsMes.push({ i, rotulo: m[1].toUpperCase() });
+    });
+    colsMes.forEach((m) => meses.add(m.rotulo));
+
+    const doVend = {};
+    for (const l of linhas.slice(iCab + 1)){
+      const vend = String(l[c.vend] ?? '').trim();
+      if (!/^\d{3,4}$/.test(vend)) continue;
+      const cliCru = String(l[c.cli] ?? '').trim();
+      const mCod = cliCru.match(/^(\d{4,6})\s+(.*)$/);
+      if (!mCod) continue;
+      const reg = {
+        vend,
+        codigo: codCliente(mCod[1]),
+        codigoBruto: mCod[1],
+        nome: mCod[2].trim(),
+        tipo: c.tipo >= 0 ? String(l[c.tipo] ?? '').trim() : '',
+        fi: c.fi >= 0 ? String(l[c.fi] ?? '').trim() : '',
+        frota: inteiro(l[c.frota]),
+        media4m: numBr(l[c.media]),
+        meses: Object.fromEntries(colsMes.map((m) => [m.rotulo, numBr(l[m.i])])),
+        ultimaCompraVl: numBr(l[c.ultVl]),
+        ultimaCompraDt: (String(l[c.ultDt] ?? '').trim().slice(0, 10)) || null,
+        origem: nomeArquivo,
+      };
+      (doVend[vend] ||= []).push(reg);
+    }
+
+    const umSo = Object.keys(doVend).length === 1;
+    for (const [vend, regs] of Object.entries(doVend)){
+      // A aba só nomeia o vendedor quando tem um vendedor só: uma aba
+      // consolidada batizaria a carteira inteira com o mesmo nome.
+      const doTitulo = (umSo && !/^\d+$/.test(aba.nome.trim())) ? aba.nome.trim() : null;
+      // O título da aba individual costuma trazer o nome inteiro; o resumo
+      // abrevia ("WIL ARRUD"). Por isso o título ganha do resumo.
+      if (doTitulo) BASE.vendNomes[vend] = doTitulo;
+      else if (!BASE.vendNomes[vend]) BASE.vendNomes[vend] = vend;
+
+      const atual = BASE.carteira[vend]?.clientes || [];
+      const mapa = new Map(atual.map((x) => [x.codigo, x]));
+      for (const r of regs) mapa.set(r.codigo, r);
+      BASE.carteira[vend] = { vend, nome: BASE.vendNomes[vend], clientes: [...mapa.values()] };
+      vendedores++;
+    }
+  }
+  clientes = Object.values(BASE.carteira).reduce((s, v) => s + v.clientes.length, 0);
+  return { vendedores: Object.keys(BASE.carteira).length, clientes, meses: [...meses] };
+}
+
+/** A aba de resumo às vezes traz "0206 ERNANIM" — bom para nomear o vendedor. */
+function absorverNomesVendedor(abas){
+  let achados = 0;
+  for (const aba of abas){
+    for (const l of aba.linhas || []){
+      for (const cel of l){
+        const m = String(cel ?? '').trim().match(/^(\d{4})\s+([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ.\s']{2,})$/);
+        if (m){ BASE.vendNomes[m[1]] = m[2].trim(); achados++; }
+      }
+    }
+  }
+  return achados;
+}
+
+/* =====================================================================
+   LEITURA 4 — planilha que volta do vendedor
+   ===================================================================== */
+
+function absorverRetorno(linhas){
+  const cab = linhas[0];
+  const iCod = acharCol(cab, 'Código', 'Codigo', 'Código Cliente');
+  const iDec = acharCol(cab, 'Decisão', 'Decisao');
+  const iObs = acharCol(cab, 'Observação', 'Observacao', 'Obs');
+  if (iCod < 0 || (iDec < 0 && iObs < 0)) return null;
+
+  let dec = 0, obs = 0;
+  for (const l of linhas.slice(1)){
+    const cod = codCliente(l[iCod]);
+    if (!cod) continue;
+    if (iDec >= 0){
+      const d = semAcento(String(l[iDec] ?? '')).trim().toUpperCase();
+      if (d === 'BLOQUEAR' || d === 'MANTER' || d === 'OBSERVAR'){ BASE.decisoes[cod] = d; dec++; }
+      else if (d === '' && BASE.decisoes[cod] && iObs < 0){ /* vazio não apaga */ }
+    }
+    if (iObs >= 0){
+      const o = String(l[iObs] ?? '').trim();
+      if (o){ BASE.observacoes[cod] = o; obs++; }
+    }
+  }
+  return { dec, obs };
+}
+
+/* =====================================================================
+   DETECÇÃO — o painel descobre sozinho o que o arquivo é
+   ===================================================================== */
+
+function assinatura(linhas){
+  const cab = (linhas[0] || []).map(chaveCol).join('|');
+  const primeiras = linhas.slice(0, 25).map((l) => l.map(chaveCol).join('|')).join('\n');
+  return { cab, primeiras };
+}
+
+function classificarTabela(linhas){
+  const { primeiras } = assinatura(linhas);
+  if (/codigodecadastro/.test(primeiras) && /tipodeusuario|acessosultimos30dias/.test(primeiras)) return 'CADASTROS';
+  if (/^vend\|/m.test(primeiras) && /clientenome|cliente/.test(primeiras)) return 'CARTEIRA';
+  if (/decisao/.test(primeiras) && /codigo/.test(primeiras)) return 'RETORNO';
+  if (/acessosnomes/.test(primeiras) && /rsecommerce|recommerce/.test(primeiras)) return 'SALAECOM_TAB';
+  return null;
+}
+
+/* =====================================================================
+   CRUZAMENTO
+   ===================================================================== */
+
+function competenciasOrdenadas(){
+  return Object.values(BASE.competencias).sort((a, b) => compOrdem(a.aamm).localeCompare(compOrdem(b.aamm)));
+}
+function competenciaAtual(){
+  const c = competenciasOrdenadas();
+  return c.length ? c[c.length - 1] : null;
+}
+
+/**
+ * Junta as três fontes num cliente só, pelo código Pacaembu.
+ * Nada é somado entre fontes: cada número guarda de onde veio.
+ */
+function cruzar(){
+  const comp = competenciaAtual();
+  const clientes = new Map();
+
+  const pegar = (codigo) => {
+    if (!clientes.has(codigo)){
+      clientes.set(codigo, {
+        codigo, nome: '', vend: '', canais: [],
+        espelho: null, espelhosCanal: [],
+        cadastros: [], carteira: null,
+        acessosMes: null, acessos30d: null,
+        vlSala: null, vlEcom: null, vlTotal: null, media3m: null, fat90d: null,
+        cnpj: '', raiz: '',
+      });
+    }
+    return clientes.get(codigo);
+  };
+
+  // 1) espelho do mês corrente
+  if (comp) for (const e of Object.values(comp.espelhos)){
+    const c = pegar(e.codigo);
+    c.espelhosCanal.push(e);
+    if (!c.nome) c.nome = e.razao;
+    if (e.canal && !c.canais.includes(e.canal)) c.canais.push(e.canal);
+    if (e.vend && e.vend !== '0200') c.vend = e.vend;
+    else if (!c.vend && e.vend) c.vend = e.vend;
+  }
+  for (const c of clientes.values()){
+    if (!c.espelhosCanal.length) continue;
+    // Um cliente pode aparecer como Consumidor e como Revenda: somamos o
+    // dinheiro (é a mesma conta) e ficamos com o maior número de acessos.
+    const s = (f) => c.espelhosCanal.reduce((a, e) => (e[f] === null ? a : val(a) + e[f]), null);
+    c.vlSala = s('vlSala'); c.vlEcom = s('vlEcom'); c.vlTotal = s('vlTotal'); c.media3m = s('media3m');
+    const acs = c.espelhosCanal.map((e) => e.acessos).filter((x) => x !== null);
+    c.acessosMes = acs.length ? Math.max(...acs) : null;
+    c.espelho = c.espelhosCanal[0];
+  }
+
+  // 2) cadastros da plataforma (externos = clientes de verdade)
+  for (const cad of BASE.cadastros){
+    if (cad.tipoUsuario === 'INTERNO') continue;
+    if (!cad.codigo) continue;
+    const c = pegar(cad.codigo);
+    c.cadastros.push(cad);
+    if (!c.nome) c.nome = cad.empresa || cad.nome;
+    if (!c.cnpj && cad.cnpj){ c.cnpj = cad.cnpj; c.raiz = raizCnpj(cad.cnpj); }
+    if (cad.fat90d !== null) c.fat90d = cad.fat90d;
+  }
+  for (const c of clientes.values()){
+    const a = c.cadastros.map((x) => x.acessos30d).filter((x) => x !== null);
+    c.acessos30d = a.length ? a.reduce((s, x) => s + x, 0) : null;
+  }
+
+  // 3) carteira
+  for (const v of Object.values(BASE.carteira)){
+    for (const reg of v.clientes){
+      const c = pegar(reg.codigo);
+      c.carteira = reg;
+      if (!c.nome) c.nome = reg.nome;
+      if (!c.vend || c.vend === '0200') c.vend = reg.vend;
+    }
+  }
+
+  // 4) grupo por raiz de CNPJ — evita bloquear um código quando outro do
+  //    mesmo grupo é justamente quem compra pela plataforma.
+  const porRaiz = new Map();
+  for (const c of clientes.values()){
+    if (!c.raiz) continue;
+    (porRaiz.get(c.raiz) || porRaiz.set(c.raiz, []).get(c.raiz)).push(c);
+  }
+  for (const [, grupo] of porRaiz){
+    if (grupo.length < 2) continue;
+    const ecomGrupo = grupo.reduce((s, x) => s + val(x.vlEcom), 0);
+    for (const c of grupo){
+      c.grupo = { tamanho: grupo.length, ecomGrupo, outros: grupo.filter((x) => x !== c).map((x) => x.codigo) };
+    }
+  }
+
+  return [...clientes.values()];
+}
+
+/* =====================================================================
+   VEREDITO
+   ===================================================================== */
+
+const VEREDITOS = {
+  COMPRA_PLATAFORMA: { rotulo: 'Compra pela plataforma', grau: 'bom',    fila: false, acao: 'Nada a fazer. Este é o comportamento que se quer.' },
+  CONSULTA_CARA:     { rotulo: 'Compra pouco pra tanto acesso', grau: 'aviso', fila: true,  acao: 'Ver o que ele consulta e não fecha. Falta preço, prazo ou estoque.' },
+  COTA_E_BALCAO:     { rotulo: 'Consulta e fecha fora da plataforma', grau: 'aviso', fila: true, acao: 'Não bloquear. Puxar o pedido para a plataforma com o vendedor.' },
+  COTA_E_SUMIU:      { rotulo: 'Consulta, já comprou, parou', grau: 'bloq', fila: true, acao: 'Vendedor liga antes. Se não voltar a comprar, bloquear.' },
+  SO_CONSULTA:       { rotulo: 'Só consulta preço', grau: 'bloq', fila: true, acao: 'Bloquear o acesso. Não comprou nada e usa a plataforma como tabela.' },
+  POUCO_ACESSO:      { rotulo: 'Acesso eventual', grau: 'neutro', fila: false, acao: 'Abaixo da régua de acessos. Nada a decidir.' },
+  CADASTRO_PARADO:   { rotulo: 'Compra, mas não usa o cadastro', grau: 'neutro', fila: false, acao: 'Tem login e não entra. Vale sentar com ele e fazer o primeiro pedido pelo canal.' },
+  SEM_CADASTRO:      { rotulo: 'Compra e nem tem cadastro', grau: 'neutro', fila: false, acao: 'Cliente ativo fora da plataforma. É a lista mais curta para crescer o canal: abrir o acesso.' },
+  CADASTRO_OCIOSO:   { rotulo: 'Cadastro sem uso', grau: 'neutro', fila: true, acao: 'Tem login, nunca entra e não compra. Limpar o cadastro ou entender por que existe.' },
+  INATIVO:           { rotulo: 'Cliente parado', grau: 'neutro', fila: false, acao: 'Sem compra e sem cadastro na plataforma. É assunto do vendedor, não da plataforma.' },
+  SEM_ESPELHO:       { rotulo: 'Fora do relatório do mês', grau: 'neutro', fila: false, acao: 'Não apareceu no Sala x eCom. Conferir filial e cadastro antes de concluir.' },
+};
+
+/**
+ * Devolve { chave, rotulo, grau, acao, fila, fatores[], lacunas[], retorno }.
+ * Sempre com pelo menos um fator ou uma lacuna — nunca os dois vazios.
+ */
+function avaliar(c, reguas){
+  const R = reguas || BASE.reguas;
+  const fatores = [];
+  const lacunas = [];
+  const dinheiro = (n) => 'R$ ' + (n === null || n === undefined ? '—' : n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+
+  const temEspelho = !!c.espelhosCanal.length;
+  const acessos = c.acessosMes;
+  const acessos30 = c.acessos30d;
+
+  if (!temEspelho){
+    lacunas.push('Não há linha deste cliente no relatório Sala x eCom da competência carregada.');
+    if (acessos30 !== null) fatores.push(`A plataforma registra ${acessos30} acesso(s) nos últimos 30 dias.`);
+    if (c.carteira) fatores.push(`Está na carteira de ${nomeVend(c.vend)}.`);
+    return montar('SEM_ESPELHO', fatores, lacunas, null, c);
+  }
+
+  if (acessos === null){
+    lacunas.push('O relatório não trouxe o total de acessos deste cliente.');
+    fatores.push(`Faturou ${dinheiro(c.vlTotal)} no mês (${dinheiro(c.vlSala)} sala, ${dinheiro(c.vlEcom)} e-commerce).`);
+    return montar('SEM_ESPELHO', fatores, lacunas, null, c);
+  }
+
+  const retorno = acessos > 0 && c.vlEcom !== null ? c.vlEcom / acessos : null;
+  fatores.push(`${acessos} acesso(s) à plataforma no mês.`);
+  if (acessos30 !== null && acessos30 !== acessos){
+    fatores.push(`A plataforma conta ${acessos30} acesso(s) nos últimos 30 dias — janelas diferentes, os dois ficam à vista.`);
+  }
+
+  // 1. Não bateu a régua de acessos.
+  if (acessos < R.minAcessos){
+    if (val(c.vlEcom) > 0){
+      fatores.push(`Faturou ${dinheiro(c.vlEcom)} pelo e-commerce.`);
+      return montar('COMPRA_PLATAFORMA', fatores, lacunas, retorno, c);
+    }
+    if (acessos === 0){
+      // Só faz sentido falar em bloquear quem tem login. Sem cadastro na
+      // plataforma não há acesso a cortar — é conversa de vendedor.
+      const temLogin = c.cadastros.length > 0;
+
+      if (val(c.vlTotal) > 0 || val(c.media3m) > 0){
+        fatores.push(`Comprou ${dinheiro(c.vlTotal)} no mês, tudo na sala.`);
+        if (val(c.media3m) > 0) fatores.push(`Média dos 3 últimos meses: ${dinheiro(c.media3m)}.`);
+        if (temLogin){
+          fatores.push(`Tem ${c.cadastros.length} login(s) na plataforma e não entrou nenhuma vez no mês.`);
+          return montar('CADASTRO_PARADO', fatores, lacunas, retorno, c);
+        }
+        fatores.push('Não tem cadastro na plataforma — comprando só pelo caminho antigo.');
+        return montar('SEM_CADASTRO', fatores, lacunas, retorno, c);
+      }
+
+      fatores.push('Sem faturamento no mês e sem acesso à plataforma.');
+      if (c.media3m === null) lacunas.push('Sem média dos 3 meses no relatório.');
+      else if (ehZero(c.media3m)) fatores.push('Média dos 3 últimos meses também zerada.');
+      if (temLogin){
+        fatores.push(`Mesmo assim mantém ${c.cadastros.length} login(s) ativo(s).`);
+        return montar('CADASTRO_OCIOSO', fatores, lacunas, retorno, c);
+      }
+      return montar('INATIVO', fatores, lacunas, retorno, c);
+    }
+    fatores.push(`Abaixo da régua de ${R.minAcessos} acessos.`);
+    return montar('POUCO_ACESSO', fatores, lacunas, retorno, c);
+  }
+
+  // 2. Bateu a régua e comprou pelo canal.
+  if (val(c.vlEcom) > 0){
+    fatores.push(`Faturou ${dinheiro(c.vlEcom)} pelo e-commerce — ${dinheiro(retorno)} por acesso.`);
+    if (retorno !== null && retorno < R.minRetorno){
+      fatores.push(`Abaixo dos ${dinheiro(R.minRetorno)} por acesso que você definiu como retorno mínimo.`);
+      if (val(c.vlSala) > 0) fatores.push(`Ainda deixa ${dinheiro(c.vlSala)} na sala.`);
+      return montar('CONSULTA_CARA', fatores, lacunas, retorno, c);
+    }
+    return montar('COMPRA_PLATAFORMA', fatores, lacunas, retorno, c);
+  }
+
+  // 3. Bateu a régua, nada pelo canal.
+  fatores.push('Nenhum centavo faturado pelo e-commerce no mês.');
+
+  if (val(c.vlSala) > 0){
+    fatores.push(`Mas comprou ${dinheiro(c.vlSala)} na sala, com o vendedor.`);
+    fatores.push('Ou seja: usa a plataforma para ver preço e fecha por fora.');
+    return montar('COTA_E_BALCAO', fatores, lacunas, retorno, c);
+  }
+
+  fatores.push('E também não comprou nada na sala no mês.');
+
+  const grupoCompra = c.grupo && c.grupo.ecomGrupo > 0;
+  if (grupoCompra){
+    fatores.push(`Atenção: outro código do mesmo CNPJ faturou ${dinheiro(c.grupo.ecomGrupo)} pelo e-commerce. Pode ser cadastro duplicado.`);
+    return montar('COTA_E_SUMIU', fatores, lacunas, retorno, c);
+  }
+
+  const historico = val(c.media3m) > 0 || val(c.fat90d) > 0;
+  if (historico && R.salvoConduto){
+    if (val(c.media3m) > 0) fatores.push(`Já comprou: média de ${dinheiro(c.media3m)} nos 3 últimos meses.`);
+    if (val(c.fat90d) > 0) fatores.push(`A plataforma registra ${dinheiro(c.fat90d)} faturados em 90 dias.`);
+    return montar('COTA_E_SUMIU', fatores, lacunas, retorno, c);
+  }
+  if (historico && !R.salvoConduto){
+    fatores.push('Tem histórico de compra, mas o salvo-conduto está desligado na régua.');
+  }
+  if (!historico){
+    if (c.media3m === null && c.fat90d === null){
+      lacunas.push('Sem média dos 3 meses e sem faturamento de 90 dias para conferir — o veredito se apoia só no mês.');
+    } else {
+      fatores.push('Sem histórico de compra: média dos 3 meses e faturamento de 90 dias zerados.');
+    }
+  }
+  return montar('SO_CONSULTA', fatores, lacunas, retorno, c);
+}
+
+function montar(chave, fatores, lacunas, retorno, c){
+  const d = VEREDITOS[chave];
+  if (!fatores.length && !lacunas.length){
+    lacunas.push('Sem evidência suficiente para explicar este veredito.');
+  }
+  const decisao = BASE.decisoes[c.codigo] || null;
+  return {
+    chave, rotulo: d.rotulo, grau: d.grau, acao: d.acao,
+    fila: d.fila, fatores, lacunas, retorno, decisao,
+  };
+}
+
+function nomeVend(cod){
+  if (!cod || cod === 'sem') return 'sem vendedor';
+  if (BASE.vendNomes[cod]) return `${cod} · ${BASE.vendNomes[cod]}`;
+  // 0200 é o código que o relatório usa para a conta sem dono.
+  return cod === '0200' ? `${cod} · sem vendedor` : cod;
+}
+
+/** Só quem tem carteira nomeada. O balcão sem dono não é vendedor. */
+function ehVendedorReal(cod){
+  return !!BASE.vendNomes[cod] && !/^\d+$/.test(BASE.vendNomes[cod]);
+}
+
+function nomeAbaVend(cod){
+  return BASE.vendNomes[cod] || (cod === '0200' || cod === 'sem' ? 'Sem vendedor' : cod);
+}
+
+/* ---------- memória do navegador ---------- */
+
+function salvar(){
+  BASE.gerado = new Date().toISOString();
+  try { localStorage.setItem(CHAVE_ARMAZEM, JSON.stringify(BASE)); }
+  catch (e){ console.warn('não deu para guardar no navegador', e); }
+}
+
+function carregar(){
+  try {
+    const t = localStorage.getItem(CHAVE_ARMAZEM);
+    if (!t) return false;
+    const b = JSON.parse(t);
+    if (!b || b.versao !== 1) return false;
+    BASE = { ...baseVazia(), ...b, reguas: { ...REGUAS_PADRAO, ...(b.reguas || {}) } };
+    return true;
+  } catch { return false; }
+}
+</script>
+<script>
+"use strict";
+/* =====================================================================
+   PAINEL CARPA — telas, importação e exportação.
+   ===================================================================== */
+
+const $ = (s, r) => (r || document).querySelector(s);
+const $$ = (s, r) => [...(r || document).querySelectorAll(s)];
+
+let CLIENTES = [];
+let AVAL = new Map();
+let ORDEM = { clientes: { col: 'vlEcom', dir: -1 }, topo: { col: 'vlEcom', dir: -1 }, vends: { col: 'ecom', dir: -1 } };
+
+/* ---------- formatação ---------- */
+const fmtMoeda = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmtInt = new Intl.NumberFormat('pt-BR');
+
+function moeda(n){ return n === null || n === undefined ? '—' : 'R$ ' + fmtMoeda.format(n); }
+function moedaCurta(n){
+  if (n === null || n === undefined) return '—';
+  const a = Math.abs(n);
+  if (a >= 1e6) return 'R$ ' + (n / 1e6).toFixed(1).replace('.', ',') + ' mi';
+  if (a >= 1e3) return 'R$ ' + (n / 1e3).toFixed(1).replace('.', ',') + ' mil';
+  return 'R$ ' + fmtMoeda.format(n);
+}
+function inteiroFmt(n){ return n === null || n === undefined ? '—' : fmtInt.format(n); }
+function pct(n, casas){ return n === null || n === undefined ? '—' : n.toFixed(casas ?? 1).replace('.', ',') + '%'; }
+function esc(s){ return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+function dataBr(s){
+  if (!s) return '—';
+  const m = String(s).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : String(s);
+}
+function hoje(){ const d = new Date(); const p = (x) => String(x).padStart(2, '0'); return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}`; }
+
+/* ---------- abas ---------- */
+const ABAS = [
+  { id: 'painel',     rot: 'Painel' },
+  { id: 'bloqueio',   rot: 'Bloqueio', badge: () => filaCasos().filter((x) => !x.aval.decisao).length, alerta: true },
+  { id: 'clientes',   rot: 'Clientes', badge: () => CLIENTES.length },
+  { id: 'vendedores', rot: 'Vendedores', badge: () => Object.keys(placarVendedores()).length },
+  { id: 'historico',  rot: 'Histórico', badge: () => competenciasOrdenadas().length },
+  { id: 'importar',   rot: 'Importar' },
+  { id: 'exportar',   rot: 'Exportar' },
+  { id: 'metodo',     rot: 'Método' },
+];
+let ABA = 'painel';
+
+function pintarAbas(){
+  $('#abas').innerHTML = ABAS.map((a) => {
+    const n = a.badge ? a.badge() : null;
+    const b = n ? `<span class="conta${a.alerta && n > 0 ? ' alerta' : ''}">${n}</span>` : '';
+    return `<button type="button" role="tab" data-aba="${a.id}"${ABA === a.id ? ' aria-current="page"' : ''}>${a.rot}${b}</button>`;
+  }).join('');
+}
+
+function irPara(id){
+  ABA = id;
+  ABAS.forEach((a) => { $('#v-' + a.id).hidden = a.id !== id; });
+  pintarAbas();
+  window.scrollTo({ top: 0, behavior: 'instant' in window ? 'auto' : 'auto' });
+  pintar();
+}
+
+/* ---------- derivados ---------- */
+
+function recalcular(){
+  CLIENTES = cruzar();
+  AVAL = new Map(CLIENTES.map((c) => [c.codigo, avaliar(c, BASE.reguas)]));
+}
+
+function filaCasos(){
+  return CLIENTES
+    .map((c) => ({ c, aval: AVAL.get(c.codigo) }))
+    .filter((x) => x.aval.fila)
+    .sort((a, b) => {
+      const peso = { bloq: 0, aviso: 1, neutro: 2 };
+      const p = peso[a.aval.grau] - peso[b.aval.grau];
+      if (p) return p;
+      return val(b.c.acessosMes) - val(a.c.acessosMes);
+    });
+}
+
+function totais(){
+  const t = { sala: 0, ecom: 0, clientes: CLIENTES.length, comAcesso: 0, comprando: 0, acessosSemPedido: 0,
+    semPedido: 0, cadastrados: 0, ociosos: 0, parados: 0, semCadastro: 0, inativos: 0 };
+  for (const c of CLIENTES){
+    t.sala += val(c.vlSala); t.ecom += val(c.vlEcom);
+    if (c.cadastros.length) t.cadastrados++;
+    if (val(c.acessosMes) > 0) t.comAcesso++;
+    if (val(c.vlEcom) > 0) t.comprando++;
+    if (val(c.acessosMes) > 0 && !(val(c.vlEcom) > 0)){ t.semPedido++; t.acessosSemPedido += val(c.acessosMes); }
+    const a = AVAL.get(c.codigo);
+    if (a.chave === 'CADASTRO_OCIOSO') t.ociosos++;
+    if (a.chave === 'CADASTRO_PARADO') t.parados++;
+    if (a.chave === 'SEM_CADASTRO') t.semCadastro++;
+    if (a.chave === 'INATIVO') t.inativos++;
+  }
+  t.total = t.sala + t.ecom;
+  t.pctEcom = t.total > 0 ? (t.ecom / t.total) * 100 : null;
+  return t;
+}
+
+function placarVendedores(){
+  const p = {};
+  for (const c of CLIENTES){
+    const v = c.vend || 'sem';
+    p[v] ||= { vend: v, nome: BASE.vendNomes[v] || '', carteira: 0, cadastrados: 0, comprando: 0, garimpo: 0, balcao: 0, parado: 0, ecom: 0, sala: 0, acessosSemPedido: 0 };
+    const x = p[v];
+    x.carteira++;
+    if (c.cadastros.length) x.cadastrados++;
+    x.ecom += val(c.vlEcom); x.sala += val(c.vlSala);
+    const a = AVAL.get(c.codigo);
+    if (a.chave === 'COMPRA_PLATAFORMA' || a.chave === 'CONSULTA_CARA') x.comprando++;
+    if (a.chave === 'SO_CONSULTA' || a.chave === 'COTA_E_SUMIU') x.garimpo++;
+    if (a.chave === 'COTA_E_BALCAO') x.balcao++;
+    if (a.chave === 'CADASTRO_PARADO' || a.chave === 'CADASTRO_OCIOSO' || a.chave === 'SEM_CADASTRO') x.parado++;
+    if (val(c.acessosMes) > 0 && !(val(c.vlEcom) > 0)) x.acessosSemPedido += val(c.acessosMes);
+  }
+  for (const x of Object.values(p)){
+    x.total = x.ecom + x.sala;
+    x.pctEcom = x.total > 0 ? (x.ecom / x.total) * 100 : null;
+    x.digital = x.cadastrados > 0 ? (x.comprando / x.cadastrados) * 100 : null;
+  }
+  return p;
+}
+
+/* ---------- pintura ---------- */
+
+function pintar(){
+  const comp = competenciaAtual();
+  $('#seloComp').textContent = comp ? `competência ${comp.rotulo}` : 'sem competência';
+  $('#seloBase').textContent = comp && comp.praca ? comp.praca : `${CLIENTES.length} clientes`;
+  pintarAbas();
+  if (ABA === 'painel') pintarPainel();
+  if (ABA === 'bloqueio') pintarBloqueio();
+  if (ABA === 'clientes') pintarClientes();
+  if (ABA === 'vendedores') pintarVendedores();
+  if (ABA === 'historico') pintarHistorico();
+  if (ABA === 'importar') pintarFontes();
+  if (ABA === 'exportar') pintarCiclo();
+  if (ABA === 'metodo') pintarMetodo();
+}
+
+function chip(aval){
+  const cls = { bloq: 'c-bloq', aviso: 'c-aviso', bom: 'c-bom', neutro: 'c-neutro' }[aval.grau];
+  return `<span class="chip ${cls}"><span class="pt"></span>${esc(aval.rotulo)}</span>`;
+}
+
+/* ===================== PAINEL ===================== */
+
+function pintarPainel(){
+  const temDados = CLIENTES.length > 0;
+  $('#painelCheio').hidden = !temDados;
+  $('#painelVazio').innerHTML = temDados ? '' : `
+    <div class="vazio">
+      <h3>Nenhum arquivo carregado ainda</h3>
+      <p>Este painel não vem com dado nenhum dentro. Solte na aba Importar o PDF do Sala&times;eCom, a planilha de cadastros da plataforma e a carteira dos vendedores — ele cruza os três e monta tudo.</p>
+      <button class="b primario" type="button" onclick="irPara('importar')">Ir para Importar</button>
+    </div>`;
+  if (!temDados) return;
+
+  const t = totais();
+
+  // barra sala x e-commerce
+  const larguraSala = t.total > 0 ? (t.sala / t.total) * 100 : 50;
+  $('#barraCanal').innerHTML =
+    `<i style="width:${larguraSala}%;background:var(--s-sala)"></i>` +
+    `<i style="width:${100 - larguraSala}%;background:var(--s-ecom)"></i>`;
+  $('#legCanal').innerHTML =
+    `<span><i class="chave" style="background:var(--s-sala)"></i>Sala <b>${moedaCurta(t.sala)}</b> · ${pct(t.total > 0 ? (t.sala / t.total) * 100 : null)}</span>` +
+    `<span><i class="chave" style="background:var(--s-ecom)"></i>e-commerce <b>${moedaCurta(t.ecom)}</b> · ${pct(t.pctEcom)}</span>` +
+    `<span>Total do mês <b>${moedaCurta(t.total)}</b></span>`;
+
+  const fila = filaCasos();
+  const bloq = fila.filter((x) => x.aval.grau === 'bloq');
+  const pend = fila.filter((x) => !x.aval.decisao).length;
+
+  $('#metricasChave').innerHTML = [
+    cartao(String(t.comprando), 'Compram pela plataforma', `de ${t.comAcesso} que acessaram no mês`, 'bom'),
+    cartao(String(t.semPedido), 'Acessam e não compram', `somam ${inteiroFmt(t.acessosSemPedido)} acessos sem gerar um pedido`, 'perigo'),
+    cartao(String(bloq.length), 'Sugeridos para bloqueio', 'só consultam preço, ou consultavam e pararam', 'perigo'),
+    cartao(String(pend), 'Casos sem decisão', 'esperando você marcar bloquear, manter ou observar', pend > 0 ? 'aviso' : 'bom'),
+    cartao(pct(t.pctEcom), 'Do faturamento veio do canal', `${moedaCurta(t.ecom)} de ${moedaCurta(t.total)}`),
+  ].join('');
+
+  $('#metricasBase').innerHTML = [
+    cartao(String(t.clientes), 'Clientes cruzados', 'soma das três fontes, sem repetir'),
+    cartao(String(t.cadastrados), 'Com cadastro na plataforma', t.clientes ? `${pct((t.cadastrados / t.clientes) * 100, 0)} da base` : ''),
+    cartao(String(t.semCadastro), 'Compram e nem têm cadastro', 'a lista mais curta para crescer o canal: é só abrir o acesso'),
+    cartao(String(t.parados), 'Têm login e não entram', 'o cadastro já existe — falta o primeiro pedido pelo canal'),
+    cartao(String(t.ociosos), 'Logins sem uso nenhum', 'sem acesso e sem compra — cadastro para limpar'),
+    (() => {
+      const todos = Object.keys(placarVendedores());
+      const reais = todos.filter(ehVendedorReal);
+      const orfas = todos.length - reais.length;
+      return cartao(String(reais.length), 'Vendedores com carteira',
+        orfas ? `mais ${orfas} grupo(s) de clientes sem dono` : 'todos os clientes têm vendedor');
+    })(),
+  ].join('');
+
+  // concentração
+  const topo = [...CLIENTES].filter((c) => val(c.vlEcom) > 0).sort((a, b) => val(b.vlEcom) - val(a.vlEcom));
+  const somaEcom = topo.reduce((s, c) => s + val(c.vlEcom), 0);
+  let acum = 0;
+  const linhas = topo.slice(0, 15).map((c, i) => {
+    acum += val(c.vlEcom);
+    const a = AVAL.get(c.codigo);
+    return `<tr data-cod="${c.codigo}" style="cursor:pointer">
+      <td class="num">${i + 1}</td>
+      <td class="nome"><b>${esc(c.nome)}</b><small>${esc(c.codigo)} · ${esc(nomeVend(c.vend))}</small></td>
+      <td class="num">${inteiroFmt(c.acessosMes)}</td>
+      <td class="num">${moeda(c.vlEcom)}</td>
+      <td class="num">${moeda(c.vlSala)}</td>
+      <td class="num">${a.retorno === null ? '—' : moeda(a.retorno)}</td>
+      <td class="num">${somaEcom > 0 ? pct((acum / somaEcom) * 100, 0) : '—'}</td>
+      <td>${chip(a)}</td></tr>`;
+  }).join('');
+  $('#tbTopo').innerHTML =
+    `<thead><tr><th class="num">#</th><th>Cliente</th><th class="num">Acessos</th><th class="num">e-commerce</th><th class="num">Sala</th><th class="num">R$/acesso</th><th class="num">Acumulado</th><th>Veredito</th></tr></thead>` +
+    `<tbody>${linhas || '<tr><td colspan="8">Nenhum cliente faturou pelo e-commerce nesta competência.</td></tr>'}</tbody>`;
+  $$('#tbTopo tbody tr').forEach((tr) => tr.onclick = () => abrirFicha(tr.dataset.cod));
+}
+
+function cartao(valor, rotulo, nota, tom){
+  return `<div class="metrica${tom ? ' ' + tom : ''}"><span class="rot">${esc(rotulo)}</span>
+    <div class="val">${esc(valor)}</div>${nota ? `<p class="nota">${esc(nota)}</p>` : ''}</div>`;
+}
+
+/* ===================== BLOQUEIO ===================== */
+
+function pintarReguas(){
+  const R = BASE.reguas;
+  $('#reguas').innerHTML = `
+    <div class="regua">
+      <label for="rAc">Acesso vira consulta a partir de <b id="vAc">${R.minAcessos}</b> vezes no mês</label>
+      <input type="range" id="rAc" min="1" max="40" step="1" value="${R.minAcessos}" />
+      <p class="exp">Abaixo disso o painel trata como visita eventual e não coloca ninguém na fila.</p>
+    </div>
+    <div class="regua">
+      <label for="rRet">Retorno mínimo de <b id="vRet">${moeda(R.minRetorno)}</b> por acesso</label>
+      <input type="range" id="rRet" min="0" max="1000" step="25" value="${R.minRetorno}" />
+      <p class="exp">Quem compra pelo canal mas rende menos que isto por acesso aparece como consulta cara — compra, mas garimpa muito.</p>
+    </div>
+    <div class="regua">
+      <label for="rSalvo">Salvo-conduto para quem já comprou <b id="vSalvo">${R.salvoConduto ? 'ligado' : 'desligado'}</b></label>
+      <input type="range" id="rSalvo" min="0" max="1" step="1" value="${R.salvoConduto ? 1 : 0}" />
+      <p class="exp">Ligado: quem tem média nos 3 meses vai para “consulta e parou”, com ligação antes do corte. Desligado: cai direto em “só consulta preço”.</p>
+    </div>`;
+  const liga = (id, campo, mostra) => {
+    $(id).oninput = (e) => {
+      const v = +e.target.value;
+      BASE.reguas[campo] = campo === 'salvoConduto' ? !!v : v;
+      mostra(BASE.reguas[campo]);
+      recalcular(); salvar();
+      pintarFila(); pintarAbas();
+    };
+  };
+  liga('#rAc', 'minAcessos', (v) => $('#vAc').textContent = v);
+  liga('#rRet', 'minRetorno', (v) => $('#vRet').textContent = moeda(v));
+  liga('#rSalvo', 'salvoConduto', (v) => $('#vSalvo').textContent = v ? 'ligado' : 'desligado');
+}
+
+function pintarBloqueio(){
+  pintarReguas();
+  const graus = [...new Set(filaCasos().map((x) => x.aval.chave))];
+  $('#filtroFilaGrau').innerHTML = `<option value="">Todos os vereditos</option>` +
+    graus.map((g) => `<option value="${g}">${esc(VEREDITOS[g].rotulo)}</option>`).join('');
+  const vends = [...new Set(CLIENTES.map((c) => c.vend).filter(Boolean))].sort();
+  $('#filtroFilaVend').innerHTML = `<option value="">Todos os vendedores</option>` +
+    vends.map((v) => `<option value="${v}">${esc(nomeVend(v))}</option>`).join('');
+  pintarFila();
+}
+
+function pintarFila(){
+  const busca = ($('#buscaFila').value || '').toLowerCase().trim();
+  const fg = $('#filtroFilaGrau').value;
+  const fv = $('#filtroFilaVend').value;
+  const fd = $('#filtroFilaDec').value;
+
+  let casos = filaCasos();
+  if (fg) casos = casos.filter((x) => x.aval.chave === fg);
+  if (fv) casos = casos.filter((x) => x.c.vend === fv);
+  if (fd === 'pendente') casos = casos.filter((x) => !x.aval.decisao);
+  else if (fd !== 'todos') casos = casos.filter((x) => x.aval.decisao === fd);
+  if (busca) casos = casos.filter((x) =>
+    (x.c.nome + ' ' + x.c.codigo + ' ' + nomeVend(x.c.vend)).toLowerCase().includes(busca));
+
+  if (!casos.length){
+    $('#fila').innerHTML = `<div class="vazio" style="grid-column:1/-1"><h3>Fila vazia</h3>
+      <p>Com a régua atual e os filtros escolhidos não sobrou nenhum caso. Afrouxe a régua de acessos ou troque o filtro de decisão para ver o que já foi decidido.</p></div>`;
+    return;
+  }
+
+  $('#fila').innerHTML = casos.map(({ c, aval }) => {
+    const obs = BASE.observacoes[c.codigo] || '';
+    const bt = (v, cls, rot) => `<button type="button" class="b mini ${cls}" data-dec="${v}" data-cod="${c.codigo}" aria-pressed="${aval.decisao === v}">${rot}</button>`;
+    return `<article class="caso g-${aval.grau}${aval.decisao ? ' decidido' : ''}">
+      <h3>${esc(c.nome)}<small>${esc(c.codigo)} · ${esc(nomeVend(c.vend))}${c.canais.length ? ' · ' + esc(c.canais.join('/')) : ''}</small></h3>
+      <div>${chip(aval)}${aval.decisao ? ` <span class="chip c-info"><span class="pt"></span>marcado: ${esc(aval.decisao.toLowerCase())}</span>` : ''}</div>
+      <div class="evid">
+        <div><span class="k">Acessos mês</span><span class="v">${inteiroFmt(c.acessosMes)}</span></div>
+        <div><span class="k">e-commerce</span><span class="v">${moedaCurta(c.vlEcom)}</span></div>
+        <div><span class="k">Sala</span><span class="v">${moedaCurta(c.vlSala)}</span></div>
+        <div><span class="k">Média 3M</span><span class="v">${moedaCurta(c.media3m)}</span></div>
+      </div>
+      <p class="porque"><b>O que fazer:</b> ${esc(aval.acao)}</p>
+      <ul class="fatores">
+        ${aval.fatores.map((f) => `<li>${esc(f)}</li>`).join('')}
+        ${aval.lacunas.map((f) => `<li class="lacuna">${esc(f)}</li>`).join('')}
+      </ul>
+      <textarea class="obs" data-obs="${c.codigo}" placeholder="Observação — vai junto na exportação e volta se o vendedor preencher na planilha">${esc(obs)}</textarea>
+      <div class="acoes">${bt('BLOQUEAR', 'perigo', 'Bloquear')}${bt('MANTER', 'ok', 'Manter')}${bt('OBSERVAR', 'espera', 'Observar')}
+        <button type="button" class="b mini" data-ficha="${c.codigo}">Ficha</button></div>
+    </article>`;
+  }).join('');
+
+  $$('#fila [data-dec]').forEach((b) => b.onclick = () => {
+    const cod = b.dataset.cod;
+    BASE.decisoes[cod] = BASE.decisoes[cod] === b.dataset.dec ? undefined : b.dataset.dec;
+    if (!BASE.decisoes[cod]) delete BASE.decisoes[cod];
+    recalcular(); salvar(); pintarFila(); pintarAbas();
+  });
+  $$('#fila [data-obs]').forEach((t) => t.onchange = () => {
+    const v = t.value.trim();
+    if (v) BASE.observacoes[t.dataset.obs] = v; else delete BASE.observacoes[t.dataset.obs];
+    salvar();
+  });
+  $$('#fila [data-ficha]').forEach((b) => b.onclick = () => abrirFicha(b.dataset.ficha));
+}
+
+/* ===================== CLIENTES ===================== */
+
+const COLS_CLI = [
+  { k: 'nome', rot: 'Cliente', tipo: 'nome' },
+  { k: 'vend', rot: 'Vendedor', get: (c) => nomeVend(c.vend) },
+  { k: 'canal', rot: 'Canal', get: (c) => c.canais.join('/') || '—' },
+  { k: 'acessosMes', rot: 'Acessos mês', num: true },
+  { k: 'acessos30d', rot: 'Acessos 30d', num: true },
+  { k: 'vlEcom', rot: 'e-commerce', num: true, moeda: true },
+  { k: 'vlSala', rot: 'Sala', num: true, moeda: true },
+  { k: 'media3m', rot: 'Média 3M', num: true, moeda: true },
+  { k: 'retorno', rot: 'R$/acesso', num: true, moeda: true, get: (c) => AVAL.get(c.codigo).retorno },
+  { k: 'veredito', rot: 'Veredito', get: (c) => AVAL.get(c.codigo).rotulo },
+  { k: 'decisao', rot: 'Decisão', get: (c) => BASE.decisoes[c.codigo] || '' },
+];
+
+function pintarClientes(){
+  const graus = [...new Set(CLIENTES.map((c) => AVAL.get(c.codigo).chave))];
+  const sel = $('#filtroCliGrau');
+  const antes = sel.value;
+  sel.innerHTML = `<option value="">Todos os vereditos</option>` +
+    graus.map((g) => `<option value="${g}">${esc(VEREDITOS[g].rotulo)}</option>`).join('');
+  sel.value = antes;
+  const vends = [...new Set(CLIENTES.map((c) => c.vend).filter(Boolean))].sort();
+  const sv = $('#filtroCliVend'); const antesV = sv.value;
+  sv.innerHTML = `<option value="">Todos os vendedores</option>` +
+    vends.map((v) => `<option value="${v}">${esc(nomeVend(v))}</option>`).join('');
+  sv.value = antesV;
+  pintarTabelaClientes();
+}
+
+function pintarTabelaClientes(){
+  const busca = ($('#buscaCli').value || '').toLowerCase().trim();
+  const fg = $('#filtroCliGrau').value;
+  const fv = $('#filtroCliVend').value;
+  const fc = $('#filtroCliCanal').value;
+
+  let lista = [...CLIENTES];
+  if (fg) lista = lista.filter((c) => AVAL.get(c.codigo).chave === fg);
+  if (fv) lista = lista.filter((c) => c.vend === fv);
+  if (fc) lista = lista.filter((c) => c.canais.includes(fc));
+  if (busca) lista = lista.filter((c) =>
+    (c.nome + ' ' + c.codigo + ' ' + c.cnpj + ' ' + nomeVend(c.vend)).toLowerCase().includes(busca));
+
+  const o = ORDEM.clientes;
+  const col = COLS_CLI.find((x) => x.k === o.col) || COLS_CLI[5];
+  lista.sort((a, b) => {
+    const va = col.get ? col.get(a) : a[col.k];
+    const vb = col.get ? col.get(b) : b[col.k];
+    if (typeof va === 'number' || typeof vb === 'number') return (val(va) - val(vb)) * o.dir;
+    return String(va ?? '').localeCompare(String(vb ?? ''), 'pt-BR') * o.dir;
+  });
+
+  $('#contaCli').textContent = `${lista.length} de ${CLIENTES.length}`;
+
+  const cab = COLS_CLI.map((c) =>
+    `<th class="ord${c.num ? ' num' : ''}" data-col="${c.k}">${esc(c.rot)}${o.col === c.k ? ` <span class="seta">${o.dir > 0 ? '▲' : '▼'}</span>` : ''}</th>`).join('');
+
+  const corpo = lista.slice(0, 600).map((c) => {
+    const a = AVAL.get(c.codigo);
+    const cel = COLS_CLI.map((col) => {
+      if (col.tipo === 'nome') return `<td class="nome"><b>${esc(c.nome)}</b><small>${esc(c.codigo)}${c.cnpj ? ' · ' + esc(c.cnpj) : ''}</small></td>`;
+      if (col.k === 'veredito') return `<td>${chip(a)}</td>`;
+      if (col.k === 'decisao'){
+        const d = BASE.decisoes[c.codigo];
+        return `<td>${d ? `<span class="chip ${d === 'BLOQUEAR' ? 'c-bloq' : d === 'MANTER' ? 'c-bom' : 'c-aviso'}"><span class="pt"></span>${esc(d.toLowerCase())}</span>` : '<span class="zero">—</span>'}</td>`;
+      }
+      const v = col.get ? col.get(c) : c[col.k];
+      if (col.num){
+        const txt = col.moeda ? moeda(v) : inteiroFmt(v);
+        return `<td class="num${v === null || v === undefined || v === 0 ? ' zero' : ''}">${txt}</td>`;
+      }
+      return `<td>${esc(v ?? '—')}</td>`;
+    }).join('');
+    return `<tr data-cod="${c.codigo}" style="cursor:pointer">${cel}</tr>`;
+  }).join('');
+
+  const corte = lista.length > 600 ? `<tfoot><tr><td colspan="${COLS_CLI.length}">Mostrando os 600 primeiros de ${lista.length}. Use a busca ou os filtros para estreitar — a exportação leva todos.</td></tr></tfoot>` : '';
+  $('#tbClientes').innerHTML = `<thead><tr>${cab}</tr></thead><tbody>${corpo || `<tr><td colspan="${COLS_CLI.length}">Nada encontrado com estes filtros.</td></tr>`}</tbody>${corte}`;
+
+  $$('#tbClientes thead th.ord').forEach((th) => th.onclick = () => {
+    const k = th.dataset.col;
+    ORDEM.clientes = { col: k, dir: ORDEM.clientes.col === k ? -ORDEM.clientes.dir : -1 };
+    pintarTabelaClientes();
+  });
+  $$('#tbClientes tbody tr[data-cod]').forEach((tr) => tr.onclick = () => abrirFicha(tr.dataset.cod));
+}
+
+/* ===================== VENDEDORES ===================== */
+
+function pintarVendedores(){
+  const p = placarVendedores();
+  const lista = Object.values(p).sort((a, b) => b.ecom - a.ecom);
+
+  $('#vends').innerHTML = lista.map((x) => {
+    const n = Math.max(1, x.carteira);
+    const seg = (q, cor) => `<i style="width:${(q / n) * 100}%;background:${cor}"></i>`;
+    return `<article class="vend">
+      <div class="cab"><b>${esc(x.nome || 'Sem vendedor')}</b><span>${esc(x.vend)}</span></div>
+      <div class="medidor" role="img" aria-label="Carteira: ${x.comprando} comprando pela plataforma, ${x.balcao} consultando e fechando fora, ${x.garimpo} só consultando, ${x.parado} sem usar o canal">
+        ${seg(x.comprando, 'var(--verde)')}${seg(x.balcao, 'var(--ambar)')}${seg(x.garimpo, 'var(--vermelho)')}${seg(x.parado, 'var(--aco2)')}
+      </div>
+      <div class="linhas">
+        <div><span>Clientes na base</span><b>${x.carteira}</b></div>
+        <div><span>Com cadastro na plataforma</span><b>${x.cadastrados}</b></div>
+        <div><span>Comprando pelo canal</span><b>${x.comprando}</b></div>
+        <div${x.garimpo ? ' class="mal"' : ''}><span>Só consultando preço</span><b>${x.garimpo}</b></div>
+        <div${x.balcao ? ' class="mal"' : ''}><span>Consulta e fecha fora</span><b>${x.balcao}</b></div>
+        <div><span>e-commerce no mês</span><b>${moedaCurta(x.ecom)}</b></div>
+        <div><span>Parte do canal no faturamento</span><b>${pct(x.pctEcom)}</b></div>
+      </div>
+      <div class="acoes"><button class="b mini" type="button" data-vend="${x.vend}">Ver carteira</button>
+      <button class="b mini" type="button" data-exp="${x.vend}">Planilha</button></div>
+    </article>`;
+  }).join('');
+
+  $$('#vends [data-vend]').forEach((b) => b.onclick = () => {
+    $('#filtroCliVend').value = b.dataset.vend;
+    irPara('clientes');
+    $('#filtroCliVend').value = b.dataset.vend;
+    pintarTabelaClientes();
+  });
+  $$('#vends [data-exp]').forEach((b) => b.onclick = () => exportarCarteira(b.dataset.vend));
+
+  const cols = [
+    ['Vendedor', (x) => x.nome || 'Sem vendedor'], ['Código', (x) => x.vend],
+    ['Clientes', (x) => x.carteira, 1], ['Cadastrados', (x) => x.cadastrados, 1],
+    ['Comprando', (x) => x.comprando, 1], ['Só consulta', (x) => x.garimpo, 1],
+    ['Fecha fora', (x) => x.balcao, 1], ['Sem usar canal', (x) => x.parado, 1],
+    ['Acessos sem pedido', (x) => x.acessosSemPedido, 1],
+    ['e-commerce', (x) => x.ecom, 2], ['Sala', (x) => x.sala, 2],
+    ['% do canal', (x) => x.pctEcom, 3],
+  ];
+  const tot = lista.reduce((s, x) => ({
+    carteira: s.carteira + x.carteira, cadastrados: s.cadastrados + x.cadastrados,
+    comprando: s.comprando + x.comprando, garimpo: s.garimpo + x.garimpo, balcao: s.balcao + x.balcao,
+    parado: s.parado + x.parado, acessosSemPedido: s.acessosSemPedido + x.acessosSemPedido,
+    ecom: s.ecom + x.ecom, sala: s.sala + x.sala,
+  }), { carteira: 0, cadastrados: 0, comprando: 0, garimpo: 0, balcao: 0, parado: 0, acessosSemPedido: 0, ecom: 0, sala: 0 });
+  tot.nome = 'TOTAL'; tot.vend = '';
+  tot.pctEcom = (tot.ecom + tot.sala) > 0 ? (tot.ecom / (tot.ecom + tot.sala)) * 100 : null;
+
+  const cel = (x, [, get, tipo]) => {
+    const v = get(x);
+    if (!tipo) return `<td>${esc(v)}</td>`;
+    if (tipo === 1) return `<td class="num${v ? '' : ' zero'}">${inteiroFmt(v)}</td>`;
+    if (tipo === 2) return `<td class="num${v ? '' : ' zero'}">${moeda(v)}</td>`;
+    return `<td class="num">${pct(v)}</td>`;
+  };
+  $('#tbVends').innerHTML =
+    `<thead><tr>${cols.map(([r, , t]) => `<th${t ? ' class="num"' : ''}>${esc(r)}</th>`).join('')}</tr></thead>` +
+    `<tbody>${lista.map((x) => `<tr>${cols.map((c) => cel(x, c)).join('')}</tr>`).join('')}</tbody>` +
+    `<tfoot><tr>${cols.map((c) => cel(tot, c)).join('')}</tr></tfoot>`;
+}
+
+/* ===================== HISTÓRICO ===================== */
+
+function resumoCompetencia(comp){
+  const r = { aamm: comp.aamm, rotulo: comp.rotulo, clientes: 0, sala: 0, ecom: 0, acessos: 0, comAcesso: 0, comprando: 0, semPedido: 0 };
+  const porCod = {};
+  for (const e of Object.values(comp.espelhos)){
+    porCod[e.codigo] ||= { sala: 0, ecom: 0, acessos: 0 };
+    porCod[e.codigo].sala += val(e.vlSala);
+    porCod[e.codigo].ecom += val(e.vlEcom);
+    porCod[e.codigo].acessos = Math.max(porCod[e.codigo].acessos, val(e.acessos));
+  }
+  for (const x of Object.values(porCod)){
+    r.clientes++; r.sala += x.sala; r.ecom += x.ecom; r.acessos += x.acessos;
+    if (x.acessos > 0) r.comAcesso++;
+    if (x.ecom > 0) r.comprando++;
+    if (x.acessos > 0 && x.ecom === 0) r.semPedido++;
+  }
+  r.total = r.sala + r.ecom;
+  r.pctEcom = r.total > 0 ? (r.ecom / r.total) * 100 : null;
+  r.porCod = porCod;
+  return r;
+}
+
+function pintarHistorico(){
+  const comps = competenciasOrdenadas();
+  if (!comps.length){
+    $('#tbHist').innerHTML = '<tbody><tr><td>Nenhuma competência carregada. Importe um PDF do Sala&times;eCom.</td></tr></tbody>';
+    $('#mudancas').innerHTML = '';
+    return;
+  }
+  const res = comps.map(resumoCompetencia);
+  const maxEcom = Math.max(...res.map((r) => r.ecom), 1);
+
+  $('#tbHist').innerHTML =
+    `<thead><tr><th>Competência</th><th class="num">Clientes</th><th class="num">Acessaram</th><th class="num">Compraram</th>
+      <th class="num">Acessam sem comprar</th><th class="num">e-commerce</th><th class="num">Sala</th><th class="num">% do canal</th><th>Peso</th></tr></thead>` +
+    `<tbody>${res.map((r) => `<tr>
+      <td><b>${esc(r.rotulo)}</b></td>
+      <td class="num">${inteiroFmt(r.clientes)}</td>
+      <td class="num">${inteiroFmt(r.comAcesso)}</td>
+      <td class="num">${inteiroFmt(r.comprando)}</td>
+      <td class="num">${inteiroFmt(r.semPedido)}</td>
+      <td class="num">${moeda(r.ecom)}</td>
+      <td class="num">${moeda(r.sala)}</td>
+      <td class="num">${pct(r.pctEcom)}</td>
+      <td><span style="display:block;height:10px;border-radius:2px;background:var(--s-ecom);width:${Math.max(4, (r.ecom / maxEcom) * 120)}px"></span></td>
+    </tr>`).join('')}</tbody>`;
+
+  if (res.length < 2){
+    $('#mudancas').innerHTML = `<div class="vazio"><h3>Só uma competência carregada</h3>
+      <p>Importe o Sala&times;eCom de outro mês e esta seção passa a mostrar quem entrou na plataforma, quem saiu e quem começou a só consultar.</p></div>`;
+    return;
+  }
+  const atual = res[res.length - 1], antes = res[res.length - 2];
+  const nomes = Object.fromEntries(CLIENTES.map((c) => [c.codigo, c.nome]));
+  const linhas = [];
+  for (const [cod, a] of Object.entries(atual.porCod)){
+    const b = antes.porCod[cod];
+    if (!b) continue;
+    const dEcom = a.ecom - b.ecom;
+    const dAc = a.acessos - b.acessos;
+    let mov = null;
+    if (b.ecom === 0 && a.ecom > 0) mov = ['Entrou no canal', 'c-bom'];
+    else if (b.ecom > 0 && a.ecom === 0 && a.acessos > 0) mov = ['Parou de comprar e continua acessando', 'c-bloq'];
+    else if (b.ecom > 0 && a.ecom === 0) mov = ['Parou de comprar pelo canal', 'c-aviso'];
+    else if (b.acessos === 0 && a.acessos > 0 && a.ecom === 0) mov = ['Começou a consultar sem comprar', 'c-aviso'];
+    if (mov) linhas.push({ cod, nome: nomes[cod] || cod, mov, dEcom, dAc, a, b });
+  }
+  linhas.sort((x, y) => Math.abs(y.dEcom) - Math.abs(x.dEcom));
+  $('#mudancas').innerHTML = linhas.length ? `<div class="rolo"><table>
+    <thead><tr><th>Cliente</th><th>Movimento</th><th class="num">e-commerce ${esc(antes.rotulo)}</th><th class="num">e-commerce ${esc(atual.rotulo)}</th><th class="num">Acessos antes</th><th class="num">Acessos agora</th></tr></thead>
+    <tbody>${linhas.slice(0, 60).map((l) => `<tr data-cod="${l.cod}" style="cursor:pointer">
+      <td class="nome"><b>${esc(l.nome)}</b><small>${esc(l.cod)}</small></td>
+      <td><span class="chip ${l.mov[1]}"><span class="pt"></span>${esc(l.mov[0])}</span></td>
+      <td class="num">${moeda(l.b.ecom)}</td><td class="num">${moeda(l.a.ecom)}</td>
+      <td class="num">${inteiroFmt(l.b.acessos)}</td><td class="num">${inteiroFmt(l.a.acessos)}</td></tr>`).join('')}</tbody></table></div>`
+    : `<div class="vazio"><h3>Ninguém mudou de comportamento</h3><p>Entre ${esc(antes.rotulo)} e ${esc(atual.rotulo)} nenhum cliente entrou no canal, saiu dele ou começou a consultar sem comprar.</p></div>`;
+  $$('#mudancas tbody tr[data-cod]').forEach((tr) => tr.onclick = () => abrirFicha(tr.dataset.cod));
+}
+
+/* ===================== FICHA ===================== */
+
+function abrirFicha(cod){
+  const c = CLIENTES.find((x) => x.codigo === cod);
+  if (!c) return;
+  const a = AVAL.get(cod);
+  const comps = competenciasOrdenadas();
+  const serie = comps.map((k) => {
+    const es = Object.values(k.espelhos).filter((e) => e.codigo === cod);
+    return { rotulo: k.rotulo, ecom: es.reduce((s, e) => s + val(e.vlEcom), 0), acessos: es.length ? Math.max(...es.map((e) => val(e.acessos))) : 0 };
+  });
+  const maxE = Math.max(...serie.map((s) => s.ecom), 1);
+
+  $('#gavetaPainel').innerHTML = `
+    <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start">
+      <div><h2 id="gavetaTit">${esc(c.nome)}</h2><p class="cod">${esc(c.codigo)}${c.cnpj ? ' · CNPJ ' + esc(c.cnpj) : ''} · ${esc(nomeVend(c.vend))}</p></div>
+      <button class="b mini" type="button" id="fechaGaveta">Fechar</button>
+    </div>
+    <div style="margin-bottom:14px">${chip(a)}</div>
+    <p class="porque" style="margin-bottom:14px"><b>O que fazer:</b> ${esc(a.acao)}</p>
+    <ul class="fatores" style="margin-bottom:16px">
+      ${a.fatores.map((f) => `<li>${esc(f)}</li>`).join('')}
+      ${a.lacunas.map((f) => `<li class="lacuna">${esc(f)}</li>`).join('')}</ul>
+    <div class="ficha">
+      ${[['Acessos no mês', inteiroFmt(c.acessosMes)], ['Acessos 30 dias (plataforma)', inteiroFmt(c.acessos30d)],
+         ['Faturamento e-commerce', moeda(c.vlEcom)], ['Faturamento sala', moeda(c.vlSala)],
+         ['Média 3 últimos meses', moeda(c.media3m)], ['Faturamento 90 dias (plataforma)', moeda(c.fat90d)],
+         ['R$ por acesso', a.retorno === null ? '—' : moeda(a.retorno)], ['Canais no relatório', c.canais.join(' / ') || '—'],
+         ['Cadastros na plataforma', String(c.cadastros.length)], ['Último acesso', dataBr(c.cadastros.map((x) => x.ultimoAcesso).filter(Boolean).sort().pop())],
+         ['Última compra', c.carteira ? dataBr(c.carteira.ultimaCompraDt) : '—'], ['Valor da última compra', c.carteira ? moeda(c.carteira.ultimaCompraVl) : '—'],
+         ['Frota declarada', c.carteira ? inteiroFmt(c.carteira.frota) : '—'], ['Média 4 meses (carteira)', c.carteira ? moeda(c.carteira.media4m) : '—'],
+      ].map(([k, v]) => `<div><span class="k">${esc(k)}</span><span class="v">${esc(v)}</span></div>`).join('')}
+    </div>
+    ${serie.length > 1 ? `<h3 style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--cinza);margin-bottom:8px">e-commerce mês a mês</h3>
+      <div class="spark" style="height:44px;margin-bottom:6px">${serie.map((s) => `<i style="height:${Math.max(2, (s.ecom / maxE) * 44)}px;width:16px" title="${esc(s.rotulo)}: ${moeda(s.ecom)}" class="${s.ecom ? '' : 'vazio'}"></i>`).join('')}</div>
+      <p style="font-size:11px;color:var(--cinza);margin-bottom:16px">${serie.map((s) => esc(s.rotulo)).join(' · ')}</p>` : ''}
+    ${c.cadastros.length ? `<h3 style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--cinza);margin-bottom:8px">Logins deste cliente</h3>
+      <div class="rolo" style="margin-bottom:16px"><table><thead><tr><th>Nome</th><th class="num">Acessos 30d</th><th>Último acesso</th><th>Status</th></tr></thead>
+      <tbody>${c.cadastros.map((x) => `<tr><td class="nome">${esc(x.nome)}<small>${esc(x.email)}</small></td><td class="num">${inteiroFmt(x.acessos30d)}</td><td>${dataBr(x.ultimoAcesso)}</td><td>${esc(x.status)}</td></tr>`).join('')}</tbody></table></div>` : ''}
+    <label style="display:block;font-size:12px;color:var(--cinza);margin-bottom:6px" for="obsFicha">Observação</label>
+    <textarea class="obs" id="obsFicha" placeholder="Fica gravada e vai junto em toda exportação">${esc(BASE.observacoes[cod] || '')}</textarea>
+    <div class="acoes" style="margin-top:12px">
+      ${['BLOQUEAR', 'MANTER', 'OBSERVAR'].map((d) => `<button type="button" class="b ${d === 'BLOQUEAR' ? 'perigo' : d === 'MANTER' ? 'ok' : 'espera'}" data-fdec="${d}" aria-pressed="${BASE.decisoes[cod] === d}">${d[0] + d.slice(1).toLowerCase()}</button>`).join('')}
+    </div>`;
+
+  $('#gaveta').hidden = false;
+  $('#fechaGaveta').onclick = fecharGaveta;
+  $('#obsFicha').onchange = (e) => {
+    const v = e.target.value.trim();
+    if (v) BASE.observacoes[cod] = v; else delete BASE.observacoes[cod];
+    salvar(); pintar();
+  };
+  $$('#gavetaPainel [data-fdec]').forEach((b) => b.onclick = () => {
+    BASE.decisoes[cod] = BASE.decisoes[cod] === b.dataset.fdec ? undefined : b.dataset.fdec;
+    if (!BASE.decisoes[cod]) delete BASE.decisoes[cod];
+    recalcular(); salvar(); abrirFicha(cod); pintar();
+  });
+  $('#fechaGaveta').focus();
+}
+
+function fecharGaveta(){ $('#gaveta').hidden = true; }
+</script>
+<script id="pacote-embutido"></script>
+<script>
+"use strict";
+/* =====================================================================
+   PAINEL CARPA — importação, exportação e partida.
+   ===================================================================== */
+
+let MOLDE = '';   // cópia do arquivo em branco, para gerar o HTML completo
+
+/* ===================== IMPORTAÇÃO ===================== */
+
+function anotar(texto, tipo){
+  const d = document.createElement('div');
+  if (tipo) d.className = tipo;
+  d.textContent = texto;
+  $('#log').prepend(d);
+}
+
+async function receber(arquivos){
+  if (!arquivos.length) return;
+  for (const f of arquivos){
+    try { await receberUm(f); }
+    catch (e){ anotar(`✕ ${f.name} — ${e.message}`, 'err'); }
+  }
+  recalcular(); salvar(); pintar(); pintarFontes();
+}
+
+function registrarFonte(arquivo, tipo, detalhe){
+  BASE.fontes = BASE.fontes.filter((x) => !(x.arquivo === arquivo && x.tipo === tipo));
+  BASE.fontes.push({ arquivo, tipo, detalhe, quando: new Date().toISOString() });
+}
+
+async function receberUm(f){
+  const nome = f.name;
+  const ext = nome.toLowerCase().split('.').pop();
+
+  if (ext === 'json'){
+    const b = JSON.parse(await f.text());
+    if (!b || b.versao !== 1) throw new Error('não é um pacote deste painel');
+    aplicarPacote(b);
+    anotar(`✓ ${nome} — pacote carregado: ${Object.keys(b.competencias || {}).length} competência(s), ${(b.cadastros || []).length} cadastro(s), ${Object.keys(b.decisoes || {}).length} decisão(ões)`, 'ok');
+    return;
+  }
+
+  if (ext === 'pdf'){
+    const linhas = await lerPdfLinhas(await f.arrayBuffer());
+    if (!linhas.length) throw new Error('não consegui ler texto deste PDF (pode ser digitalizado como imagem)');
+    const r = absorverPdfSalaEcom(linhas, nome);
+    if (!r.espelhos.length) throw new Error('li o PDF mas não achei linhas de cliente — confira se é o Mapa de Atend. Sala x eCom');
+    const g = gravarEspelhos(r.espelhos);
+    r.avisos.forEach((a) => anotar(`! ${nome} — ${a}`, 'warn'));
+    registrarFonte(nome, `Sala x eCom · ${r.canal || 'INDEFINIDO'}`, `${r.espelhos.length} linhas · ${g.comps.map(compRotulo).join(', ')}`);
+    anotar(`✓ ${nome} — ${r.espelhos.length} clientes de ${r.canal || 'canal indefinido'}${r.praca ? ' · ' + r.praca : ''} · competência ${g.comps.map(compRotulo).join(', ')}`, 'ok');
+    return;
+  }
+
+  let abas;
+  if (ext === 'xlsx' || ext === 'xlsm'){
+    abas = await lerXlsx(await f.arrayBuffer());
+  } else if (ext === 'csv' || ext === 'txt'){
+    abas = [{ nome: nome, linhas: lerCsv(decodificar(new Uint8Array(await f.arrayBuffer()))) }];
+  } else {
+    throw new Error('extensão não reconhecida (use .pdf, .xlsx, .csv ou .json)');
+  }
+
+  const carteiras = [];
+  let fez = false;
+
+  for (const aba of abas){
+    if (!aba.linhas.length) continue;
+    const tipo = classificarTabela(aba.linhas);
+
+    if (tipo === 'CADASTROS'){
+      const r = absorverCadastros(aba.linhas, nome);
+      registrarFonte(nome, 'Cadastros da plataforma', `${r.total} cadastros · ${r.externos} de cliente`);
+      anotar(`✓ ${nome} [${aba.nome}] — ${r.total} cadastros (${r.externos} de cliente, ${r.total - r.externos} internos)`, 'ok');
+      fez = true;
+    } else if (tipo === 'RETORNO'){
+      const r = absorverRetorno(aba.linhas);
+      if (r){
+        registrarFonte(nome, 'Retorno do vendedor', `${r.dec} decisões · ${r.obs} observações`);
+        anotar(`✓ ${nome} [${aba.nome}] — voltaram ${r.dec} decisão(ões) e ${r.obs} observação(ões)`, 'ok');
+        fez = true;
+      }
+    } else if (tipo === 'CARTEIRA'){
+      carteiras.push(aba);
+    } else if (tipo === 'SALAECOM_TAB'){
+      const r = absorverTabelaSalaEcom(aba.linhas, nome);
+      const g = gravarEspelhos(r.espelhos);
+      registrarFonte(nome, 'Sala x eCom (planilha)', `${r.espelhos.length} linhas`);
+      anotar(`✓ ${nome} [${aba.nome}] — ${r.espelhos.length} linhas de Sala x eCom · ${g.comps.map(compRotulo).join(', ')}`, 'ok');
+      fez = true;
+    }
+  }
+
+  if (carteiras.length){
+    absorverNomesVendedor(abas);
+    const r = absorverCarteira(carteiras, nome);
+    registrarFonte(nome, 'Carteira por vendedor', `${r.clientes} clientes em ${Object.keys(BASE.carteira).length} vendedores`);
+    anotar(`✓ ${nome} — carteira de ${Object.keys(BASE.carteira).length} vendedores, ${r.clientes} clientes${r.meses.length ? ' · meses: ' + r.meses.join(', ') : ''}`, 'ok');
+    fez = true;
+  }
+
+  if (!fez) throw new Error('não reconheci o conteúdo. Confira se o cabeçalho está na primeira linha da planilha.');
+}
+
+function aplicarPacote(b){
+  BASE = {
+    ...baseVazia(), ...b,
+    reguas: { ...REGUAS_PADRAO, ...(b.reguas || {}) },
+    decisoes: { ...BASE.decisoes, ...(b.decisoes || {}) },
+    observacoes: { ...BASE.observacoes, ...(b.observacoes || {}) },
+  };
+}
+
+function pintarFontes(){
+  const f = [...BASE.fontes].sort((a, b) => b.quando.localeCompare(a.quando));
+  $('#tbFontes').innerHTML = f.length
+    ? `<thead><tr><th>Arquivo</th><th>Reconhecido como</th><th>Conteúdo</th><th>Quando</th></tr></thead><tbody>` +
+      f.map((x) => `<tr><td class="nome">${esc(x.arquivo)}</td><td>${esc(x.tipo)}</td><td>${esc(x.detalhe)}</td>
+        <td class="num">${new Date(x.quando).toLocaleString('pt-BR')}</td></tr>`).join('') + '</tbody>'
+    : '<tbody><tr><td>Nada carregado ainda.</td></tr></tbody>';
+}
+
+/* ===================== EXPORTAÇÃO ===================== */
+
+function nomeArquivo(prefixo, ext){
+  const c = competenciaAtual();
+  return `${prefixo}-${c ? c.aamm : hoje()}.${ext}`;
+}
+
+function linhaCliente(c){
+  const a = AVAL.get(c.codigo);
+  return [
+    c.codigo, c.nome, c.cnpj || '', nomeVend(c.vend), c.canais.join('/'),
+    c.acessosMes, c.acessos30d, c.vlEcom, c.vlSala, c.vlTotal, c.media3m, c.fat90d,
+    a.retorno === null ? null : Math.round(a.retorno * 100) / 100,
+    a.rotulo, a.acao,
+    a.fatores.join(' | '), a.lacunas.join(' | '),
+    c.cadastros.length, c.cadastros.map((x) => x.ultimoAcesso).filter(Boolean).sort().pop() || '',
+    c.carteira ? c.carteira.ultimaCompraDt || '' : '',
+    BASE.decisoes[c.codigo] || '', BASE.observacoes[c.codigo] || '',
+  ];
+}
+const CAB_CLIENTE = ['Código', 'Cliente', 'CNPJ/CPF', 'Vendedor', 'Canal', 'Acessos no mês', 'Acessos 30d',
+  'R$ e-commerce', 'R$ Sala', 'R$ Total', 'Média 3 meses', 'Faturamento 90 dias', 'R$ por acesso',
+  'Veredito', 'O que fazer', 'Evidência', 'Lacunas', 'Logins', 'Último acesso', 'Última compra',
+  'Decisão', 'Observação'];
+
+function abaResumo(){
+  const t = totais();
+  const c = competenciaAtual();
+  const l = [['Indicador', 'Valor', 'De onde vem']];
+  const p = (k, v, o) => l.push([k, v, o]);
+  p('Competência', c ? c.rotulo : '—', 'AAMM das linhas do Sala x eCom');
+  p('Praça', c && c.praca ? c.praca : '—', 'cabeçalho do relatório');
+  p('Gerado em', new Date().toLocaleString('pt-BR'), 'relógio deste computador');
+  p('Clientes cruzados', t.clientes, 'códigos únicos nas três fontes');
+  p('Com cadastro na plataforma', t.cadastrados, 'planilha de cadastros, só usuários externos');
+  p('Acessaram no mês', t.comAcesso, 'coluna Total Acessos do Sala x eCom');
+  p('Compraram pelo e-commerce', t.comprando, 'coluna VALOR NFs FAT eCOM');
+  p('Acessaram e não compraram', t.semPedido, 'acessos > 0 e e-commerce = 0');
+  p('Acessos que não viraram pedido', t.acessosSemPedido, 'soma dos acessos desses clientes');
+  p('Sugeridos para bloqueio', filaCasos().filter((x) => x.aval.grau === 'bloq').length, 'régua atual do painel');
+  p('Marcados para bloquear', Object.values(BASE.decisoes).filter((d) => d === 'BLOQUEAR').length, 'decisão humana');
+  p('Marcados para manter', Object.values(BASE.decisoes).filter((d) => d === 'MANTER').length, 'decisão humana');
+  p('Marcados para observar', Object.values(BASE.decisoes).filter((d) => d === 'OBSERVAR').length, 'decisão humana');
+  p('Faturamento sala', t.sala, 'Sala x eCom');
+  p('Faturamento e-commerce', t.ecom, 'Sala x eCom');
+  p('Parte do e-commerce (%)', t.pctEcom === null ? null : Math.round(t.pctEcom * 10) / 10, 'calculado');
+  l.push([]);
+  l.push(['Régua usada nesta exportação', '', '']);
+  p('Acessos mínimos para virar consulta', BASE.reguas.minAcessos, 'ajustável na aba Bloqueio');
+  p('Retorno mínimo por acesso (R$)', BASE.reguas.minRetorno, 'ajustável na aba Bloqueio');
+  p('Salvo-conduto para quem já comprou', BASE.reguas.salvoConduto ? 'ligado' : 'desligado', 'ajustável na aba Bloqueio');
+  return { nome: 'Resumo', linhas: l };
+}
+
+function abaFila(){
+  const l = [['Código', 'Cliente', 'Vendedor', 'Veredito', 'Acessos no mês', 'R$ e-commerce', 'R$ Sala',
+    'Média 3 meses', 'O que fazer', 'Evidência', 'Lacunas', 'Decisão', 'Observação']];
+  for (const { c, aval } of filaCasos()){
+    l.push([c.codigo, c.nome, nomeVend(c.vend), aval.rotulo, c.acessosMes, c.vlEcom, c.vlSala, c.media3m,
+      aval.acao, aval.fatores.join(' | '), aval.lacunas.join(' | '),
+      BASE.decisoes[c.codigo] || '', BASE.observacoes[c.codigo] || '']);
+  }
+  return { nome: 'Fila de bloqueio', linhas: l };
+}
+
+function abaVendedores(){
+  const l = [['Código', 'Vendedor', 'Clientes', 'Com cadastro', 'Comprando pelo canal', 'Só consulta preço',
+    'Consulta e fecha fora', 'Sem usar o canal', 'Acessos sem pedido', 'R$ e-commerce', 'R$ Sala', '% do canal']];
+  for (const x of Object.values(placarVendedores()).sort((a, b) => b.ecom - a.ecom)){
+    l.push([x.vend, x.nome || 'Sem vendedor', x.carteira, x.cadastrados, x.comprando, x.garimpo, x.balcao,
+      x.parado, x.acessosSemPedido, x.ecom, x.sala, x.pctEcom === null ? null : Math.round(x.pctEcom * 10) / 10]);
+  }
+  return { nome: 'Por vendedor', linhas: l };
+}
+
+function abaCadastros(){
+  const l = [['Cadastro', 'Tipo', 'Nome', 'Empresa', 'Código Pacaembu', 'CNPJ/CPF', 'Acessos 30d',
+    'Último acesso', 'Status', 'E-mail', 'E-mail do pedido', 'Faturamento 90 dias', 'Marca original', 'Veredito do painel', 'Decisão']];
+  for (const x of BASE.cadastros){
+    const a = x.codigo ? AVAL.get(x.codigo) : null;
+    l.push([x.cadastro, x.tipoUsuario, x.nome, x.empresa, x.codigoBruto, x.cnpj, x.acessos30d,
+      x.ultimoAcesso || '', x.status, x.email, x.emailPedido, x.fat90d, x.marcaOriginal || '',
+      a ? a.rotulo : 'sem cruzamento', x.codigo ? (BASE.decisoes[x.codigo] || '') : '']);
+  }
+  return { nome: 'Cadastros da plataforma', linhas: l };
+}
+
+function abaLacunas(){
+  const l = [['Código', 'Cliente', 'Vendedor', 'Veredito', 'Lacuna']];
+  for (const c of CLIENTES){
+    const a = AVAL.get(c.codigo);
+    for (const g of a.lacunas) l.push([c.codigo, c.nome, nomeVend(c.vend), a.rotulo, g]);
+  }
+  if (l.length === 1) l.push(['—', 'Nenhuma lacuna: todos os clientes tinham dado suficiente.', '', '', '']);
+  return { nome: 'Lacunas', linhas: l };
+}
+
+function abaClientes(lista){
+  return { nome: 'Clientes', linhas: [CAB_CLIENTE, ...(lista || CLIENTES).map(linhaCliente)] };
+}
+
+function linhasCarteira(vend){
+  const lista = CLIENTES.filter((c) => c.vend === vend)
+    .sort((a, b) => {
+      const peso = { bloq: 0, aviso: 1, neutro: 2, bom: 3 };
+      const d = peso[AVAL.get(a.codigo).grau] - peso[AVAL.get(b.codigo).grau];
+      return d || val(b.vlEcom) - val(a.vlEcom);
+    });
+  return [CAB_CLIENTE, ...lista.map(linhaCliente)];
+}
+
+function exportarCarteira(vend){
+  const nome = nomeAbaVend(vend).replace(/[^\wÀ-ÿ.-]+/g, '_');
+  baixar(escreverXlsx([{ nome: nomeAbaVend(vend).slice(0, 28), linhas: linhasCarteira(vend) }]),
+    nomeArquivo(`Carteira_${nome}`, 'xlsx'));
+}
+
+/** Vendedores na ordem do placar: quem move mais e-commerce primeiro. */
+function vendedoresPorPlacar(somenteReais){
+  return Object.values(placarVendedores())
+    .filter((x) => !somenteReais || ehVendedorReal(x.vend))
+    .sort((a, b) => b.ecom - a.ecom)
+    .map((x) => x.vend);
+}
+
+function exportarPacote(){
+  salvar();
+  const texto = JSON.stringify(BASE);
+  baixar(new Blob([texto], { type: 'application/json' }), nomeArquivo('pacote-carpa', 'json'));
+}
+
+function exportarHtmlCompleto(){
+  salvar();
+  if (!MOLDE){ alert('Não consegui montar o arquivo. Recarregue a página e tente de novo.'); return; }
+  const json = JSON.stringify(BASE)
+    .replace(/</g, '\\u003c').replace(/>/g, '\\u003e')
+    .replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
+  const script = `<script id="pacote-embutido">window.__PACOTE_CARPA__=${json};<\/script>`;
+  const saida = MOLDE.replace(/<script id="pacote-embutido">[\s\S]*?<\/script>/, script);
+  if (saida === MOLDE){ alert('Não achei onde encaixar os dados neste arquivo.'); return; }
+  baixar(new Blob(['<!doctype html>\n', saida], { type: 'text/html;charset=utf-8' }),
+    nomeArquivo('PainelCarpa', 'html'));
+}
+
+/* ===================== MÉTODO ===================== */
+
+function pintarMetodo(){
+  const linhas = Object.entries(VEREDITOS).map(([k, v]) => {
+    const quando = {
+      COMPRA_PLATAFORMA: 'Faturou pelo e-commerce no mês e o retorno por acesso passa da régua.',
+      CONSULTA_CARA: 'Faturou pelo e-commerce, mas rende menos por acesso do que a régua pede.',
+      COTA_E_BALCAO: 'Bateu a régua de acessos, nada pelo e-commerce, mas comprou na sala no mesmo mês.',
+      COTA_E_SUMIU: 'Bateu a régua de acessos, nada pelo e-commerce, nada na sala — mas já comprou antes (média dos 3 meses, 90 dias, ou outro código do mesmo CNPJ compra).',
+      SO_CONSULTA: 'Bateu a régua de acessos e não há nenhuma compra: nem no mês, nem na média dos 3 meses, nem nos 90 dias.',
+      POUCO_ACESSO: 'Acessou, mas menos vezes que a régua. Visita eventual.',
+      CADASTRO_PARADO: 'Zero acesso no mês, o cliente compra, e existe login na plataforma parado.',
+      SEM_CADASTRO: 'O cliente compra, mas não há nenhum login dele na planilha de cadastros.',
+      CADASTRO_OCIOSO: 'Zero acesso e zero compra, no mês e na média — mas com login ativo na plataforma.',
+      INATIVO: 'Zero acesso, zero compra e nenhum login na plataforma. Não há acesso a cortar.',
+      SEM_ESPELHO: 'O cliente não apareceu no relatório Sala x eCom da competência carregada.',
+    }[k];
+    const cls = { bloq: 'c-bloq', aviso: 'c-aviso', bom: 'c-bom', neutro: 'c-neutro' }[v.grau];
+    return `<tr><td><span class="chip ${cls}"><span class="pt"></span>${esc(v.rotulo)}</span></td>
+      <td style="white-space:normal;max-width:420px">${esc(quando)}</td>
+      <td style="white-space:normal;max-width:320px">${esc(v.acao)}</td>
+      <td>${v.fila ? 'sim' : 'não'}</td></tr>`;
+  }).join('');
+  $('#tbMetodo').innerHTML = `<thead><tr><th>Veredito</th><th>Quando aparece</th><th>O que fazer</th><th>Entra na fila</th></tr></thead><tbody>${linhas}</tbody>`;
+
+  const regras = [
+    ['Falta de dado não vira zero', 'Quando o relatório não traz um número, o painel mostra “—” e registra uma lacuna. Zero vendido é um fato; dado ausente não é, e confundir os dois faz inventar conclusão.'],
+    ['Nenhum veredito sem evidência', 'Todo cartão lista os fatores que o produziram. Se não houve evidência suficiente, a lacuna aparece no lugar — nunca os dois vazios.'],
+    ['Duas janelas nunca viram uma', 'Os acessos do mês vêm do relatório; os acessos de 30 dias vêm da plataforma. Medem períodos diferentes, então andam lado a lado e nunca são somados.'],
+    ['O mesmo CNPJ é olhado junto', 'Antes de sugerir bloqueio, o painel confere se outro código da mesma raiz de CNPJ compra pelo canal. Se compra, o caso vira “consulta e parou” e pede ligação — não corte.'],
+    ['Quem compra na sala não é bloqueado', 'Consultar preço e fechar com o vendedor não é motivo de corte. Vira ação comercial: puxar o pedido para o canal.'],
+    ['A decisão é humana', 'O painel ordena e explica. Bloquear, manter ou observar é você que marca, e é isso que fica gravado — não o veredito.'],
+    ['Nada sai deste computador', 'Não há nenhuma chamada de rede neste arquivo. Leitura, cruzamento e exportação acontecem no navegador.'],
+  ];
+  $('#tbRegras').innerHTML = `<thead><tr><th>Regra</th><th>Por quê</th></tr></thead><tbody>` +
+    regras.map(([a, b]) => `<tr><td style="white-space:normal;min-width:220px"><b>${esc(a)}</b></td><td style="white-space:normal;max-width:640px">${esc(b)}</td></tr>`).join('') + '</tbody>';
+
+  const origem = [
+    ['Acessos no mês', 'Sala x eCom (PDF)', 'Coluna “Total Acessos”'],
+    ['R$ e-commerce', 'Sala x eCom (PDF)', 'VALOR NFs FAT · eCOM'],
+    ['R$ Sala', 'Sala x eCom (PDF)', 'VALOR NFs FAT · SALA'],
+    ['Média 3 meses', 'Sala x eCom (PDF)', 'MEDIA 3 U.MESES'],
+    ['Canal', 'Sala x eCom (PDF)', 'Qual dos dois relatórios trouxe a linha: Consumidor ou Revenda'],
+    ['Acessos 30 dias', 'Cadastros (planilha)', 'Coluna “Acessos Últimos 30 Dias”, somando os logins do mesmo cliente'],
+    ['CNPJ/CPF', 'Cadastros (planilha)', 'Coluna “CNPJ/CPF” — é o que permite agrupar cadastro duplicado'],
+    ['Faturamento 90 dias', 'Cadastros (planilha)', 'Coluna “Faturamento 90 dias”'],
+    ['Vendedor', 'Carteira (planilha)', 'Coluna “Vend”, com o nome vindo da aba ou do resumo'],
+    ['Última compra', 'Carteira (planilha)', 'Colunas “Vl U.Com” e “Dt U.Com”'],
+    ['R$ por acesso', 'calculado', 'R$ e-commerce ÷ acessos no mês. Fica “—” quando não houve acesso'],
+    ['Decisão e observação', 'você', 'Marcadas na aba Bloqueio ou na ficha do cliente'],
+  ];
+  $('#tbOrigem').innerHTML = `<thead><tr><th>Número</th><th>Arquivo</th><th>Coluna</th></tr></thead><tbody>` +
+    origem.map(([a, b, c]) => `<tr><td><b>${esc(a)}</b></td><td>${esc(b)}</td><td style="white-space:normal">${esc(c)}</td></tr>`).join('') + '</tbody>';
+}
+
+function pintarCiclo(){
+  const passos = [
+    ['1', 'Você recebe os arquivos do mês', 'PDF do Sala x eCom (Consumidor e Revenda), planilha de cadastros da plataforma, carteira dos vendedores.'],
+    ['2', 'Solta tudo na aba Importar', 'O painel reconhece cada arquivo sozinho, cruza pelo código do cliente e monta a fila de decisão.'],
+    ['3', 'Decide a fila', 'Bloquear, manter ou observar — com observação escrita. Fica gravado neste navegador.'],
+    ['4', 'Manda a carteira para cada vendedor', 'Exportar → um arquivo por vendedor. Sobe no Google Sheets e compartilha com cada um.'],
+    ['5', 'O vendedor preenche Decisão e Observação', 'As duas últimas colunas da planilha já vão prontas para isso.'],
+    ['6', 'Você baixa a planilha do Sheets e solta aqui de novo', 'O painel reconhece o retorno e traz as decisões e observações do vendedor para dentro.'],
+    ['7', 'Manda para o outro gestor', 'Exportar → Gerar HTML completo. Um arquivo só, que abre com dois cliques e mostra exatamente esta tela.'],
+    ['8', 'No mês que vem, repete', 'Importe o novo PDF: ele entra como nova competência e a aba Histórico passa a mostrar quem mudou de comportamento.'],
+  ];
+  $('#tbCiclo').innerHTML = `<thead><tr><th class="num">Passo</th><th>O quê</th><th>Como</th></tr></thead><tbody>` +
+    passos.map(([n, a, b]) => `<tr><td class="num">${n}</td><td style="white-space:normal;min-width:230px"><b>${esc(a)}</b></td><td style="white-space:normal;max-width:620px">${esc(b)}</td></tr>`).join('') + '</tbody>';
+}
+
+/* ===================== PARTIDA ===================== */
+
+function ligarEventos(){
+  $('#abas').addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-aba]');
+    if (b) irPara(b.dataset.aba);
+  });
+
+  const zona = $('#solta');
+  const entrada = $('#arquivos');
+  $('#btnEscolher').onclick = () => entrada.click();
+  entrada.onchange = () => { receber([...entrada.files]); entrada.value = ''; };
+  ['dragenter', 'dragover'].forEach((ev) => zona.addEventListener(ev, (e) => { e.preventDefault(); zona.classList.add('sobre'); }));
+  ['dragleave', 'drop'].forEach((ev) => zona.addEventListener(ev, (e) => { e.preventDefault(); if (ev === 'drop' || e.target === zona) zona.classList.remove('sobre'); }));
+  zona.addEventListener('drop', (e) => receber([...(e.dataTransfer?.files || [])]));
+  window.addEventListener('dragover', (e) => e.preventDefault());
+  window.addEventListener('drop', (e) => {
+    if (zona.contains(e.target)) return;
+    e.preventDefault();
+    if (e.dataTransfer?.files?.length){ irPara('importar'); receber([...e.dataTransfer.files]); }
+  });
+
+  ['#buscaFila', '#filtroFilaGrau', '#filtroFilaVend', '#filtroFilaDec'].forEach((s) => {
+    $(s).addEventListener('input', pintarFila);
+    $(s).addEventListener('change', pintarFila);
+  });
+  ['#buscaCli', '#filtroCliGrau', '#filtroCliVend', '#filtroCliCanal'].forEach((s) => {
+    $(s).addEventListener('input', pintarTabelaClientes);
+    $(s).addEventListener('change', pintarTabelaClientes);
+  });
+
+  $('#btnFilaLimpa').onclick = () => {
+    if (!Object.keys(BASE.decisoes).length) return;
+    if (!confirm('Desfazer todas as decisões marcadas? As observações continuam.')) return;
+    BASE.decisoes = {}; recalcular(); salvar(); pintar();
+  };
+  $('#btnZerar').onclick = () => {
+    if (!confirm('Apagar tudo — arquivos importados, decisões e observações — e recomeçar do zero?')) return;
+    BASE = baseVazia();
+    try { localStorage.removeItem(CHAVE_ARMAZEM); } catch { /* sem memória, tudo bem */ }
+    recalcular(); pintar(); pintarFontes(); $('#log').innerHTML = '';
+  };
+
+  $('#expJson').onclick = exportarPacote;
+  $('#expHtml').onclick = exportarHtmlCompleto;
+  $('#expGeral').onclick = () => baixar(escreverXlsx([
+    abaResumo(), abaClientes(), abaFila(), abaVendedores(), abaCadastros(), abaLacunas(),
+  ]), nomeArquivo('PainelCarpa', 'xlsx'));
+  $('#expFila').onclick = () => baixar(escreverXlsx([abaResumo(), abaFila()]), nomeArquivo('FilaBloqueio', 'xlsx'));
+  $('#expCarteiras').onclick = () => {
+    const vs = vendedoresPorPlacar(false);
+    if (!vs.length) return;
+    baixar(escreverXlsx(vs.map((v) => ({ nome: nomeAbaVend(v), linhas: linhasCarteira(v) }))),
+      nomeArquivo('Carteiras', 'xlsx'));
+  };
+  $('#expPorVend').onclick = () => {
+    // Um arquivo por vendedor de verdade: a conta sem dono não é carteira
+    // de ninguém e não deve virar anexo para mandar a alguém.
+    const vs = vendedoresPorPlacar(true);
+    if (!vs.length){ alert('Nenhum vendedor com carteira nomeada. Importe a planilha da carteira primeiro.'); return; }
+    vs.forEach((v, i) => setTimeout(() => exportarCarteira(v), i * 400));
+  };
+
+  $('#gaveta').addEventListener('click', (e) => { if (e.target === $('#gaveta')) fecharGaveta(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') fecharGaveta(); });
+}
+
+function partir(){
+  MOLDE = document.documentElement.outerHTML;
+  ligarEventos();
+
+  const tinha = carregar();
+  const embutido = window.__PACOTE_CARPA__;
+  if (embutido && embutido.versao === 1){
+    const vazio = !tinha || (!Object.keys(BASE.competencias).length && !BASE.cadastros.length);
+    if (vazio){
+      aplicarPacote(embutido);
+      salvar();
+    } else {
+      const c = Object.keys(embutido.competencias || {}).map(compRotulo).join(', ');
+      setTimeout(() => {
+        if (confirm(`Este arquivo veio com dados dentro (competência ${c || 'sem competência'}).\n\nTrocar o que está neste navegador pelos dados do arquivo?`)){
+          aplicarPacote(embutido); salvar(); recalcular(); pintar(); pintarFontes();
+        }
+      }, 300);
+    }
+  }
+
+  recalcular();
+  if (Object.keys(BASE.competencias).length || BASE.cadastros.length) ABA = 'painel';
+  else ABA = 'importar';
+  irPara(ABA);
+  pintarFontes();
+
+  if (typeof DecompressionStream === 'undefined'){
+    anotar('! Este navegador é antigo demais para abrir .xlsx e .pdf aqui dentro. Use Chrome, Edge, Firefox ou Safari atualizados — ou importe um pacote .json.', 'warn');
+  }
+}
+
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', partir);
+else partir();
+</script>
+</body>
+</html>

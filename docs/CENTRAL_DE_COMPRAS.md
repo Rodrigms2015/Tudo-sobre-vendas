@@ -133,6 +133,52 @@ substituído. Esse filtro sozinho tirou 72 falsos positivos da lista de urgênci
 
 ---
 
+## 3d. Os formatos que o Opus entrega
+
+O sistema não exporta do jeito que a análise gostaria; a análise é que se adapta.
+
+### Estoque sem cabeçalho
+
+O mesmo relatório sai em variações: com ou sem a linha de títulos, com ou sem uma coluna de
+localização (`1 01 006A`). Quando o cabeçalho não vem, as colunas são reconhecidas **pelo
+próprio conteúdo** — cada campo tem uma assinatura que nenhum outro tem:
+
+| Campo | Como se reconhece |
+|---|---|
+| Cód. interno | 100% dos valores com exatamente 10 dígitos |
+| Grupo | 100% com exatamente 6 dígitos |
+| Curva | 100% uma única letra de A a F |
+| Descrição | texto com palavras, o mais longo da linha |
+| Localização | começa com números separados por espaço — descartada |
+| Saldo | inteiro curto, com muita repetição (os zeros) |
+| Cód. produto | é o que traz o sufixo `[2]`, `[3]` das variantes fiscais |
+| Cód. original | é o que traz `.` como marcador de campo vazio |
+
+### Venda em PDF
+
+O relatório de movimentação só sai em PDF. A página lê o PDF **sem biblioteca nenhuma**:
+localiza os fluxos de conteúdo, descomprime com o `DecompressionStream` nativo do navegador,
+interpreta os operadores de texto guardando onde cada trecho foi desenhado, e remonta as
+linhas pela coordenada Y.
+
+Medido contra um PDF de 47 páginas no formato do relatório: **2.400 de 2.400 lançamentos
+lidos, em 0,6 s.** As 235 linhas descartadas são exatamente os cabeçalhos e rodapés das 47
+páginas.
+
+Dois erros custaram o resultado até chegar lá, e ambos são fáceis de repetir:
+
+- A palavra `stream` também aparece dentro de `endstream`. Sem exigir um caractere não-letra
+  antes, a busca casa no fim de um fluxo e engole todos os seguintes — 47 páginas viravam 1.
+- O tamanho do fluxo tem de vir do `/Length` do dicionário. Ir até o `endstream` arrasta o
+  fim de linha que separa os dois, e **um byte sobrando faz o descompressor recusar o fluxo
+  inteiro**. Pior: a rejeição escapava como *unhandled rejection* e a promessa ficava
+  pendurada, travando a página em vez de dar erro.
+
+PDF digitalizado (foto de papel) não tem texto, e a leitura avisa isso em vez de devolver
+vazio. `.txt` de captura de tela do terminal entra pelo mesmo caminho.
+
+---
+
 ## 3b. Quantidade sugerida — e o que muda no segundo envio
 
 **Com um envio só não existe consumo medido.** A sugestão é declaradamente uma referência

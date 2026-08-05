@@ -773,16 +773,17 @@
       <div class="sobrancelha">Arraste um arquivo para qualquer lugar da tela</div>
       <h3>Dois relatórios do Opus, na ordem que você quiser</h3>
       <p>
-        A página reconhece sozinha qual é qual pelo cabeçalho. Tudo é lido <b>dentro do seu navegador</b>
-        e fica gravado só neste aparelho — nada vai para servidor nenhum, e quem abrir este link vê esta
-        tela, não os seus dados.
+        Aceita <b>.xls</b>, <b>.pdf</b>, <b>.csv</b> e <b>.txt</b>, e reconhece sozinha qual arquivo é qual —
+        o estoque sai em Excel, a venda sai em PDF, e os dois entram pelo mesmo lugar. Tudo é lido
+        <b>dentro do seu navegador</b> e fica gravado só neste aparelho: nada vai para servidor nenhum,
+        e quem abrir este link vê esta tela, não os seus dados.
       </p>
       <div class="passos" id="passos"></div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:4px">
         <button class="bt bt-forte" id="btEscolher" type="button">Escolher arquivo</button>
         <button class="bt" id="btExemplo" type="button">Ver com dados de exemplo</button>
       </div>
-      <input type="file" id="arquivo" accept=".xls,.xlsx,.csv,.txt" class="oculto" />
+      <input type="file" id="arquivo" accept=".xls,.xlsx,.csv,.txt,.pdf" class="oculto" />
     </div>
   </section>
 
@@ -973,15 +974,15 @@
 
   <!-- ── DEMANDA ─────────────────────────────────────────────── -->
   <section class="vista" id="vista-demanda" hidden>
-    <details class="ajuda"><summary>O que a movimentação mostra</summary><div class="corpo"><p>Esta tela só existe depois que você sobe o relatório de <b>Movimentação de Produto</b>. Com ele, a compra deixa de ser estimativa e passa a ser venda medida.</p><p><b>Zerado e vendendo</b> é a lista mais importante do sistema: itens sem saldo que comprovadamente venderam no período. Cada linha ali é venda que você está perdendo hoje.</p><p><b>Capital morto</b> é o oposto: tem saldo e não vendeu <b>nenhuma</b> unidade no período inteiro. Não é giro baixo, é giro zero.</p><p>Se um item parou de vender porque <b>acabou</b>, a conta usa o ritmo de quando havia peça — senão a reposição repetiria a falta. Esses aparecem com <b>VENDA REAL ↑</b>.</p></div></details>
+    <details class="ajuda"><summary>O que a movimentação mostra</summary><div class="corpo"><p>Esta tela só existe depois que você sobe o relatório de <b>Movimentação de Produto</b> — pode ser o PDF que o sistema gera, sem converter nada. Com ele, a compra deixa de ser estimativa e passa a ser venda medida.</p><p><b>Zerado e vendendo</b> é a lista mais importante do sistema: itens sem saldo que comprovadamente venderam no período. Cada linha ali é venda que você está perdendo hoje.</p><p><b>Capital morto</b> é o oposto: tem saldo e não vendeu <b>nenhuma</b> unidade no período inteiro. Não é giro baixo, é giro zero.</p><p>Se um item parou de vender porque <b>acabou</b>, a conta usa o ritmo de quando havia peça — senão a reposição repetiria a falta. Esses aparecem com <b>VENDA REAL ↑</b>.</p></div></details>
     <div id="demandaVazia" class="secao oculto">
       <div class="vazio">
         <div class="sobrancelha">Falta o relatório de movimentação</div>
         <h3>Com a venda medida, a compra deixa de ser palpite</h3>
         <p>
-          Suba o relatório <b>Movimentação de Produto</b> do Opus — o mesmo caminho do estoque, com
-          Data, TP (E/S) e Quantidade. Aí a sugestão de compra passa a vir da saída real de cada peça,
-          e não de estimativa por curva.
+          Suba o relatório <b>Movimentação de Produto</b> do Opus, <b>em PDF mesmo</b> — é o formato que
+          o sistema entrega, e a página lê o texto dele direto. Aí a sugestão de compra passa a vir da
+          saída real de cada peça, e não de estimativa por curva.
         </p>
         <button class="bt bt-forte" id="btMovimentacao" type="button">Carregar movimentação</button>
       </div>
@@ -1449,6 +1450,255 @@ function lerPlanilha(bytes) {
   return linhas;
 }
 
+
+/* ─── 1c. Leitura de PDF ─────────────────────────────────────────────
+   O relatorio de venda so sai em PDF. Um PDF de relatorio e texto
+   posicionado, nao imagem, entao da para recuperar as linhas: acha os
+   fluxos de conteudo, descomprime com o DecompressionStream do proprio
+   navegador (sem biblioteca), le os operadores de texto guardando onde
+   cada trecho foi desenhado, e remonta linha por linha pela coordenada Y.
+
+   PDF digitalizado (foto de papel) nao tem texto e nao serve — nesse caso
+   a funcao avisa em vez de devolver vazio. */
+
+async function inflar(bytes) {
+  /* Fluxo /FlateDecode e zlib (com cabecalho); alguns geradores emitem
+     deflate cru. Tenta os dois.
+
+     A rejeicao do escritor tem de ser tratada dentro de uma promessa
+     propria: sem isso ela escapa como unhandled rejection e a leitura fica
+     pendurada para sempre em vez de falhar. */
+  for (const formato of ['deflate', 'deflate-raw']) {
+    try {
+      const ds = new DecompressionStream(formato);
+      const escritor = ds.writable.getWriter();
+      const escrita = (async () => {
+        try { await escritor.write(bytes); await escritor.close(); } catch { /* o leitor reporta */ }
+      })();
+      const partes = [];
+      const leitor = ds.readable.getReader();
+      for (;;) {
+        const { value, done } = await leitor.read();
+        if (done) break;
+        partes.push(value);
+      }
+      await escrita;
+      const total = partes.reduce((a, x) => a + x.length, 0);
+      if (!total) continue;
+      const saida = new Uint8Array(total);
+      let o = 0;
+      for (const x of partes) { saida.set(x, o); o += x.length; }
+      return saida;
+    } catch { /* tenta o proximo formato */ }
+  }
+  return null;
+}
+
+const OCTAL = { 'n': 10, 'r': 13, 't': 9, 'b': 8, 'f': 12 };
+
+/* Le uma string literal de PDF: (texto) com escapes, ou <hex>. */
+function lerStringPdf(txt, i) {
+  if (txt[i] === '<') {
+    const fim = txt.indexOf('>', i);
+    if (fim < 0) return null;
+    const hex = txt.slice(i + 1, fim).replace(/[^0-9A-Fa-f]/g, '');
+    let out = '';
+    for (let k = 0; k + 1 < hex.length; k += 2) out += String.fromCharCode(parseInt(hex.substr(k, 2), 16));
+    return { texto: out, fim: fim + 1 };
+  }
+  if (txt[i] !== '(') return null;
+  let out = '', nivel = 1, k = i + 1;
+  while (k < txt.length) {
+    const c = txt[k];
+    if (c === '\\') {
+      const n = txt[k + 1];
+      if (n >= '0' && n <= '7') {
+        let oct = '';
+        let j = k + 1;
+        while (j < txt.length && oct.length < 3 && txt[j] >= '0' && txt[j] <= '7') { oct += txt[j]; j++; }
+        out += String.fromCharCode(parseInt(oct, 8));
+        k = j;
+        continue;
+      }
+      if (n === '\n' || n === '\r') { k += 2; continue; }
+      out += OCTAL[n] !== undefined ? String.fromCharCode(OCTAL[n]) : n;
+      k += 2;
+      continue;
+    }
+    if (c === '(') nivel++;
+    if (c === ')') { nivel--; if (!nivel) return { texto: out, fim: k + 1 }; }
+    out += c;
+    k++;
+  }
+  return null;
+}
+
+/* Extrai os pedacos de texto com posicao de um fluxo de conteudo. */
+function pedacosDoConteudo(txt) {
+  const pedacos = [];
+  let x = 0, y = 0, xLinha = 0, yLinha = 0, entrelinha = 12, tamFonte = 10;
+  const num = (v) => { const f = parseFloat(v); return Number.isFinite(f) ? f : 0; };
+  const tokens = txt.match(/\((?:\\.|[^\\()]|\([^)]*\))*\)|<[0-9A-Fa-f\s]*>|\[|\]|[-+0-9.]+|\/[^\s/[\]<>()]+|[A-Za-z*'"]+/g) || [];
+  const pilha = [];
+  for (let i = 0; i < tokens.length; i++) {
+    const t = tokens[i];
+    if (/^[-+0-9.]+$/.test(t) || t === '[' || t === ']' || t.startsWith('/') || t.startsWith('(') || t.startsWith('<')) {
+      pilha.push(t);
+      continue;
+    }
+    switch (t) {
+      case 'BT': x = y = xLinha = yLinha = 0; break;
+      case 'Tf': tamFonte = num(pilha[pilha.length - 1]) || tamFonte; break;
+      case 'TL': entrelinha = num(pilha[pilha.length - 1]) || entrelinha; break;
+      case 'Td': case 'TD': {
+        const ty = num(pilha[pilha.length - 1]), tx = num(pilha[pilha.length - 2]);
+        if (t === 'TD') entrelinha = -ty || entrelinha;
+        xLinha += tx; yLinha += ty; x = xLinha; y = yLinha;
+        break;
+      }
+      case 'Tm': {
+        const p = pilha.slice(-6).map(num);
+        xLinha = p[4]; yLinha = p[5]; x = xLinha; y = yLinha;
+        tamFonte = Math.abs(p[3]) || tamFonte;
+        break;
+      }
+      case 'T*': yLinha -= entrelinha; x = xLinha; y = yLinha; break;
+      case 'Tj': case "'": case '"': {
+        if (t !== 'Tj') { yLinha -= entrelinha; x = xLinha; y = yLinha; }
+        const bruto = pilha[pilha.length - 1];
+        if (bruto && (bruto[0] === '(' || bruto[0] === '<')) {
+          const lido = lerStringPdf(bruto, 0);
+          if (lido && lido.texto) { pedacos.push({ x, y, texto: lido.texto, tam: tamFonte }); x += lido.texto.length * tamFonte * 0.6; }
+        }
+        break;
+      }
+      case 'TJ': {
+        /* Junta o array, aplicando avanco negativo como espaco quando grande. */
+        let k = pilha.length - 1;
+        while (k >= 0 && pilha[k] !== '[') k--;
+        const itensArr = pilha.slice(k + 1);
+        for (const it of itensArr) {
+          if (it === ']') continue;
+          if (/^[-+0-9.]+$/.test(it)) {
+            const av = -num(it) / 1000 * tamFonte;
+            x += av;
+            continue;
+          }
+          const lido = lerStringPdf(it, 0);
+          if (lido && lido.texto) { pedacos.push({ x, y, texto: lido.texto, tam: tamFonte }); x += lido.texto.length * tamFonte * 0.6; }
+        }
+        break;
+      }
+      default: break;
+    }
+    if (t !== 'Tf' && t !== 'TL') pilha.length = 0;
+  }
+  return pedacos;
+}
+
+/* Remonta linhas de texto a partir dos pedacos posicionados. */
+function linhasDosPedacos(pedacos) {
+  const porLinha = new Map();
+  for (const p of pedacos) {
+    const k = Math.round(p.y * 2) / 2;
+    if (!porLinha.has(k)) porLinha.set(k, []);
+    porLinha.get(k).push(p);
+  }
+  const chaves = [...porLinha.keys()].sort((a, b) => b - a);
+  return chaves.map((k) => {
+    const partes = porLinha.get(k).sort((a, b) => a.x - b.x);
+    let linha = '', fimAnterior = null;
+    for (const p of partes) {
+      const largura = Math.max(1, p.tam * 0.6);
+      if (fimAnterior !== null) {
+        const espacos = Math.round((p.x - fimAnterior) / largura);
+        if (espacos > 0) linha += ' '.repeat(Math.min(espacos, 80));
+      }
+      linha += p.texto;
+      fimAnterior = p.x + p.texto.length * largura;
+    }
+    return linha;
+  });
+}
+
+async function lerPdf(buf) {
+  const bytes = new Uint8Array(buf);
+  let cru = '';
+  for (let i = 0; i < bytes.length; i++) cru += String.fromCharCode(bytes[i]);
+  if (!cru.startsWith('%PDF')) throw new Error('Este arquivo não é um PDF.');
+
+  const conteudos = [];
+  /* A palavra "stream" tambem aparece dentro de "endstream": sem exigir um
+     caractere antes que nao seja letra, a busca casa no fim de um fluxo e
+     engole todos os seguintes — foi assim que 47 paginas viraram 1. */
+  const re = /(^|[^A-Za-z])stream[\r\n]/g;
+  let m;
+  while ((m = re.exec(cru)) !== null) {
+    let ini = m.index + m[0].length;
+    if (cru[ini - 1] === '\r' && cru[ini] === '\n') ini++;
+    const fim = cru.indexOf('endstream', ini);
+    if (fim < 0) continue;
+    const dic = cru.slice(Math.max(0, m.index - 700), m.index);
+    /* O tamanho vem do /Length. Ir ate o "endstream" arrasta o fim de linha
+       que separa os dois, e um byte sobrando faz o descompressor recusar o
+       fluxo inteiro. */
+    const decl = /\/Length\s+(\d+)(?!\s+\d+\s+R)/.exec(dic);
+    let fimReal = fim;
+    if (decl) {
+      const tam = Number(decl[1]);
+      if (tam > 0 && ini + tam <= fim) fimReal = ini + tam;
+    }
+    while (fimReal > ini && (bytes[fimReal - 1] === 10 || bytes[fimReal - 1] === 13)) fimReal--;
+    const bruto = bytes.subarray(ini, fimReal);
+    let dados = null;
+    if (/\/FlateDecode/.test(dic)) dados = await inflar(bruto);
+    else if (!/\/(DCTDecode|JPXDecode|CCITTFaxDecode|JBIG2Decode|RunLengthDecode|LZWDecode|ASCII85Decode)/.test(dic)) dados = bruto;
+    if (!dados) continue;
+    let texto = '';
+    for (let i = 0; i < dados.length; i++) texto += String.fromCharCode(dados[i]);
+    if (/\bTJ\b|\bTj\b/.test(texto)) conteudos.push(texto);
+    re.lastIndex = fim + 9;
+  }
+
+  if (!conteudos.length) {
+    throw new Error('Este PDF não tem texto que eu consiga ler — provavelmente é digitalizado (imagem de papel). ' +
+      'Gere o relatório direto para PDF no sistema, em vez de imprimir e escanear.');
+  }
+
+  const linhas = [];
+  for (const c of conteudos) linhas.push(...linhasDosPedacos(pedacosDoConteudo(c)));
+  linhas.paginas = conteudos.length;
+  return linhas;
+}
+
+/* ─── 1d. Relatorio em texto (do PDF ou de captura de tela) ──────────
+   Uma linha do relatorio de movimentacao tem uma assinatura difícil de
+   confundir: filial, almoxarifado, codigo, descricao, data, documento,
+   tipo de movimento, E ou S, e quantidade — nessa ordem. */
+
+/* A descricao que ocupa a coluna inteira fica colada na data por um
+   espaco so; exigir dois perdia justamente as linhas mais completas. */
+const LINHA_MOVIMENTO = /^\s*(\d{1,3})\s+(\d{1,3})\s+(\d{6,14})\s+(.+?)\s+(\d{1,2}\/\d{1,2}\/\d{2,4})\s+(\S+)\s+(\S{1,3})\s+([ESes])\s+([\d.,]+)/;
+
+function movimentosDeTexto(linhas) {
+  const movimentos = [];
+  let ignoradas = 0;
+  for (const l of linhas) {
+    if (!l || !l.trim()) continue;
+    const m = LINHA_MOVIMENTO.exec(l);
+    if (!m) { ignoradas++; continue; }
+    const data = paraData(m[5]);
+    const qtd = paraDinheiro(m[9]);
+    if (!data || qtd === null) { ignoradas++; continue; }
+    movimentos.push({
+      filial: m[1], produto: m[3], descricao: m[4].trim(),
+      data: data.toISOString().slice(0, 10),
+      documento: m[6], tr: m[7], tp: m[8].toUpperCase(), qtd,
+    });
+  }
+  return { movimentos, ignoradas };
+}
+
 function lerCsv(texto) {
   const sep = (texto.split('\n')[0].match(/;/g) || []).length > (texto.split('\n')[0].match(/,/g) || []).length ? ';' : ',';
   const linhas = [];
@@ -1660,6 +1910,92 @@ function paraInteiro(v) {
   return Number.isFinite(n) ? Math.round(n) : null;
 }
 
+/* ── Reconhecer colunas sem cabecalho ────────────────────────────────
+   O mesmo relatorio sai do Opus em variacoes: com ou sem a linha de
+   titulos, com ou sem a coluna de localizacao. Quando o cabecalho nao
+   vem, as colunas se identificam pelo proprio conteudo — cada campo tem
+   uma assinatura que nenhum outro tem. */
+
+function perfilDasColunas(linhas, iInicio) {
+  const amostra = linhas.slice(iInicio, iInicio + 300).filter((l) => l && l.some((c) => String(c ?? '').trim()));
+  if (amostra.length < 5) return null;
+  const nCols = Math.max(...amostra.map((l) => l.length));
+  const perfis = [];
+  for (let c = 0; c < nCols; c++) {
+    const vals = amostra.map((l) => String(l[c] ?? '').trim());
+    const q = vals.length;
+    const parte = (teste) => vals.filter(teste).length / q;
+    perfis.push({
+      i: c,
+      vazio: parte((v) => v === ''),
+      dig10: parte((v) => /^[0-9]{10}$/.test(v)),
+      dig6: parte((v) => /^[0-9]{6}$/.test(v)),
+      curva: parte((v) => /^[A-Fa-f]$/.test(v)),
+      inteiro: parte((v) => v !== '' && /^[0-9][0-9.,]*$/.test(v)),
+      texto: parte((v) => /[A-Za-z]{3}/.test(v)),
+      espaco: parte((v) => v.includes(' ')),
+      colchete: parte((v) => v.includes('[')),
+      ponto: parte((v) => v === '.'),
+      endereco: parte((v) => /^[0-9]+\s+[0-9]+\s/.test(v)),
+      sublinhado: parte((v) => /^_+$/.test(v)),
+      tamMedio: vals.reduce((a, v) => a + v.length, 0) / q,
+      distintos: new Set(vals).size / q,
+    });
+  }
+  return perfis;
+}
+
+function inferirColunasPorConteudo(linhas) {
+  /* A primeira linha de dados e a primeira com um codigo de 10 digitos:
+     nenhum cabecalho nem linha de tracinhos tem isso. */
+  let iInicio = -1;
+  for (let i = 0; i < Math.min(linhas.length, 40); i++) {
+    const l = linhas[i] || [];
+    if (l.some((c) => /^[0-9]{10}$/.test(String(c ?? '').trim()))) { iInicio = i; break; }
+  }
+  if (iInicio < 0) return null;
+  const perfis = perfilDasColunas(linhas, iInicio);
+  if (!perfis) return null;
+
+  const livres = perfis.filter((p) => p.vazio < 0.9 && p.sublinhado < 0.5);
+  const melhor = (campo, minimo) => {
+    const ordenado = livres.filter((p) => p.usado !== true && p[campo] >= minimo)
+      .sort((a, b) => b[campo] - a[campo]);
+    return ordenado[0] || null;
+  };
+  const mapa = {};
+  const marcar = (campo, p) => { if (p) { p.usado = true; mapa[campo] = p.i; } };
+
+  marcar('interno', melhor('dig10', 0.8));
+  marcar('grupo', melhor('dig6', 0.8));
+  marcar('curva', melhor('curva', 0.8));
+  /* Descricao e localizacao ambas tem espaco; a localizacao comeca com
+     numeros ("1 01 006A") e a descricao tem palavras. */
+  const endereco = melhor('endereco', 0.8);
+  if (endereco) endereco.usado = true;
+  marcar('descricao', livres.filter((p) => !p.usado && p.texto > 0.8).sort((a, b) => b.tamMedio - a.tamMedio)[0] || null);
+  /* Saldo: numero curto, com muita repeticao (varios zeros). */
+  marcar('saldo', livres.filter((p) => !p.usado && p.inteiro > 0.9 && p.tamMedio < 8)
+    .sort((a, b) => a.distintos - b.distintos)[0] || null);
+  /* Sobram os dois codigos: quem tem sufixo [n] e o do produto; quem tem
+     "." de campo vazio e o original. */
+  const codigos = livres.filter((p) => !p.usado).sort((a, b) => a.i - b.i);
+  if (codigos.length) {
+    const comColchete = codigos.slice().sort((a, b) => b.colchete - a.colchete)[0];
+    const comPonto = codigos.filter((p) => p !== comColchete).sort((a, b) => b.ponto - a.ponto)[0];
+    if (comColchete && comColchete.colchete > 0.05) marcar('produto', comColchete);
+    if (comPonto && comPonto.ponto > 0.02) marcar('original', comPonto);
+    for (const c of codigos) {
+      if (c.usado) continue;
+      if (mapa.produto === undefined) marcar('produto', c);
+      else if (mapa.original === undefined) marcar('original', c);
+    }
+  }
+  if (mapa.interno === undefined || mapa.saldo === undefined || mapa.descricao === undefined) return null;
+  if (mapa.produto === undefined) mapa.produto = mapa.interno;
+  return { mapa, iInicio, comoFoi: 'colunas reconhecidas pelo conteudo, sem cabecalho' };
+}
+
 function normalizar(linhas) {
   let iCab = -1, mapeamento = null;
   for (let i = 0; i < Math.min(linhas.length, 25); i++) {
@@ -1667,20 +2003,33 @@ function normalizar(linhas) {
     if (m.faltando.length === 0) { iCab = i; mapeamento = m.mapa; break; }
     if (m.faltando.length <= 2 && iCab === -1) { iCab = i; mapeamento = m.mapa; }
   }
-  if (iCab === -1) {
-    throw new Error('Não reconheci o cabeçalho. O arquivo precisa ter uma linha com os títulos das colunas (Cód. Interno, Cód. Produto, Cód. Original, Grupo, Descrição, Curva, Saldo).');
+  let comoFoi = 'colunas lidas pelos títulos do cabeçalho';
+  let iPrimeiraLinha = iCab + 1;
+  if (iCab === -1 || Object.keys(mapeamento || {}).length < 5) {
+    /* Sem cabeçalho utilizável, tenta reconhecer pelo conteúdo antes de desistir. */
+    const inferido = inferirColunasPorConteudo(linhas);
+    if (!inferido) {
+      throw new Error('Não reconheci as colunas. Este relatório precisa ter, em alguma ordem: ' +
+        'código interno de 10 dígitos, código de produto, código original, grupo de 6 dígitos, descrição, curva e saldo. ' +
+        'Se ele saiu sem a linha de títulos, mande o arquivo como está — eu ajusto o reconhecimento.');
+    }
+    mapeamento = inferido.mapa;
+    iPrimeiraLinha = inferido.iInicio;
+    comoFoi = inferido.comoFoi;
   }
   const m = mapeamento;
   const pega = (linha, campo) => (m[campo] === undefined ? '' : String(linha[m[campo]] ?? '').trim());
 
   const itens = [];
-  for (let i = iCab + 1; i < linhas.length; i++) {
+  for (let i = iPrimeiraLinha; i < linhas.length; i++) {
     const l = linhas[i];
     if (!l || l.every((c) => String(c ?? '').trim() === '')) continue;
     const descricao = pega(l, 'descricao');
     const produto = pega(l, 'produto');
     const interno = pega(l, 'interno');
     if (!descricao && !produto && !interno) continue;
+    /* Linha de tracinhos ou de sublinhados nao e dado. */
+    if (/^[-_]+$/.test(interno) || /^[-_]+$/.test(descricao)) continue;
     itens.push({
       interno,
       produto,
@@ -1694,7 +2043,8 @@ function normalizar(linhas) {
       preco: m.preco === undefined ? null : paraDinheiro(l[m.preco]),
     });
   }
-  if (!itens.length) throw new Error('O arquivo foi lido, mas não encontrei nenhum item abaixo do cabeçalho.');
+  if (!itens.length) throw new Error('O arquivo foi lido, mas não encontrei nenhum item de estoque nele.');
+  itens.comoFoi = comoFoi;
   return itens;
 }
 
@@ -3282,6 +3632,7 @@ function renderDados() {
       valor: st.movimentacao.ok ? n(st.movimentacao.lancamentos) + ' lançamentos' : 'não carregado',
       linhas: st.movimentacao.ok
         ? [['Arquivo', st.movimentacao.nome || '—'],
+           ['Formato lido', /\.pdf$/i.test(st.movimentacao.nome || '') ? 'PDF (texto extraído)' : 'planilha'],
            ['Período', dataBr(st.movimentacao.inicio) + ' a ' + dataBr(st.movimentacao.fim)],
            ['Dias cobertos', String(st.movimentacao.dias)],
            ['Filial no arquivo', st.movimentacao.filiais.join(', ') || '—'],
@@ -3478,11 +3829,57 @@ function abrirModal(titulo, nota, texto, csv, nomeCsv) {
 
 /* ─── 21. Carregar arquivo ───────────────────────────────────────── */
 
+async function aplicarMovimentos(movimentos, nome, extra = '') {
+  estado.movimentos = movimentos;
+  estado.nomeMovimentos = nome;
+  let gravados = null;
+  try { gravados = await guardarMovimentos(nome); }
+  catch (err) { estado.gravacao = { ok: false, em: null, erro: err.message || String(err) }; }
+  recalcular();
+  renderTudo();
+  const R = estado.resumoDemanda;
+  if (estado.gravacao.ok) {
+    recado('Movimentação carregada e gravada',
+      n(movimentos.length) + ' lançamentos de ' + dataBr(R.inicio) + ' a ' + dataBr(R.fim) + ' (' + R.dias + ' dias). ' +
+      'Conferi a gravação: ' + n(gravados) + ' linhas voltaram do banco. A sugestão de compra agora usa venda medida.' + extra);
+  } else {
+    recado('Movimentação carregada, mas NÃO gravada',
+      n(movimentos.length) + ' lançamentos valem nesta tela, mas não consegui gravar (' + estado.gravacao.erro + ').', 'erro');
+  }
+  trocarVista(estado.analise ? 'demanda' : 'painel');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
 async function carregarArquivo(file) {
   const nome = file.name;
   let linhas;
   try {
-    if (/\.csv$|\.txt$/i.test(nome)) {
+    if (/\.pdf$/i.test(nome)) {
+      /* PDF e sempre relatorio de venda: o estoque sai em Excel. */
+      const linhasTexto = await lerPdf(await file.arrayBuffer());
+      const { movimentos, ignoradas } = movimentosDeTexto(linhasTexto);
+      if (!movimentos.length) {
+        throw new Error('Li ' + linhasTexto.length + ' linhas de texto no PDF, mas nenhuma tinha o formato de movimentação ' +
+          '(filial, código, descrição, data, documento, tipo E/S e quantidade). ' +
+          'Confira se é o relatório de Movimentação de Produto — e me mande este PDF que eu ajusto a leitura.');
+      }
+      await aplicarMovimentos(movimentos, nome,
+        ' Lidas ' + n(movimentos.length) + ' linhas de ' + n(linhasTexto.length) + ' no PDF' +
+        (ignoradas ? ' (' + n(ignoradas) + ' linhas eram cabeçalho, rodapé ou totais).' : '.'));
+      return;
+    }
+
+    if (/\.txt$/i.test(nome)) {
+      /* Captura de tela do terminal: tenta movimentacao antes de CSV. */
+      const texto = await file.text();
+      const doTexto = movimentosDeTexto(texto.split(/\r?\n/));
+      if (doTexto.movimentos.length > 20) {
+        await aplicarMovimentos(doTexto.movimentos, nome,
+          ' Lidas ' + n(doTexto.movimentos.length) + ' linhas de movimentação do texto.');
+        return;
+      }
+      linhas = lerCsv(texto);
+    } else if (/\.csv$/i.test(nome)) {
       linhas = lerCsv(await file.text());
     } else {
       const buf = await file.arrayBuffer();
@@ -3533,29 +3930,12 @@ async function carregarArquivo(file) {
     const iMov = ehMovimentacao(linhas);
     if (iMov >= 0) {
       const movimentos = normalizarMovimentacao(linhas, iMov);
-      estado.movimentos = movimentos;
-      estado.nomeMovimentos = nome;
-      let gravados = null;
-      try { gravados = await guardarMovimentos(nome); }
-      catch (err) { estado.gravacao = { ok: false, em: null, erro: err.message || String(err) }; }
-      recalcular();
-      renderTudo();
-      const R = estado.resumoDemanda;
-      if (estado.gravacao.ok) {
-        recado('Movimentação carregada e gravada',
-          n(movimentos.length) + ' lançamentos de ' + dataBr(R.inicio) + ' a ' + dataBr(R.fim) + ' (' + R.dias + ' dias). ' +
-          'Conferi a gravação: ' + n(gravados) + ' linhas voltaram do banco. A sugestão de compra agora usa venda medida.');
-      } else {
-        recado('Movimentação carregada, mas NÃO gravada',
-          n(movimentos.length) + ' lançamentos foram lidos e já valem nesta tela, mas não consegui gravar neste navegador (' +
-          estado.gravacao.erro + '). Se fechar a aba, vai precisar subir de novo.', 'erro');
-      }
-      trocarVista(estado.analise ? 'demanda' : 'painel');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      await aplicarMovimentos(movimentos, nome);
       return;
     }
 
     const itensLidos = normalizar(linhas);
+
     const envio = {
       id: 'e' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
       nome,
@@ -3764,13 +4144,13 @@ function renderEstado() {
     {
       n: 1, titulo: 'Relatório de estoque',
       feito: st.estoque.ok,
-      p: 'O arquivo com Cód. Interno, Cód. Produto, Cód. Original, Grupo, Descrição, Curva e Saldo. É o que diz o que existe e quanto tem.',
+      p: 'Sai em Excel (.xls). É o que diz o que existe e quanto tem. Serve com ou sem a linha de títulos, com ou sem a coluna de localização — as colunas são reconhecidas pelo conteúdo.',
       confirma: st.estoque.ok ? n(st.estoque.itens) + ' itens carregados de ' + st.estoque.nome : null,
     },
     {
       n: 2, titulo: 'Relatório de movimentação',
       feito: st.movimentacao.ok,
-      p: 'Movimentação de Produto, com Data, TP (E/S) e Quantidade. É o que transforma a sugestão de compra em venda medida, no lugar de estimativa.',
+      p: 'Movimentação de Produto. Pode vir em PDF — é como o sistema entrega — ou em Excel. É o que transforma a sugestão de compra em venda medida, no lugar de estimativa.',
       confirma: st.movimentacao.ok
         ? n(st.movimentacao.lancamentos) + ' lançamentos, ' + dataBr(st.movimentacao.inicio) + ' a ' + dataBr(st.movimentacao.fim)
         : null,

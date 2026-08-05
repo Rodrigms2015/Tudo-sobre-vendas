@@ -749,8 +749,6 @@
     <button class="aba" role="tab" data-vista="comprar" aria-selected="false" title="Itens que passam nos filtros da lista de compra agora">Comprar <span class="selo" id="seloComprar">0</span></button>
     <button class="aba" role="tab" data-vista="oportunidades" aria-selected="false" title="Itens com saldo alto e giro baixo — o que os vendedores têm para empurrar">Oportunidades <span class="selo" id="seloOport">0</span></button>
     <button class="aba" role="tab" data-vista="demanda" aria-selected="false" title="Itens zerados que tiveram venda comprovada — a compra que não pode esperar">Demanda <span class="selo" id="seloDemanda">0</span></button>
-    <button class="aba" role="tab" data-vista="marcas" aria-selected="false" title="Prefixos e grupos que ainda não têm marca definida">Marcas <span class="selo" id="seloMarcas">0</span></button>
-    <button class="aba" role="tab" data-vista="frota" aria-selected="false">Frota &amp; Região</button>
     <button class="aba" role="tab" data-vista="evolucao" aria-selected="false">Evolução</button>
     <button class="aba" role="tab" data-vista="dados" aria-selected="false" title="O que está carregado, o que está gravado e a qualidade do cadastro">Situação</button>
   </div>
@@ -780,8 +778,7 @@
 
   <!-- ── PAINEL ──────────────────────────────────────────────── -->
   <section class="vista ativa" id="vista-painel" hidden>
-    <details class="ajuda"><summary>O que esta tela responde</summary><div class="corpo"><p><b>Vale a pena olhar primeiro.</b> Ela pega os 9 mil itens do estoque e mostra quantos realmente exigem decisão sua nesta semana.</p><p>Leia de cima para baixo: as cinco placas dão o tamanho do problema; a régua <b>Da lista bruta à lista de compra</b> mostra como a lista encolhe e <b>por que</b> cada pedaço saiu; a matriz <b>Onde a falta dói</b> cruza giro com situação — <b>clique em qualquer célula</b> e ela abre a lista já filtrada.</p><p><b>Ruptura real</b> é diferente de saldo zero: o item só entra aí se nenhuma variante fiscal nem equivalente tiver peça na prateleira. É a falta que o cliente sente.</p></div></details>
-    <div class="secao">
+        <div class="secao">
       <div class="placas" id="placasPainel"></div>
     </div>
 
@@ -806,19 +803,12 @@
         <div class="cartao">
           <div class="cartao-corpo">
             <div class="secao-topo"><h2>Linhas comprometidas</h2></div>
-            <p class="nota" style="font-size:12.5px;color:var(--tinta-3);margin-bottom:12px">
-              Grupos com 25 itens ou mais e a maior parte do sortimento zerada. Quando a linha inteira
-              falha, o cliente não troca de peça — troca de fornecedor.
-            </p>
             <div class="listabarras" id="linhasQuebradas"></div>
           </div>
         </div>
         <div class="cartao">
           <div class="cartao-corpo">
             <div class="secao-topo"><h2>Famílias em falta</h2></div>
-            <p class="nota" style="font-size:12.5px;color:var(--tinta-3);margin-bottom:12px">
-              Ruptura real por família de peça, ponderada pela essencialidade de manter em prateleira.
-            </p>
             <div class="listabarras" id="familiasFalta"></div>
           </div>
         </div>
@@ -828,17 +818,16 @@
 
   <!-- ── COMPRAR ─────────────────────────────────────────────── -->
   <section class="vista" id="vista-comprar" hidden>
-    <details class="ajuda"><summary>Como montar um pedido aqui</summary><div class="corpo"><ol><li>A lista já vem ordenada por <b>prioridade</b> — quanto maior a nota, mais o item precisa ser comprado agora.</li><li><b>Clique numa linha</b> para ver de onde saiu a nota. Cada ponto tem motivo escrito.</li><li>A coluna <b>Pedir</b> é sua: use os botões − e + ou digite. Fica laranja quando você muda, e mostra a sugestão ao lado.</li><li>Marque os itens no quadradinho e clique em <b>Montar solicitação de compra</b> na barra de baixo.</li></ol><p>Os filtros no topo estreitam a lista. O padrão já é o mais útil: ruptura real com prioridade 55 ou mais. Se quiser ver tudo, clique em <b>Limpar filtros</b>.</p></div></details>
-    <div class="secao">
+        <div class="secao">
       <div class="secao-topo">
         <h2>Lista de compra priorizada</h2>
-        <span class="nota">Ordenada por prioridade. Abra qualquer linha para ver de onde veio a nota.</span>
+        <span class="nota">Clique numa linha para ver a composição da nota.</span>
       </div>
 
       <div class="filtros">
         <div class="campo">
           <label for="fBusca">Buscar</label>
-          <input type="search" id="fBusca" placeholder="código, descrição ou grupo" />
+          <input type="search" id="fBusca" placeholder="código ou descrição" />
         </div>
         <div class="campo">
           <label for="fSituacao">Situação</label>
@@ -860,16 +849,13 @@
           <select id="fClasse"><option value="">Todas</option></select>
         </div>
         <div class="campo">
-          <label for="fMarca">Marca</label>
-          <select id="fMarca"><option value="">Todas</option></select>
-        </div>
-        <div class="campo">
-          <label for="fOrigem">Origem provável</label>
-          <select id="fOrigem"><option value="">Todas</option></select>
-        </div>
-        <div class="campo">
-          <label for="fGrupo">Grupo</label>
-          <select id="fGrupo"><option value="">Todos</option></select>
+          <label for="fDesvio">Venda por outra filial</label>
+          <select id="fDesvio">
+            <option value="">Tanto faz</option>
+            <option value="sim">Só quem teve</option>
+            <option value="sp">Só desvio dentro de SP</option>
+            <option value="uf">Só desvio de outro estado</option>
+          </select>
         </div>
         <div class="campo">
           <label for="fCoberturaCompra">Cobrir quantos dias</label>
@@ -916,12 +902,13 @@
               <th class="ord" data-ord="prioridade" style="width:112px">Prioridade</th>
               <th style="width:64px">Curva</th>
               <th>Descrição</th>
-              <th style="width:126px">Marca</th>
-              <th style="width:126px">Cód. produto</th>
-              <th style="width:118px">Cód. original</th>
-              <th style="width:142px">Situação</th>
-              <th class="ord dir" data-ord="saldo" style="width:70px">Saldo</th>
-              <th class="dir" style="width:132px">Pedir</th>
+              <th style="width:128px">Cód. produto</th>
+              <th style="width:120px">Cód. original</th>
+              <th class="ord dir" data-ord="vendeu" style="width:92px">Vendeu</th>
+              <th class="ord dir" data-ord="fora" style="width:104px">Outra filial</th>
+              <th style="width:132px">Situação</th>
+              <th class="ord dir" data-ord="saldo" style="width:66px">Saldo</th>
+              <th class="dir" style="width:128px">Pedir</th>
             </tr>
           </thead>
           <tbody id="corpoLista"></tbody>
@@ -933,11 +920,10 @@
 
   <!-- ── OPORTUNIDADES ───────────────────────────────────────── -->
   <section class="vista" id="vista-oportunidades" hidden>
-    <details class="ajuda"><summary>Para que serve esta tela</summary><div class="corpo"><p>É o contrário da compra: aqui está o que já está na prateleira e <b>precisa sair</b>.</p><p><b>Capital parado</b> junta o que tem saldo alto e giro baixo — dinheiro que não gira sozinho. Cada bloco vira uma oferta pronta para a equipe.</p><p><b>Forte e disponível</b> é o contrário: curva A e B com saldo folgado, onde o vendedor pode prometer entrega sem consultar ninguém.</p><p>O botão <b>Gerar pauta para os vendedores</b> monta um texto pronto para mandar no grupo ou imprimir para a reunião.</p></div></details>
-    <div class="secao">
+        <div class="secao">
       <div class="secao-topo">
         <h2>Lista de oportunidades para os vendedores</h2>
-        <span class="nota">O que já está na prateleira e precisa sair. Cada bloco vira uma mensagem pronta.</span>
+        <span class="nota">Saldo alto com venda baixa.</span>
       </div>
       <div class="placas" id="placasOport"></div>
     </div>
@@ -945,7 +931,7 @@
     <div class="secao">
       <div class="secao-topo">
         <h2>Capital parado — empurrar</h2>
-        <span class="nota">Saldo alto em item de giro baixo. Dinheiro na prateleira que não gira sozinho.</span>
+        
       </div>
       <div class="filtros">
         <div class="campo">
@@ -971,7 +957,7 @@
     <div class="secao">
       <div class="secao-topo">
         <h2>Forte e disponível — ofertar</h2>
-        <span class="nota">Curva A e B com saldo suficiente para prometer entrega sem risco.</span>
+        <span class="nota">Curva A e B com saldo folgado.</span>
       </div>
       <div id="listaForte" class="grade"></div>
     </div>
@@ -979,8 +965,7 @@
 
   <!-- ── DEMANDA ─────────────────────────────────────────────── -->
   <section class="vista" id="vista-demanda" hidden>
-    <details class="ajuda"><summary>O que a movimentação mostra</summary><div class="corpo"><p>Esta tela só existe depois que você sobe o relatório de <b>Movimentação de Produto</b> — pode ser o PDF que o sistema gera, sem converter nada. Com ele, a compra deixa de ser estimativa e passa a ser venda medida.</p><p><b>Zerado e vendendo</b> é a lista mais importante do sistema: itens sem saldo que comprovadamente venderam no período. Cada linha ali é venda que você está perdendo hoje.</p><p><b>Capital morto</b> é o oposto: tem saldo e não vendeu <b>nenhuma</b> unidade no período inteiro. Não é giro baixo, é giro zero.</p><p>Se um item parou de vender porque <b>acabou</b>, a conta usa o ritmo de quando havia peça — senão a reposição repetiria a falta. Esses aparecem com <b>VENDA REAL ↑</b>.</p></div></details>
-    <div id="demandaVazia" class="secao oculto">
+        <div id="demandaVazia" class="secao oculto">
       <div class="vazio">
         <div class="sobrancelha">Falta o relatório de movimentação</div>
         <h3>Com a venda medida, a compra deixa de ser palpite</h3>
@@ -1002,7 +987,7 @@
       <div class="secao oculto" id="secaoFilial">
         <div class="secao-topo">
           <h2>Venda que saiu por outra filial</h2>
-          <span class="nota">O pedido apareceu aqui e outra filial faturou. Dentro de SP, isso é peça que devia estar na prateleira.</span>
+          <span class="nota">O pedido apareceu aqui e outra filial faturou.</span>
         </div>
         <div class="placas" id="placasFilial" style="margin-bottom:14px"></div>
         <div class="rolo">
@@ -1017,7 +1002,7 @@
       <div class="secao">
         <div class="secao-topo">
           <h2>Zerado e vendendo</h2>
-          <span class="nota">Saldo zero com venda comprovada no período. É venda que está sendo perdida agora.</span>
+          <span class="nota">Saldo zero com venda no período.</span>
         </div>
         <div class="rolo">
           <table>
@@ -1031,22 +1016,16 @@
         <div class="grade">
           <div class="cartao"><div class="cartao-corpo">
             <div class="secao-topo"><h2>Capital morto</h2></div>
-            <p class="nota" style="font-size:12.5px;color:var(--tinta-3);margin-bottom:12px">
-              Tem saldo e não vendeu <b>nenhuma</b> unidade no período inteiro. Não é giro baixo — é giro zero.
-            </p>
             <div class="listabarras" id="capitalMorto"></div>
           </div></div>
           <div class="cartao"><div class="cartao-corpo">
             <div class="secao-topo"><h2>A curva do sistema bate com a venda?</h2></div>
-            <p class="nota" style="font-size:12.5px;color:var(--tinta-3);margin-bottom:12px">
-              Média de unidades vendidas por item em cada curva. Se uma curva baixa vende como curva alta, a classificação está desatualizada.
-            </p>
             <div class="listabarras" id="curvaVsVenda"></div>
           </div></div>
         </div>
       </div>
       <div class="secao">
-        <div class="secao-topo"><h2>Tipos de movimento no arquivo</h2><span class="nota">O que foi contado como saída. Confira se algum código não deveria entrar.</span></div>
+        <div class="secao-topo"><h2>Tipos de movimento no arquivo</h2><span class="nota">O que entrou como saída.</span></div>
         <div class="rolo"><table>
           <thead><tr><th>Tipo</th><th>Código</th><th class="dir">Lançamentos</th><th class="dir">Unidades</th><th>Entra na conta?</th></tr></thead>
           <tbody id="corpoTr"></tbody>
@@ -1055,171 +1034,20 @@
     </div>
   </section>
 
-  <!-- ── MARCAS ──────────────────────────────────────────────── -->
-  <section class="vista" id="vista-marcas" hidden>
-    <details class="ajuda"><summary>Por que definir marca</summary><div class="corpo"><p>Sem marca a plataforma funciona. Com marca, o pedido sai <b>separado por fornecedor</b> — que é como a compra realmente acontece.</p><p>O jeito rápido é <b>importar uma tabela</b> com código e marca. O jeito manual é preencher a tabela abaixo, que vem ordenada da maior para a menor: as 10 primeiras linhas já marcam mais de mil itens.</p><p><b>Você nunca precisa preencher tudo.</b> A barra de progresso mostra quanto do cadastro já tem marca.</p></div></details>
-    <div class="secao">
-      <div class="placas" id="placasMarcas"></div>
-    </div>
-
-    <div class="secao">
-      <div class="cartao"><div class="cartao-corpo" id="progressoMarcas"></div></div>
-    </div>
-
-    <div class="secao">
-      <div class="secao-topo">
-        <h2>De quem é cada prefixo</h2>
-        <span class="nota">Você define uma vez e vale para o cadastro inteiro. Fica guardado neste navegador.</span>
-      </div>
-      <div class="grade" style="margin-bottom:16px">
-        <div class="ficha" style="border-left:4px solid var(--laranja)">
-          <div class="sobrancelha">Jeito rápido · recomendado</div>
-          <h3>Importar uma tabela de marcas</h3>
-          <p>
-            Uma planilha com <b>duas colunas: código e marca</b>. Arraste aqui como qualquer outro
-            arquivo — a página reconhece sozinha. Preenche tudo de uma vez, sem digitar nada.
-          </p>
-          <p style="font-size:12.5px">
-            De onde tirar: no <b>site</b> (Magento), o painel exporta a lista de produtos com o
-            fabricante. No <b>Opus</b>, o cadastro de produtos tem o campo de marca. Serve qualquer
-            planilha, até feita à mão.
-          </p>
-          <div style="margin-top:auto;padding-top:8px;display:flex;gap:8px;flex-wrap:wrap">
-            <button class="bt bt-forte bt-mini" id="btTabelaMarcas" type="button">Importar tabela</button>
-            <button class="bt bt-mini" id="btModeloMarcas" type="button">Baixar modelo</button>
-          </div>
-        </div>
-        <div class="ficha">
-          <div class="sobrancelha">Já vem pronto</div>
-          <h3>Quatro marcas se reconhecem sozinhas</h3>
-          <p>
-            <b>MANN</b>, <b>MAHLE</b>, <b>FLEETGUARD</b> e <b>HENGST</b> — porque o próprio fabricante
-            codifica os filtros assim e a descrição da peça confirma. São 691 itens sem você
-            fazer nada.
-          </p>
-          <div class="fonte">Só entram padrões que acertam 100% no seu arquivo. Marca errada num pedido é pior que marca em branco.</div>
-        </div>
-        <div class="ficha">
-          <div class="sobrancelha">Jeito manual</div>
-          <h3>Preencher a tabela abaixo</h3>
-          <p>
-            Cada linha marca todos os itens dela de uma vez. Vem ordenada da maior para a menor:
-            as <b>10 primeiras</b> já pegam mais de mil itens.
-          </p>
-          <p style="font-size:12.5px">
-            Repare na coluna <b>O que tem aqui dentro</b>: se o prefixo tem peças de <b>vários tipos</b>,
-            é fornecedor. Se tem <b>só um tipo</b> (só amortecedor, só bronzina), provavelmente é
-            código de categoria da casa, e aí a marca pode variar item a item.
-          </p>
-        </div>
-      </div>
-      <div class="filtros">
-        <div class="campo">
-          <label for="fBuscaPrefixo">Buscar prefixo ou peça</label>
-          <input type="search" id="fBuscaPrefixo" placeholder="REX, barra direcao..." />
-        </div>
-        <div class="campo">
-          <label for="fSoVazios">Mostrar</label>
-          <select id="fSoVazios">
-            <option value="1" selected>Só os que faltam definir</option>
-            <option value="0">Todos</option>
-          </select>
-        </div>
-        <div class="campo">
-          <label for="fTipoChave">Tipo</label>
-          <select id="fTipoChave">
-            <option value="">Prefixos e grupos</option>
-            <option value="prefixo">Só prefixos de código</option>
-            <option value="grupo">Só grupos</option>
-          </select>
-        </div>
-        <div class="campo">
-          <label>&nbsp;</label>
-          <button class="bt bt-mini" id="btLimparMarcas" type="button">Apagar meu mapa de marcas</button>
-        </div>
-      </div>
-      <div class="rolo">
-        <table>
-          <thead><tr><th style="width:104px">Prefixo / grupo</th><th class="dir" style="width:74px">Itens</th><th class="dir" style="width:88px">Em ruptura</th><th>O que tem aqui dentro</th><th style="width:250px">Marca</th></tr></thead>
-          <tbody id="corpoPrefixos"></tbody>
-        </table>
-      </div>
-    </div>
-
-    <div class="secao">
-      <div class="secao-topo">
-        <h2>Situação por marca</h2>
-        <span class="nota">Onde está a ruptura, por fornecedor. Cada linha é um pedido em potencial.</span>
-      </div>
-      <div class="rolo">
-        <table>
-          <thead><tr><th>Marca</th><th>Categoria</th><th class="dir">Itens</th><th class="dir">Ruptura real</th><th class="dir">A pedir</th><th style="width:180px">Cobertura</th></tr></thead>
-          <tbody id="corpoMarcas"></tbody>
-        </table>
-      </div>
-      <div style="margin-top:12px;display:flex;gap:9px;flex-wrap:wrap">
-        <button class="bt bt-forte" id="btPedidosPorMarca" type="button">Gerar pedidos separados por fornecedor</button>
-      </div>
-    </div>
-  </section>
-
-  <!-- ── FROTA & REGIÃO ──────────────────────────────────────── -->
-  <section class="vista" id="vista-frota" hidden>
-    <details class="ajuda"><summary>Como ler esta tela</summary><div class="corpo"><p>São dados públicos de mercado — frota da região, emplacamentos por montadora, tamanho do setor de reposição — com <b>fonte e data em cada ficha</b>.</p><p>O cruzamento no fim compara a participação de cada montadora <b>no seu cadastro</b> com a participação dela <b>no mercado</b>. Barra laranja bem maior que a azul indica marca com muito caminhão rodando e pouca cobertura sua.</p><p><b>Atenção:</b> a origem é deduzida do formato do código, e indica de qual montadora ele veio. <b>Não afirma que a peça serve num veículo</b> — para isso, catálogo do fabricante.</p></div></details>
-    <div class="secao">
-      <div class="aviso" data-tom="atencao">
-        <span class="icone">!</span>
-        <div>
-          <b>Leia antes de usar esta aba.</b> A origem de cada peça é <b>inferida pelo formato do código
-          original</b>, não por catálogo de aplicação. Isso indica de qual montadora o código provavelmente
-          veio — e <b>não afirma que a peça serve em um veículo específico</b>. Para aplicação, consulte
-          sempre o catálogo do fabricante. Os dados de frota e mercado abaixo são públicos, com fonte e
-          data em cada ficha.
-        </div>
-      </div>
-    </div>
-
-    <div class="secao">
-      <div class="secao-topo"><h2>O mercado onde esta filial vende</h2></div>
-      <div class="grade" id="fichasFrota"></div>
-    </div>
-
-    <div class="secao">
-      <div class="secao-topo">
-        <h2>Seu catálogo × o mercado de caminhões</h2>
-        <span class="nota">Participação de cada montadora no seu cadastro, comparada com a participação dela nos emplacamentos.</span>
-      </div>
-      <div class="cartao"><div class="cartao-corpo"><div id="cruzamento"></div></div></div>
-    </div>
-
-    <div class="secao">
-      <div class="secao-topo"><h2>Como cada origem foi identificada</h2></div>
-      <div class="rolo">
-        <table>
-          <thead><tr><th>Origem provável</th><th>Padrão do código</th><th class="dir">Itens</th><th class="dir">Em ruptura</th><th>Confiança</th></tr></thead>
-          <tbody id="corpoOrigens"></tbody>
-        </table>
-      </div>
-    </div>
-  </section>
-
   <!-- ── EVOLUÇÃO ────────────────────────────────────────────── -->
   <section class="vista" id="vista-evolucao" hidden>
-    <details class="ajuda"><summary>Para que serve</summary><div class="corpo"><p>Compara dois envios de estoque e mostra o que mudou entre eles: o que saiu, o que entrou, quais rupturas apareceram e quais foram resolvidas.</p><p>Se você já subiu o relatório de movimentação, esta tela vira complemento — a movimentação é uma medida melhor, porque vem de lançamento e não de diferença entre duas fotos.</p></div></details>
     <div class="secao">
       <div class="secao-topo">
-        <h2>Evolução entre dois envios</h2>
-        <span class="nota">Suba o mesmo relatório outra vez e o consumo do período passa a ser medido, não estimado.</span>
+        <h2>O que mudou desde o envio anterior</h2>
+        <span class="nota" id="notaEvolucao"></span>
       </div>
-      <div class="filtros" id="seletorEvolucao"></div>
       <div id="conteudoEvolucao"></div>
     </div>
   </section>
 
   <!-- ── DADOS ───────────────────────────────────────────────── -->
   <section class="vista" id="vista-dados" hidden>
-    <details class="ajuda"><summary>O que conferir aqui</summary><div class="corpo"><p>Os três cartões de cima respondem: <b>o estoque entrou? a movimentação entrou? gravou mesmo?</b> Se está escrito ali, entrou.</p><p>"Gravação confirmada" não é promessa: a página escreve, lê de volta e confere a contagem antes de dizer isso. Se falhar, o cartão fica vermelho e avisa que os dados valem só enquanto a aba estiver aberta.</p><p><b>Qualidade do cadastro</b> mostra o que atrapalha a análise. Variante fiscal não é erro — é a mesma peça entrando com imposto diferente.</p></div></details>
-    <div class="secao">
+        <div class="secao">
       <div class="secao-topo"><h2>O que está carregado agora</h2><span class="nota">Se não está escrito aqui, não entrou.</span></div>
       <div class="grade" id="situacaoCartoes"></div>
     </div>
@@ -2364,72 +2192,16 @@ function detectarMarca(item) {
 /* ─── 5. Dados públicos de mercado e frota ───────────────────────────
    Cada número carrega fonte e data. Nada aqui é estimado sem dizer que é. */
 
-const MERCADO = {
-  atualizadoEm: 'agosto de 2026',
-  frotaCidade: {
-    total: 568142, caminhoes: 12423, camionetas: 40012, onibus: 2871, micro: 1506,
-    referencia: 'maio de 2024',
-    fonte: 'Tribuna Ribeirão, sobre dados de frota do Senatran/Detran-SP',
-    url: 'https://www.tribunaribeirao.com.br/frota-de-veiculos-cresce-079-em-rp/',
-  },
-  regiao: {
-    municipios: 34, habitantes: 1680000, pib: 66540947400, pibAno: 2018, pibShareSP: 3.01,
-    fonte: 'Região Metropolitana de Ribeirão Preto — Fundação Seade / IBGE',
-    url: 'https://rmrp.pdui.sp.gov.br/?page_id=127',
-  },
-  frotaBrasil: {
-    caminhoes: 2280000, idadeMediaAnos: 12.25,
-    fonte: 'Sindipeças/Abipeças — Relatório da Frota Circulante, edição 2025/2026',
-    url: 'https://www.autoindustria.com.br/2026/05/12/frota-brasileira-envelhece-e-idade-media-sobe-para-11-anos/',
-  },
-  emplacamentos: {
-    periodo: '1º semestre de 2026', total: 48030, anterior: 53009, variacao: -9.39,
-    fonte: 'Fenabrave, via FrotaNews',
-    url: 'https://frotanews.com.br/vw-mercedes-empate-mercado/',
-    marcas: [
-      { marca: 'Volkswagen / MAN', unidades: 13496, share: 28.10 },
-      { marca: 'Mercedes-Benz',    unidades: 13104, share: 27.28 },
-      { marca: 'Volvo',            unidades: 8642,  share: 17.99 },
-      { marca: 'Scania',           unidades: 5187,  share: 10.80 },
-      { marca: 'Iveco / FPT',      unidades: 3752,  share: 7.81 },
-      { marca: 'DAF',              unidades: 2844,  share: 5.92 },
-      { marca: 'Foton',            unidades: 665,   share: 1.38 },
-    ],
-  },
-  reposicao: {
-    faturamento2026: 284.1, crescimento: 3.0, aftermarket2024: 43, aftermarket2040: 79,
-    fonte: 'Sindipeças — projeção do setor de autopeças para 2026',
-    url: 'https://reparacaoautomotiva.com.br/2026/02/03/faturamento-autopecas-brasil-crescimento-eletricos/',
-  },
-  cana: {
-    fonte: 'Visão Agro / Portal do Agronegócio — safra de cana 2026 em São Paulo',
-    url: 'https://visaoagro.com.br/safra-de-cana-2026-em-sp-comeca-antecipada-e-usinas-ampliam-aposta-na-producao-de-etanol/',
-  },
-  agrishow: {
-    intencao: 11.4, variacao: -22, visitantes: 197000, marcas: 800,
-    fonte: 'Agrishow 2026, Ribeirão Preto — balanço da feira',
-    url: 'https://thmais.com.br/cidades/ribeirao-preto/agrishow-2026-encerra-com-r-114-bilhoes-em-intencao-de-negocios/',
-  },
-};
-
-/* Aderência da origem ao mercado que roda na região, de 0 a 1.
-   Deriva do share de emplacamentos, reescalado para o maior. */
-const ADERENCIA_ORIGEM = (() => {
-  const mapa = {};
-  const maior = Math.max(...MERCADO.emplacamentos.marcas.map((m) => m.share));
-  for (const m of MERCADO.emplacamentos.marcas) mapa[m.marca] = m.share / maior;
-  mapa['MAN'] = mapa['Volkswagen / MAN'];
-  mapa['ZF'] = 0.75; // componente de transmissão presente em várias montadoras
-  return mapa;
-})();
-
 /* ─── 6. Motor de prioridade ─────────────────────────────────────────
    Cinco componentes, pesos somando 100. Todo componente que pontua
    registra um fator com evidência concreta; todo componente sem dado
    registra uma lacuna e NÃO pontua — ausência nunca vira zero disfarçado.
    A confiança mostra quanto do peso total pôde ser aplicado. */
 
-const PESOS = { giro: 30, ruptura: 26, essencialidade: 20, linha: 14, mercado: 10 };
+/* Quatro componentes, todos medidos em dado do proprio relatorio.
+   Saiu "linha" (saude do grupo do ERP, que misturava coisas diferentes) e
+   saiu "mercado" (participacao da montadora, longe demais do item). */
+const PESOS = { giro: 45, ruptura: 30, desvio: 15, essencialidade: 10 };
 const PESO_CURVA = { A: 1.00, B: 0.80, C: 0.55, D: 0.33, E: 0.15, F: 0.00 };
 const RISCO_CURVA = { A: 3, B: 2, C: 2, D: 1, E: 1, F: 1 };
 const EXCESSO_CURVA = { A: 90, B: 70, C: 45, D: 25, E: 20, F: 16 };
@@ -2587,43 +2359,41 @@ function analisar(itens, mapaMarcas = {}, resumo = null, tabelaMarcas = null) {
       const f = notaGiroMedido(dem);
       const p = PESOS.giro * f;
       pontos += p; pesoAplicado += PESOS.giro;
-      fatores.push({ nome: 'Giro', pontos: p, texto: 'Saíram ' + Math.round(dem.unidades) + ' unidades em ' + dem.pedidos +
-        ' pedido' + (dem.pedidos > 1 ? 's' : '') + ' ao longo de ' + resumo.dias + ' dias' +
-        (dem.mesesComVenda > 1 ? ', em ' + dem.mesesComVenda + ' meses diferentes' : ', concentradas num mês só') + '.' });
+      fatores.push({ nome: 'Giro', pontos: p, texto: Math.round(dem.unidades) + ' un em ' + dem.pedidos +
+        ' pedido' + (dem.pedidos > 1 ? 's' : '') + ' · ' + resumo.dias + ' dias' });
     } else if (resumo && abrangente) {
       const p = 0;
       pontos += p; pesoAplicado += PESOS.giro;
-      fatores.push({ nome: 'Giro', pontos: p, texto: 'Nenhuma saída em ' + resumo.dias + ' dias de movimentação. Curva ' + (item.curva || '—') + ' no cadastro, mas sem venda medida.' });
+      fatores.push({ nome: 'Giro', pontos: p, texto: 'Sem saída em ' + resumo.dias + ' dias · curva ' + (item.curva || '—') });
     } else if (resumo && item.curva && PESO_CURVA[item.curva] !== undefined) {
       /* Fora do recorte do relatorio: cai para a curva e diz por que. */
       const p = PESOS.giro * PESO_CURVA[item.curva];
       pontos += p; pesoAplicado += PESOS.giro;
-      fatores.push({ nome: 'Giro', pontos: p, texto: 'Este item não está no relatório de venda carregado, que cobre ' +
-        pct(cobertura) + ' do cadastro. Sem medida, vale a curva ' + item.curva + ' — não é venda zero, é venda não medida.' });
+      fatores.push({ nome: 'Giro', pontos: p, texto: 'Fora do recorte do relatório · avaliado pela curva ' + item.curva });
     } else if (item.curva && PESO_CURVA[item.curva] !== undefined) {
       const p = PESOS.giro * PESO_CURVA[item.curva];
       pontos += p; pesoAplicado += PESOS.giro;
-      fatores.push({ nome: 'Giro', pontos: p, texto: 'Curva ' + item.curva + ' — ' + ({ A: 'a faixa de maior saída do cadastro', B: 'saída alta', C: 'saída média', D: 'saída baixa', E: 'saída rara', F: 'praticamente sem saída' })[item.curva] + '.' });
+      fatores.push({ nome: 'Giro', pontos: p, texto: 'Curva ' + item.curva + ' · sem movimentação carregada' });
     } else {
-      lacunas.push({ nome: 'Giro', texto: 'Item sem curva ABC no cadastro e sem relatório de movimentação. Sem um dos dois não dá para saber se sai muito ou pouco.' });
+      lacunas.push({ nome: 'Giro', texto: 'Sem curva no cadastro e sem movimentação carregada' });
     }
 
     // 2. Situação do saldo.
     if (item.saldo === null) {
-      lacunas.push({ nome: 'Saldo', texto: 'Coluna de saldo vazia ou ilegível para este item.' });
+      lacunas.push({ nome: 'Saldo', texto: 'Saldo ilegível no relatório' });
     } else {
       let f = 0, texto = '';
-      if (situacao === 'RUPTURA') { f = 1.0; texto = 'Saldo zero e nenhum similar com o mesmo código original tem saldo. O balcão perde a venda.'; }
+      if (situacao === 'RUPTURA') { f = 1.0; texto = 'Saldo zero, sem similar disponível'; }
       else if (situacao === 'COBERTA') {
         f = 0.22;
         texto = fiscaisComSaldo.length
-          ? 'Saldo zero neste cadastro, mas o mesmo item em outro cadastro fiscal tem peça (' + fiscaisComSaldo.map((x) => x.produto + ': ' + x.saldo).slice(0, 3).join(', ') + '). O balcão atende — é a mesma peça, só entra com imposto diferente.'
-          : 'Saldo zero, mas ' + similaresComSaldo.length + ' equivalente' + (similaresComSaldo.length > 1 ? 's' : '') + ' de mesmo código original tem saldo (' + similaresComSaldo.map((x) => x.produto + ': ' + x.saldo).slice(0, 3).join(', ') + '). Atende o cliente, mas é outra marca.';
+          ? 'Zerado aqui, ' + fiscaisComSaldo.reduce((a, x) => a + x.saldo, 0) + ' un em outra variante fiscal'
+          : 'Zerado, ' + similaresComSaldo.reduce((a, x) => a + x.saldo, 0) + ' un em equivalente';
       }
-      else if (item.saldo === 1) { f = 0.70; texto = 'Última peça na prateleira. A próxima venda zera o item.'; }
-      else if (situacao === 'RISCO') { f = 0.50; texto = 'Saldo ' + item.saldo + ', dentro da faixa de risco para curva ' + item.curva + '.'; }
-      else if (situacao === 'EXCESSO') { f = 0.0; texto = 'Saldo ' + item.saldo + ' — acima do necessário para curva ' + item.curva + '. Não é caso de compra.'; }
-      else { f = 0.08; texto = 'Saldo ' + item.saldo + ', suficiente para a curva ' + item.curva + '.'; }
+      else if (item.saldo === 1) { f = 0.70; texto = 'Última peça em estoque'; }
+      else if (situacao === 'RISCO') { f = 0.50; texto = 'Saldo ' + item.saldo + ' · faixa de risco'; }
+      else if (situacao === 'EXCESSO') { f = 0.0; texto = 'Saldo ' + item.saldo + ' · acima do necessário'; }
+      else { f = 0.08; texto = 'Saldo ' + item.saldo + ' · suficiente'; }
       const p = PESOS.ruptura * f;
       pontos += p; pesoAplicado += PESOS.ruptura;
       fatores.push({ nome: 'Falta', pontos: p, texto });
@@ -2633,38 +2403,32 @@ function analisar(itens, mapaMarcas = {}, resumo = null, tabelaMarcas = null) {
     if (classe && PESO_CLASSE[classe] !== undefined) {
       const p = PESOS.essencialidade * PESO_CLASSE[classe];
       pontos += p; pesoAplicado += PESOS.essencialidade;
-      const explica = {
-        consumivel: 'troca programada, o cliente compra sempre — faltar é perder recorrência',
-        pneumatico: 'freio e ar param o caminhão; o cliente compra de quem tem hoje',
-        eletrico: 'falha sem aviso, e a procura é imediata',
-        desgaste: 'troca por uso, procura constante',
-        injecao: 'ticket alto e procura média — vale ter, não vale encher',
-        estrutural: 'ticket alto e giro raro — normalmente se compra sob pedido',
-      }[classe];
-      fatores.push({ nome: 'Essencial', pontos: p, texto: familia + ' (' + ROTULO_CLASSE[classe] + '): ' + explica + '.' });
+      fatores.push({ nome: 'Essencial', pontos: p, texto: ROTULO_CLASSE[classe] });
     } else {
-      lacunas.push({ nome: 'Essencial', texto: 'A descrição "' + item.descricao + '" não caiu em nenhuma família conhecida. Descrição truncada ou termo novo.' });
+      lacunas.push({ nome: 'Essencial', texto: 'Tipo de peça não identificado pela descrição' });
     }
 
-    // 4. Saúde da linha inteira.
-    if (grupo && grupo.tamanho >= 8) {
-      const f = Math.min(1, Math.max(0, (grupo.taxa - 0.30) / 0.50));
-      const p = PESOS.linha * f;
-      pontos += p; pesoAplicado += PESOS.linha;
-      fatores.push({ nome: 'Linha', pontos: p, texto: 'Grupo ' + item.grupo + ': ' + grupo.zerados + ' de ' + grupo.tamanho + ' itens zerados (' + Math.round(grupo.taxa * 100) + '%).' + (grupo.taxa > 0.6 ? ' Quando a linha inteira falha, o cliente troca de fornecedor, não de peça.' : '') });
+    // 4. Venda que saiu por outra filial: procura que existiu e nao foi atendida aqui.
+    if (dem && dem.fora > 0) {
+      const proporcao = dem.fora / Math.max(1, dem.unidades);
+      const f = Math.min(1, proporcao * 1.6);
+      const pDesvio = PESOS.desvio * f;
+      pontos += pDesvio; pesoAplicado += PESOS.desvio;
+      const soSP = dem.foraUF === 0;
+      fatores.push({
+        nome: 'Outra filial',
+        pontos: pDesvio,
+        texto: Math.round(dem.fora) + ' un (' + Math.round(proporcao * 100) + '%) faturadas por ' +
+          (dem.porFilial || []).slice(0, 2).map(([ff]) => nomeFilial(ff)).join(' e ') +
+          (soSP ? ' — dentro de SP' : ' — inclui outro estado'),
+      });
+    } else if (resumo && resumo.temFf && dem) {
+      pesoAplicado += PESOS.desvio;
+      fatores.push({ nome: 'Outra filial', pontos: 0, texto: 'Nenhuma venda faturada por outra filial' });
+    } else if (resumo && resumo.temFf) {
+      lacunas.push({ nome: 'Outra filial', texto: 'Item fora do recorte do relatório' });
     } else {
-      lacunas.push({ nome: 'Linha', texto: 'Grupo ' + item.grupo + ' tem menos de 8 itens — base pequena demais para julgar a linha.' });
-    }
-
-    // 5. Aderência ao mercado da região.
-    if (origem.origem && ADERENCIA_ORIGEM[origem.origem] !== undefined) {
-      const f = ADERENCIA_ORIGEM[origem.origem];
-      const p = PESOS.mercado * f;
-      pontos += p; pesoAplicado += PESOS.mercado;
-      const share = MERCADO.emplacamentos.marcas.find((m) => m.marca === origem.origem);
-      fatores.push({ nome: 'Mercado', pontos: p, texto: 'Código com padrão ' + origem.origem + (share ? ' — ' + share.share.toFixed(1).replace('.', ',') + '% dos emplacamentos de caminhão no ' + MERCADO.emplacamentos.periodo : '') + '.' });
-    } else {
-      lacunas.push({ nome: 'Mercado', texto: origem.motivo });
+      lacunas.push({ nome: 'Outra filial', texto: 'Relatório sem a coluna de filial faturadora' });
     }
 
     return {
@@ -2918,7 +2682,7 @@ const estado = {
   marcados: new Set(),
   limite: 150,
   ordem: { campo: 'prioridade', desc: true },
-  filtros: { busca: '', situacao: 'RUPTURA', curva: '', classe: '', marca: '', origem: '', grupo: '', nota: 55 },
+  filtros: { busca: '', situacao: 'RUPTURA', curva: '', classe: '', desvio: '', nota: 55 },
   agrupar: true,
   movimentos: null,
   resumoDemanda: null,
@@ -2957,9 +2721,6 @@ const envioAtual = () => estado.envios.find((e) => e.id === estado.atualId) || n
 function situacaoDoSistema() {
   const e = envioAtual();
   const R = estado.resumoDemanda;
-  const L = itens();
-  const chaves = L.length ? resumoPrefixos() : [];
-  const semMarca = chaves.filter((c) => !c.marca);
   return {
     estoque: e ? {
       ok: true, nome: e.nome, data: e.dataISO, itens: e.itens.length,
@@ -2969,19 +2730,13 @@ function situacaoDoSistema() {
     movimentacao: R ? {
       ok: true, nome: estado.nomeMovimentos, inicio: R.inicio, fim: R.fim,
       dias: R.dias, lancamentos: R.linhas, filiais: R.filiais, produtos: R.produtosComVenda,
+      cobertura: R.cobertura, formato: R.formato,
     } : { ok: false },
-    marcas: L.length ? {
-      itensComMarca: L.filter((i) => i.marca).length, itens: L.length,
-      chavesDefinidas: chaves.length - semMarca.length, chaves: chaves.length,
-      itensSemMarca: semMarca.reduce((s, c) => s + c.itens, 0),
-    } : null,
-    tabelaMarcas: estado.tabelaMarcas
-      ? { ok: true, nome: estado.nomeTabelaMarcas, codigos: Object.keys(estado.tabelaMarcas).length }
-      : { ok: false },
     ajustes: Object.keys(estado.quantidades).length,
     gravacao: estado.gravacao,
   };
 }
+
 const itens = () => (estado.analise ? estado.analise.itens : []);
 
 /* Nome legível para um grupo, deduzido da família que mais aparece nele. */
@@ -3084,11 +2839,12 @@ function filtrar() {
     if (f.situacao && i.situacao !== f.situacao) return false;
     if (f.curva && i.curva !== f.curva) return false;
     if (f.classe && i.classe !== f.classe) return false;
-    if (f.marca === '__sem') { if (i.marca) return false; }
-    else if (f.marca && i.marca !== f.marca) return false;
-    if (f.origem === '__nenhuma') { if (i.origem) return false; }
-    else if (f.origem && i.origem !== f.origem) return false;
-    if (f.grupo && i.grupo !== f.grupo) return false;
+    if (f.desvio) {
+      const d = i.demandaUsada;
+      if (f.desvio === 'sim' && !(d && d.fora > 0)) return false;
+      if (f.desvio === 'sp' && !(d && d.foraSP > 0)) return false;
+      if (f.desvio === 'uf' && !(d && d.foraUF > 0)) return false;
+    }
     if (i.prioridade < f.nota) return false;
     if (busca) {
       const alvo = chave(i.descricao + i.produto + i.original + i.grupo + i.interno);
@@ -3097,9 +2853,14 @@ function filtrar() {
     return true;
   });
   const { campo, desc } = estado.ordem;
+  const valorDe = (x) => {
+    if (campo === 'saldo') return x.saldo ?? -1;
+    if (campo === 'vendeu') return x.demandaUsada ? x.demandaUsada.unidades : -1;
+    if (campo === 'fora') return x.demandaUsada ? x.demandaUsada.fora : -1;
+    return x.prioridade;
+  };
   lista.sort((a, b) => {
-    const va = campo === 'saldo' ? (a.saldo ?? -1) : a.prioridade;
-    const vb = campo === 'saldo' ? (b.saldo ?? -1) : b.prioridade;
+    const va = valorDe(a), vb = valorDe(b);
     if (va !== vb) return desc ? vb - va : va - vb;
     return b.prioridade - a.prioridade;
   });
@@ -3262,10 +3023,13 @@ function renderComprar() {
       '<td>' + (i.curva ? '<span class="curva" data-c="' + i.curva + '">' + i.curva + '</span>' : '<span class="etiqueta" data-tom="neutro">sem curva</span>') + '</td>' +
       '<td><b style="font-weight:600">' + esc(i.descricao || '—') + '</b>' +
         (i.repetidos > 1 ? ' <span class="etiqueta" data-tom="neutro" title="Mesma peça em ' + i.repetidos + ' cadastros fiscais. Saldo e venda somados; escolha o cadastro na hora de faturar.">' + i.repetidos + ' variantes fiscais</span>' : '') +
-        '<br><span style="font-size:11.5px;color:var(--tinta-3)">' + esc(i.familia) + (i.origem ? ' · padrão ' + esc(i.origem) : '') + '</span></td>' +
-      '<td>' + marcaCelula(i) + '</td>' +
+        '<br><span style="font-size:11.5px;color:var(--tinta-3)">' + esc(i.produto || '') + '</span></td>' +
       '<td class="mono">' + esc(i.produto || '—') + '</td>' +
       '<td class="mono">' + esc(i.original || '—') + '</td>' +
+      '<td class="dir num">' + (i.demandaUsada
+        ? '<b>' + n(Math.round(i.demandaUsada.unidades)) + '</b><br><span style="font-size:10.5px;color:var(--tinta-3)">' + i.demandaUsada.pedidos + ' ped.</span>'
+        : '<span style="color:var(--tinta-3)">—</span>') + '</td>' +
+      '<td class="dir num">' + celulaOutraFilial(i) + '</td>' +
       '<td>' + etiquetaSituacao(i.situacao) + '</td>' +
       '<td class="dir num"><b>' + (i.saldo === null ? '—' : n(i.saldo)) + '</b></td>' +
       '<td class="dir">' + campoQuantidade(i) + '</td>' +
@@ -3311,14 +3075,6 @@ function renderComprar() {
     const inp = document.querySelector('.qtd[data-id="' + CSS.escape(bt.dataset.id) + '"]');
     aplicarQtd(bt.dataset.id, Number(inp.value) + Number(bt.dataset.passo));
   }));
-  $$('[data-mapear]').forEach((bt) => bt.addEventListener('click', (ev) => {
-    ev.stopPropagation();
-    trocarVista('marcas');
-    $('#fBuscaPrefixo').value = bt.dataset.rotulo;
-    renderMarcas();
-    const alvo = document.querySelector('.mapa-marca[data-chave="' + CSS.escape(bt.dataset.mapear) + '"]');
-    if (alvo) { alvo.scrollIntoView({ block: 'center', behavior: 'smooth' }); alvo.focus(); }
-  }));
   $$('.marca-item').forEach((cb) => cb.addEventListener('change', () => {
     if (cb.checked) estado.marcados.add(cb.dataset.id); else estado.marcados.delete(cb.dataset.id);
     atualizarCarrinho();
@@ -3326,14 +3082,17 @@ function renderComprar() {
   $('#seloComprar').textContent = n(lista.length);
 }
 
-function marcaCelula(i) {
-  if (!i.marca) {
-    return '<button class="bt bt-mini" data-mapear="' + esc(i.chaveDoMapa) + '" data-rotulo="' + esc(i.chaveDoMapa.slice(2)) + '" style="font-weight:600;color:var(--tinta-3)" ' +
-      'title="Nenhuma marca definida para o ' + esc(rotuloChave(i.chaveDoMapa)) + '. Clique para definir.">definir marca</button>';
-  }
-  const tom = i.origemDaMarca && i.origemDaMarca.startsWith('definida') ? 'saudavel' : 'neutro';
-  return '<span class="etiqueta" data-tom="' + tom + '" title="' + esc(i.origemDaMarca || '') + '">' + esc(i.marca) + '</span>';
+function celulaOutraFilial(i) {
+  const d = i.demandaUsada;
+  if (!d) return '<span style="color:var(--tinta-3)">—</span>';
+  if (!d.fora) return '<span style="color:var(--tinta-3)">0</span>';
+  const soSP = d.foraUF === 0;
+  const titulo = (d.porFilial || []).map(([ff, q]) => nomeFilial(ff) + ' ' + Math.round(q)).join(' · ');
+  return '<b style="color:var(--critico)">' + n(Math.round(d.fora)) + '</b>' +
+    '<br><span class="etiqueta" data-tom="' + (soSP ? 'critico' : 'parado') + '" style="font-size:10px;padding:0 5px" title="' + esc(titulo) + '">' +
+    (soSP ? 'SP' : 'outro UF') + '</span>';
 }
+
 
 function campoQuantidade(i) {
   const id = i.interno || i.produto;
@@ -3358,30 +3117,41 @@ function campoQuantidade(i) {
 }
 
 function detalheItem(i) {
-  const fatores = i.fatores.map((f) =>
-    '<div class="fator"><b>' + esc(f.nome) + '</b><span>' + esc(f.texto) + '</span><span class="pts">+' + f.pontos.toFixed(1).replace('.', ',') + '</span></div>').join('');
-  const lacunas = i.lacunas.map((l) =>
-    '<div class="fator lacuna"><b>' + esc(l.nome) + '</b><span style="color:var(--tinta-3)">' + esc(l.texto) + '</span><span class="pts">sem dado</span></div>').join('');
-  return '<div class="detalhe">' +
-    '<div><div class="sobrancelha" style="margin-bottom:7px">Por que a nota é ' + i.prioridade + '</div><div class="fatores">' + fatores + lacunas + '</div>' +
-    '<p style="font-size:11.5px;color:var(--tinta-3);margin-top:9px">Confiança ' + i.confianca + '% — parcela dos pesos que teve dado para pontuar. O resto ficou como lacuna acima.</p></div>' +
-    '<div><div class="sobrancelha" style="margin-bottom:7px">Quantidade sugerida</div>' +
-    '<p style="font-size:31px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums">' + i.sugestao.qtd + '</p>' +
-    '<p style="font-size:12.5px;color:var(--tinta-2);margin-top:7px">' + esc(i.sugestao.texto) + '</p>' +
-    '<div style="margin-top:11px">' +
-      (i.custo !== null ? '<div class="linhadados"><span>Custo unitário · total do pedido</span><b>' + brl(i.custo) + ' · ' + brl(i.custo * i.qtd) + '</b></div>' : '') +
-      '<div class="linhadados"><span>Grupo</span><b>' + esc(i.grupo) + '</b></div>' +
-      '<div class="linhadados"><span>Equivalentes de mesmo código original</span><b>' + i.irmaos + (i.irmaos ? ' cadastro' + (i.irmaos > 1 ? 's' : '') : '') + '</b></div>' +
-      (i.repetidos > 1 ? '<div class="linhadados"><span>Variantes fiscais somadas aqui</span><b>' +
-        i.conjunto.map((x) => x.produto + ' (' + (x.saldo ?? '—') + ')').join(', ') + '</b></div>' : '') +
-      '<div class="linhadados"><span>Marca</span><b>' + esc(i.marca || 'não definida') + (i.origemDaMarca ? ' <span style="font-weight:400;color:var(--tinta-3)">(' + esc(i.origemDaMarca) + ')</span>' : '') + '</b></div>' +
-      '<div class="linhadados"><span>Prefixo do código</span><b>' + esc(i.prefixo) + '</b></div>' +
-      '<div class="linhadados"><span>Origem provável do código</span><b>' + esc(i.origem || 'não identificada') + '</b></div>' +
-      (i.consumo ? '<div class="linhadados"><span>Saída medida no período</span><b>' + i.consumo.saida + ' un / ' + i.consumo.dias + ' dias</b></div>' : '') +
-    '</div>' +
-    '<p style="font-size:11px;color:var(--tinta-3);margin-top:10px;border-top:1px solid var(--borda);padding-top:8px">' +
-    esc(i.origemMotivo) + ' Isso indica a origem do código — <b>não</b> confirma aplicação em veículo. Confira no catálogo do fabricante.</p></div>' +
-    '</div>';
+  const barra = (f) => {
+    const max = Math.max(...Object.values(PESOS));
+    return '<span class="barra" style="width:46px"><i style="width:' +
+      Math.round((f.pontos / max) * 100) + '%;background:var(--marinho)"></i></span>';
+  };
+  const linhas = i.fatores.map((f) =>
+    '<tr><td style="width:96px"><b style="font-weight:650;font-size:11.5px;letter-spacing:.04em;text-transform:uppercase;color:var(--tinta-2)">' + esc(f.nome) + '</b></td>' +
+    '<td style="width:60px" class="dir num"><b>' + f.pontos.toFixed(0) + '</b></td>' +
+    '<td style="width:58px">' + barra(f) + '</td>' +
+    '<td style="font-size:12.5px;color:var(--tinta-2)">' + esc(f.texto) + '</td></tr>').join('') +
+    i.lacunas.map((l) =>
+    '<tr><td><b style="font-weight:650;font-size:11.5px;letter-spacing:.04em;text-transform:uppercase;color:var(--tinta-3)">' + esc(l.nome) + '</b></td>' +
+    '<td class="dir num" style="color:var(--tinta-3)">—</td><td></td>' +
+    '<td style="font-size:12.5px;color:var(--tinta-3)">' + esc(l.texto) + '</td></tr>').join('');
+
+  const d = i.demandaUsada;
+  const dados = [
+    ['Saldo atual', i.saldo === null ? '—' : n(i.saldo)],
+    ['Situação', SITUACOES[i.situacao].rotulo],
+    ['Curva', i.curva || '—'],
+    d ? ['Vendeu no período', n(Math.round(d.unidades)) + ' un · ' + d.pedidos + ' pedidos'] : null,
+    d ? ['Última venda', dataBr(d.ultima) + ' · há ' + d.diasSemVender + ' d'] : null,
+    d && d.fora ? ['Faturado por outra filial', n(Math.round(d.fora)) + ' un · ' + (d.porFilial || []).map(([ff, q]) => nomeFilial(ff) + ' ' + Math.round(q)).join(', ')] : null,
+    i.repetidos > 1 ? ['Variantes fiscais', i.conjunto.map((x) => x.produto + ' (' + (x.saldo ?? '—') + ')').join('  ')] : null,
+    i.custo !== null ? ['Custo · total', brl(i.custo) + ' · ' + brl(i.custo * i.qtd)] : null,
+  ].filter(Boolean);
+
+  return '<div class="detalhe" style="grid-template-columns:1.35fr 1fr">' +
+    '<div><div class="sobrancelha" style="margin-bottom:8px">Composição da nota ' + i.prioridade + '/100' +
+      (i.confianca < 100 ? ' · confiança ' + i.confianca + '%' : '') + '</div>' +
+      '<table style="font-size:13px"><tbody>' + linhas + '</tbody></table></div>' +
+    '<div><div class="sobrancelha" style="margin-bottom:8px">Sugestão ' + i.sugestao.qtd + ' un</div>' +
+      '<p style="font-size:12.5px;color:var(--tinta-2);margin-bottom:10px">' + esc(i.sugestao.texto) + '</p>' +
+      dados.map((x) => '<div class="linhadados"><span>' + esc(x[0]) + '</span><b>' + esc(x[1]) + '</b></div>').join('') +
+    '</div></div>';
 }
 
 /* ─── 16. Oportunidades ──────────────────────────────────────────── */
@@ -3399,14 +3169,25 @@ function renderOportunidades() {
     placa({ rotulo: 'Maior sobra isolada', valor: parados.length ? n(parados[0].saldo) : '—', rodape: parados.length ? esc(parados[0].descricao) : 'sem itens em excesso', tom: 'atencao' }),
   ].join('');
 
-  const porFamilia = (lista) => {
-    const m = {};
-    for (const i of lista) { (m[i.familia] = m[i.familia] || []).push(i); }
-    return Object.entries(m).map(([f, is]) => ({ familia: f, itens: is, unidades: is.reduce((s, x) => s + (x.saldo || 0), 0) }))
+  /* Agrupa pela descricao que esta no cadastro, exatamente como veio.
+     Nada de familia deduzida: o que aparece na tela e o que existe. */
+  const porDescricao = (lista) => {
+    const m = new Map();
+    for (const i of lista) {
+      const k = i.descricao || '(sem descrição)';
+      if (!m.has(k)) m.set(k, []);
+      m.get(k).push(i);
+    }
+    return [...m.entries()]
+      .map(([descricao, is]) => ({
+        familia: descricao,
+        itens: is.sort((a, b) => (b.saldo || 0) - (a.saldo || 0)),
+        unidades: is.reduce((s, x) => s + (x.saldo || 0), 0),
+      }))
       .sort((a, b) => b.unidades - a.unidades);
   };
 
-  const blocos = porFamilia(parados);
+  const blocos = porDescricao(parados);
   estado.blocosOportunidade = blocos;
   if (!estado.gruposEscolhidos) estado.gruposEscolhidos = new Set(blocos.slice(0, 6).map((b) => b.familia));
 
@@ -3418,9 +3199,9 @@ function renderOportunidades() {
         '<input type="checkbox" class="grupo-oport" data-familia="' + esc(b.familia) + '"' + (marcado ? ' checked' : '') +
         ' style="width:19px;height:19px;cursor:pointer" />' +
         '<b style="font-size:14.5px;font-weight:650">' + esc(b.familia) + '</b></label>' +
-      '<div class="sobrancelha">' + n(b.unidades) + ' unidades · ' + n(b.itens.length) + ' itens</div>' +
-      '<div>' + top.map((i) => '<div class="linhadados"><span>' + esc(i.descricao) + ' <span class="mono" style="color:var(--tinta-3)">' + esc(i.produto) + '</span></span><b>' + n(i.saldo) + '</b></div>').join('') +
-        (b.itens.length > top.length ? '<div style="font-size:12px;color:var(--tinta-3);padding-top:6px">e mais ' + n(b.itens.length - top.length) + ' itens</div>' : '') +
+      '<div class="sobrancelha">' + n(b.unidades) + ' unidades · ' + n(b.itens.length) + ' cadastro' + (b.itens.length > 1 ? 's' : '') + '</div>' +
+      '<div>' + top.map((i) => '<div class="linhadados"><span class="mono">' + esc(i.produto) + '</span><b>' + n(i.saldo) + ' un</b></div>').join('') +
+        (b.itens.length > top.length ? '<div style="font-size:12px;color:var(--tinta-3);padding-top:6px">e mais ' + n(b.itens.length - top.length) + '</div>' : '') +
       '</div></div>';
   }).join('') || '<p class="nota">Nenhum item em excesso neste envio.</p>';
 
@@ -3435,13 +3216,11 @@ function renderOportunidades() {
       n(escolhidos.reduce((a, b) => a + b.unidades, 0)) + ' unidades'
     : 'nenhum grupo marcado — marque ao menos um para gerar o texto';
 
-  $('#listaForte').innerHTML = porFamilia(fortes).slice(0, 6).map((b) => {
-    const top = b.itens.slice(0, 5);
-    return '<div class="ficha"><div class="sobrancelha">' + n(b.unidades) + ' unidades · ' + n(b.itens.length) + ' itens</div>' +
-      '<h3>' + esc(b.familia) + '</h3>' +
-      '<div>' + top.map((i) => '<div class="linhadados"><span>' + esc(i.descricao) + ' <span class="curva" data-c="' + i.curva + '">' + i.curva + '</span></span><b>' + n(i.saldo) + '</b></div>').join('') + '</div>' +
-      '<div class="fonte">Curva A e B com saldo confortável: dá para prometer entrega imediata sem consultar o estoque.</div></div>';
-  }).join('') || '<p class="nota">Nenhum item de curva A ou B com saldo folgado.</p>';
+  $('#listaForte').innerHTML = porDescricao(fortes).slice(0, 8).map((b) =>
+    '<div class="ficha"><div class="sobrancelha">' + n(b.unidades) + ' unidades</div>' +
+    '<h3>' + esc(b.familia) + '</h3>' +
+    '<div>' + b.itens.slice(0, 4).map((i) => '<div class="linhadados"><span class="mono">' + esc(i.produto) + '</span><b>' + n(i.saldo) + ' un</b></div>').join('') + '</div></div>').join('')
+    || '<p class="nota">Nenhum item de curva A ou B com saldo folgado.</p>';
 }
 
 /* Dois publicos, dois textos.
@@ -3458,13 +3237,10 @@ function textoParaVendedores(blocos) {
   linhas.push('_Posicao de ' + (e ? dataBr(e.dataISO) : '-') + '_');
   linhas.push('');
   for (const b of blocos) {
-    linhas.push('*' + b.familia.toUpperCase() + '*');
-    for (const i of b.itens.slice(0, 20)) {
-      linhas.push('• ' + i.descricao + ' - ' + (i.produto || '') + ' - *' + i.saldo + ' un*');
-    }
-    if (b.itens.length > 20) linhas.push('_e mais ' + (b.itens.length - 20) + ' itens desta linha_');
-    linhas.push('');
+    const codigos = b.itens.slice(0, 3).map((i) => i.produto).filter(Boolean).join(' / ');
+    linhas.push('• *' + b.familia + '* — ' + b.unidades + ' un' + (codigos ? '  (' + codigos + ')' : ''));
   }
+  linhas.push('');
   linhas.push('Pronta entrega. Chama que a gente separa.');
   return linhas.join('\n');
 }
@@ -3674,288 +3450,81 @@ function renderDemanda() {
   $('#seloDemanda').textContent = n(zeradoVendendo.length);
 }
 
-/* ─── 16b. Marcas ────────────────────────────────────────────────── */
-
-function resumoPrefixos() {
-  const mapa = new Map();
-  for (const i of itens()) {
-    const k = i.chaveDoMapa;
-    if (!mapa.has(k)) {
-      const ehGrupo = k.startsWith('G:');
-      const [pref, fam] = k.slice(2).split('|');
-      mapa.set(k, {
-        chave: k,
-        rotulo: ehGrupo ? k.slice(2) : pref,
-        detalhe: ehGrupo ? null : (fam || null),
-        tipo: ehGrupo ? 'grupo' : 'prefixo',
-        itens: 0, semMarca: 0, ruptura: 0, exemplos: new Map(), marca: null, fonte: null,
-      });
-    }
-    const r = mapa.get(k);
-    r.itens++;
-    if (i.situacao === 'RUPTURA') r.ruptura++;
-    if (i.descricao) r.exemplos.set(i.descricao, (r.exemplos.get(i.descricao) || 0) + 1);
-    if (i.marca) {
-      r.marca = i.marca;
-      /* De onde veio importa: o que veio de arquivo ou tabela nao se edita
-         aqui, e dizer "automatica" para tudo confunde quem esta mapeando. */
-      r.fonte = i.marcaArquivo ? 'relatorio'
-        : (estado.tabelaMarcas && marcaDaTabela(i, estado.tabelaMarcas)) ? 'tabela'
-        : estado.mapaMarcas[k] ? 'manual' : 'automatica';
-    } else r.semMarca++;
-  }
-  /* Ordena pelo que ainda falta: e o que rende trabalho, nao o tamanho total. */
-  return [...mapa.values()].sort((a, b) => b.semMarca - a.semMarca || b.itens - a.itens);
-}
-
-function renderMarcas() {
-  const L = itens();
-  const comMarca = L.filter((i) => i.marca);
-  const prefixos = resumoPrefixos();
-  const semDefinir = prefixos.filter((p) => p.semMarca > 0);
-  const faltandoPlaca = L.length - comMarca.length;
-
-  $('#placasMarcas').innerHTML = [
-    placa({ rotulo: 'Itens com marca', valor: n(comMarca.length), rodape: pct(comMarca.length / Math.max(1, L.length)) + ' do cadastro · ' + n(new Set(comMarca.map((i) => i.marca)).size) + ' marcas em uso', tom: comMarca.length > L.length * 0.5 ? 'saudavel' : 'atencao' }),
-    placa({ rotulo: 'Itens sem marca', valor: n(faltandoPlaca), rodape: n(semDefinir.length) + ' prefixos ou grupos ainda com item em aberto', tom: faltandoPlaca ? 'atencao' : 'saudavel' }),
-    placa({ rotulo: 'A mais rendosa agora', valor: semDefinir.length ? n(semDefinir[0].semMarca) : '—', rodape: semDefinir.length ? semDefinir[0].tipo + ' ' + semDefinir[0].rotulo + (semDefinir[0].detalhe ? ' em ' + semDefinir[0].detalhe : '') + ' — definir esta primeiro marca mais itens de uma vez' : 'tudo definido', tom: 'marca' }),
-    placa({ rotulo: 'Marcas do catálogo', valor: n(MARCAS_PABU.length), rodape: 'lidas do site da Pacaembu (pabu.com.br)', tom: 'neutro' }),
-  ].join('');
-
-  /* A distribuição é muito desigual: poucas chaves cobrem quase tudo.
-     Mostrar isso evita que a lista de 500 linhas pareça trabalho infinito. */
-  const ordenadasPorTamanho = [...semDefinir].sort((a, b) => b.semMarca - a.semMarca);
-  const faltando = faltandoPlaca;
-  const cobertura = comMarca.length / Math.max(1, L.length);
-  const proximas = (q) => ordenadasPorTamanho.slice(0, q).reduce((s, p) => s + p.semMarca, 0);
-  $('#progressoMarcas').innerHTML =
-    '<div class="secao-topo" style="margin-bottom:8px"><h2>Quanto do cadastro já tem marca</h2></div>' +
-    '<div class="trilho" style="height:14px"><i style="width:' + Math.max(1, cobertura * 100) + '%;background:var(--saudavel)"></i></div>' +
-    '<p style="font-size:13px;color:var(--tinta-2);margin-top:9px">' +
-    '<b>' + n(comMarca.length) + '</b> de ' + n(L.length) + ' itens (' + pct(cobertura) + ') · faltam ' + n(faltando) + '.' +
-    (ordenadasPorTamanho.length
-      ? ' A tabela abaixo já vem da maior para a menor, então o trabalho se prioriza sozinho: <b>preencher as 10 primeiras marca ' + n(proximas(10)) +
-        ' itens</b>, as 30 primeiras marcam ' + n(proximas(30)) + '. Você nunca precisa preencher a lista toda.'
-      : ' Tudo definido.') +
-    '</p>';
-
-  const busca = chave($('#fBuscaPrefixo') ? $('#fBuscaPrefixo').value : '');
-  const soVazios = $('#fSoVazios') ? $('#fSoVazios').value === '1' : true;
-  const visiveis = prefixos.filter((p) => {
-    if (soVazios && p.semMarca === 0) return false;
-    const tipo = $('#fTipoChave') ? $('#fTipoChave').value : '';
-    if (tipo && p.tipo !== tipo) return false;
-    if (busca && !chave(p.rotulo + ' ' + (p.detalhe || '') + ' ' + [...p.exemplos.keys()].join(' ')).includes(busca)) return false;
-    return true;
-  });
-
-  const opcoes = (sel) => '<option value="">— sem marca —</option>' +
-    MARCAS_PABU.map(([m, cat]) => '<option value="' + esc(m) + '"' + (m === sel ? ' selected' : '') + '>' + esc(m) + ' · ' + esc(cat) + '</option>').join('');
-
-  $('#corpoPrefixos').innerHTML = visiveis.slice(0, 150).map((p) => {
-    const ex = [...p.exemplos.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([d, q]) => esc(d) + ' (' + q + ')').join(' · ');
-    /* Prefixo espalhado por vários tipos de peça é fornecedor; prefixo
-       concentrado num tipo só costuma ser código de categoria da casa,
-       e aí uma marca só pode estar errada. */
-    const tipos = new Set([...p.exemplos.keys()].map((d) => chave(d).slice(0, 6)));
-    const pista = p.tipo === 'grupo' ? null
-      : tipos.size >= 4 ? { tom: 'saudavel', txt: 'peças variadas — parece fornecedor' }
-      : tipos.size <= 1 ? { tom: 'atencao', txt: 'um tipo só — pode ser código de categoria' }
-      : null;
-    return '<tr>' +
-      '<td><b class="mono" style="font-size:14px;font-weight:700">' + esc(p.rotulo) + '</b>' +
-        '<br><span style="font-size:10px;color:var(--tinta-3);text-transform:uppercase;letter-spacing:.06em">' + esc(p.tipo) + '</span>' +
-        (p.detalhe ? '<br><span class="etiqueta" data-tom="neutro" style="margin-top:3px" title="Este prefixo tem mais de um fornecedor. A família separa os dois.">' + esc(p.detalhe) + '</span>' : '') +
-        '</td>' +
-      '<td class="dir num">' + n(p.itens) +
-        (p.semMarca && p.semMarca < p.itens ? '<br><span style="font-size:10.5px;color:var(--atencao-texto);font-weight:700">' + n(p.semMarca) + ' sem marca</span>' : '') + '</td>' +
-      '<td class="dir num">' + (p.ruptura ? '<b style="color:var(--critico)">' + n(p.ruptura) + '</b>' : '0') + '</td>' +
-      '<td style="font-size:12.5px;color:var(--tinta-2)">' + ex +
-        (pista ? '<br><span class="etiqueta" data-tom="' + pista.tom + '" style="margin-top:4px" ' +
-          'title="Um prefixo com peças de vários tipos costuma ser o código de um fornecedor. Um prefixo com um tipo só costuma ser a abreviação da categoria (BB=bronzina biela, AC=amortecedor), e aí a marca pode variar item a item.">' +
-          esc(pista.txt) + '</span>' : '') + '</td>' +
-      '<td>' + ((p.fonte === 'automatica' || p.fonte === 'tabela' || p.fonte === 'relatorio') && p.semMarca === 0
-        ? '<span class="etiqueta" data-tom="' + (p.fonte === 'automatica' ? 'neutro' : 'saudavel') + '" title="' +
-            esc({ automatica: 'Reconhecida pelo esquema de codificacao do proprio fabricante.', tabela: 'Veio da tabela de marcas que voce importou.', relatorio: 'Veio no proprio relatorio de estoque.' }[p.fonte]) + '">' +
-            esc(p.marca) + ' \u2014 ' + { automatica: 'automatica', tabela: 'da tabela', relatorio: 'do relatorio' }[p.fonte] + '</span>'
-        : '<select class="mapa-marca" data-chave="' + esc(p.chave) + '" style="width:100%;min-height:38px;padding:6px 8px;border:1px solid ' + (p.marca ? 'var(--saudavel)' : 'var(--borda-forte)') + ';border-radius:6px;background:var(--papel)" aria-label="Marca do ' + esc(p.tipo + ' ' + p.rotulo) + '">' + opcoes(p.marca) + '</select>') +
-      '</td></tr>';
-  }).join('') || '<tr><td colspan="5" style="padding:24px;text-align:center;color:var(--tinta-2)">Nenhum prefixo com esses filtros. Todos já têm marca definida.</td></tr>';
-
-  $$('.mapa-marca').forEach((sel) => sel.addEventListener('change', async () => {
-    const k = sel.dataset.chave;
-    if (sel.value) estado.mapaMarcas[k] = sel.value;
-    else delete estado.mapaMarcas[k];
-    await guardarMapaMarcas();
-    recalcular();
-    renderTudo();
-    renderMarcas();
-  }));
-
-  // Situação por marca.
-  const porMarca = new Map();
-  for (const i of L) {
-    if (!i.marca) continue;
-    if (!porMarca.has(i.marca)) porMarca.set(i.marca, { itens: 0, ruptura: 0, pedir: 0, comSaldo: 0 });
-    const r = porMarca.get(i.marca);
-    r.itens++;
-    if (i.situacao === 'RUPTURA') { r.ruptura++; r.pedir += i.qtd || 0; }
-    if ((i.saldo || 0) > 0) r.comSaldo++;
-  }
-  const cat = Object.fromEntries(MARCAS_PABU);
-  $('#corpoMarcas').innerHTML = [...porMarca.entries()].sort((a, b) => b[1].ruptura - a[1].ruptura || b[1].itens - a[1].itens).map(([m, r]) => {
-    const cobertura = r.comSaldo / r.itens;
-    return '<tr><td><b style="font-weight:650">' + esc(m) + '</b></td>' +
-      '<td style="color:var(--tinta-2);font-size:12.5px">' + esc(cat[m] || '—') + '</td>' +
-      '<td class="dir num">' + n(r.itens) + '</td>' +
-      '<td class="dir num">' + (r.ruptura ? '<b style="color:var(--critico)">' + n(r.ruptura) + '</b>' : '0') + '</td>' +
-      '<td class="dir num"><b style="color:var(--laranja-texto)">' + n(r.pedir) + '</b></td>' +
-      '<td><div class="trilho"><i style="width:' + Math.max(1.5, cobertura * 100) + '%;background:' + (cobertura >= 0.6 ? 'var(--saudavel)' : cobertura >= 0.4 ? 'var(--atencao)' : 'var(--critico)') + '"></i></div>' +
-      '<span style="font-size:11px;color:var(--tinta-3)">' + Math.round(cobertura * 100) + '% do sortimento com saldo</span></td></tr>';
-  }).join('') || '<tr><td colspan="6" style="padding:24px;text-align:center;color:var(--tinta-2)">Nenhuma marca definida ainda. Preencha os prefixos acima.</td></tr>';
-
-  $('#seloMarcas').textContent = n(faltandoPlaca);
-}
-
-/* ─── 17. Frota e região ─────────────────────────────────────────── */
-
-function renderFrota() {
-  const L = itens();
-  const M = MERCADO;
-  const estimativaRegiao = Math.round(M.frotaCidade.caminhoes * (M.regiao.habitantes / 703000));
-
-  const fichas = [
-    { t: 'Caminhões emplacados na cidade', v: n(M.frotaCidade.caminhoes),
-      p: 'De uma frota total de ' + n(M.frotaCidade.total) + ' veículos em Ribeirão Preto. Somam-se ' + n(M.frotaCidade.camionetas) + ' camionetas e ' + n(M.frotaCidade.onibus) + ' ônibus, que também consomem linha pesada e semipesada.',
-      f: M.frotaCidade.fonte + ' — ' + M.frotaCidade.referencia, u: M.frotaCidade.url },
-    { t: 'Região metropolitana', v: '≈ ' + n(estimativaRegiao),
-      p: 'Estimativa de caminhões nos ' + M.regiao.municipios + ' municípios da região, projetada pela proporção de população (' + n(M.regiao.habitantes) + ' habitantes contra 703 mil da capital regional). É estimativa, não contagem — a base municipal do Senatran traz o número exato.',
-      f: M.regiao.fonte, u: M.regiao.url },
-    { t: 'Idade média do caminhão brasileiro', v: '12 anos e 3 meses',
-      p: 'A frota circulante soma ' + n(M.frotaBrasil.caminhoes) + ' caminhões e envelhece a cada ano. Frota velha troca peça de desgaste com mais frequência — é o que sustenta a reposição.',
-      f: M.frotaBrasil.fonte, u: M.frotaBrasil.url },
-    { t: 'Emplacamentos no país', v: n(M.emplacamentos.total),
-      p: 'No ' + M.emplacamentos.periodo + ', contra ' + n(M.emplacamentos.anterior) + ' no mesmo período de 2025 — queda de ' + String(Math.abs(M.emplacamentos.variacao)).replace('.', ',') + '%. Venda nova em baixa empurra a manutenção da frota existente para cima.',
-      f: M.emplacamentos.fonte, u: M.emplacamentos.url },
-    { t: 'Autopeças no país em 2026', v: 'R$ ' + String(M.reposicao.faturamento2026).replace('.', ',') + ' bi',
-      p: 'Projeção de faturamento do setor, com alta de ' + String(M.reposicao.crescimento).replace('.', ',') + '%. Só a reposição saiu de R$ ' + M.reposicao.aftermarket2024 + ' bi em 2024 e deve chegar a R$ ' + M.reposicao.aftermarket2040 + ' bi em 2040.',
-      f: M.reposicao.fonte, u: M.reposicao.url },
-    { t: 'Agrishow 2026, aqui na cidade', v: 'R$ ' + String(M.agrishow.intencao).replace('.', ',') + ' bi',
-      p: n(M.agrishow.visitantes) + ' visitantes e ' + M.agrishow.marcas + ' marcas. A intenção de negócios caiu ' + Math.abs(M.agrishow.variacao) + '% — quem adia máquina nova mantém a antiga rodando, e isso se converte em peça de reposição.',
-      f: M.agrishow.fonte, u: M.agrishow.url },
-  ];
-  $('#fichasFrota').innerHTML = fichas.map((f) =>
-    '<div class="ficha"><div class="sobrancelha">' + esc(f.t) + '</div>' +
-    '<div style="font-size:27px;font-weight:700;line-height:1.05;font-variant-numeric:tabular-nums;letter-spacing:-.02em">' + f.v + '</div>' +
-    '<p>' + esc(f.p) + '</p>' +
-    '<div class="fonte">' + esc(f.f) + ' · <a href="' + esc(f.u) + '" target="_blank" rel="noopener noreferrer">fonte</a></div></div>').join('');
-
-  // Cruzamento catálogo × emplacamentos.
-  const comOrigem = L.filter((i) => i.origem);
-  const contagem = {};
-  for (const i of comOrigem) contagem[i.origem] = (contagem[i.origem] || 0) + 1;
-  const linhas = M.emplacamentos.marcas.map((m) => {
-    const noCatalogo = contagem[m.marca] || 0;
-    return { marca: m.marca, share: m.share, catalogo: noCatalogo, shareCatalogo: comOrigem.length ? (noCatalogo / comOrigem.length) * 100 : 0 };
-  }).filter((x) => x.catalogo > 0 || x.share > 5);
-
-  $('#cruzamento').innerHTML =
-    '<p style="font-size:12.5px;color:var(--tinta-3);margin-bottom:14px">' +
-    'Base: ' + n(comOrigem.length) + ' itens cujo código original tem formato reconhecível (' + pct(comOrigem.length / L.length) + ' do cadastro). ' +
-    'Os outros ' + n(L.length - comOrigem.length) + ' ficaram sem origem — a maioria por não ter código original preenchido ou por usar formato de fabricante de reposição.</p>' +
-    '<div class="listabarras">' + (() => {
-      const maiorShare = Math.max(...linhas.map((x) => Math.max(x.share, x.shareCatalogo)), 1);
-      const larg = (v) => Math.max(1.5, (v / maiorShare) * 100);
-      return linhas.map((x) =>
-      '<div class="itembarra"><div class="cab"><b>' + esc(x.marca) + '</b>' +
-      '<span>catálogo ' + x.shareCatalogo.toFixed(1).replace('.', ',') + '% · mercado ' + x.share.toFixed(1).replace('.', ',') + '%</span></div>' +
-      '<div class="trilho" style="height:8px"><i style="width:' + larg(x.shareCatalogo) + '%;background:var(--marinho)"></i></div>' +
-      '<div class="trilho" style="height:8px;margin-top:3px"><i style="width:' + larg(x.share) + '%;background:var(--laranja)"></i></div>' +
-      '</div>').join('');
-    })() + '</div>' +
-    '<p style="font-size:12px;color:var(--tinta-3);margin-top:12px">' +
-    '<span style="display:inline-block;width:11px;height:8px;background:var(--marinho);border-radius:3px;vertical-align:middle"></span> participação no seu cadastro &nbsp;·&nbsp; ' +
-    '<span style="display:inline-block;width:11px;height:8px;background:var(--laranja);border-radius:3px;vertical-align:middle"></span> participação nos emplacamentos (' + esc(M.emplacamentos.periodo) + '). ' +
-    'Barra laranja bem maior que a azul indica marca com muito caminhão rodando e pouca cobertura no seu cadastro.</p>';
-
-  // Tabela de origens.
-  const grupos = {};
-  for (const i of L) {
-    const k = i.origem || '— não identificada —';
-    if (!grupos[k]) grupos[k] = { total: 0, ruptura: 0, conf: i.origemConfianca, padrao: null };
-    grupos[k].total++;
-    if (i.situacao === 'RUPTURA') grupos[k].ruptura++;
-    if (i.origem && !grupos[k].padrao) {
-      const r = REGRAS_ORIGEM.find((x) => x.origem === i.origem);
-      if (r) { grupos[k].padrao = r.padrao; grupos[k].conf = r.confianca; }
-    }
-  }
-  $('#corpoOrigens').innerHTML = Object.entries(grupos).sort((a, b) => b[1].total - a[1].total).map(([k, v]) =>
-    '<tr><td><b style="font-weight:600">' + esc(k) + '</b></td>' +
-    '<td style="color:var(--tinta-2);font-size:12.5px">' + esc(v.padrao || 'sem código original, ou formato de fabricante de reposição') + '</td>' +
-    '<td class="dir num">' + n(v.total) + '</td>' +
-    '<td class="dir num">' + n(v.ruptura) + '</td>' +
-    '<td>' + (v.conf ? '<span class="etiqueta" data-tom="' + (v.conf === 'alta' ? 'saudavel' : 'atencao') + '">' + esc(v.conf) + '</span>' : '<span class="etiqueta" data-tom="neutro">não se aplica</span>') + '</td></tr>').join('');
-}
-
 /* ─── 18. Evolução entre envios ──────────────────────────────────── */
 
 function renderEvolucao() {
-  const sel = $('#seletorEvolucao');
-  if (estado.envios.length < 2) {
-    sel.classList.add('oculto');
+  const ordenados = [...estado.envios].sort((a, b) => new Date(a.dataISO) - new Date(b.dataISO));
+  const atual = envioAtual();
+  const anterior = atual
+    ? ordenados.filter((e) => e.id !== atual.id && new Date(e.dataISO) <= new Date(atual.dataISO)).pop()
+    : null;
+
+  if (!atual || !anterior) {
+    $('#notaEvolucao').textContent = '';
     $('#conteudoEvolucao').innerHTML =
-      '<div class="vazio"><div class="sobrancelha">Falta um segundo envio</div>' +
-      '<h3>Com um envio só, o consumo não pode ser medido</h3>' +
-      '<p>Você tem <b>' + estado.envios.length + '</b> envio guardado. Suba o mesmo relatório de estoque daqui a alguns dias e esta tela passa a mostrar ' +
-      'quanto saiu de cada item, quais rupturas apareceram e quais foram resolvidas. A partir daí a quantidade sugerida na aba Comprar deixa de ser referência por classe e passa a ser calculada sobre a saída real.</p>' +
-      '<button class="bt bt-forte" id="btEnvioEvolucao" type="button">Carregar outro estoque</button></div>';
+      '<div class="vazio"><div class="sobrancelha">' + (estado.envios.length ? 'Um envio guardado' : 'Nenhum envio') + '</div>' +
+      '<h3>Precisa de dois estoques para comparar</h3>' +
+      '<p>Esta tela mostra o que mudou entre a posição de hoje e a anterior: o que foi reposto, o que zerou, ' +
+      'e como a lista de compra mudou. Suba o relatório de estoque de novo daqui a alguns dias.</p>' +
+      '<button class="bt bt-forte" id="btEnvioEvolucao" type="button">Carregar estoque</button></div>';
     const b = $('#btEnvioEvolucao');
     if (b) b.addEventListener('click', () => $('#arquivo').click());
     return;
   }
-  sel.classList.remove('oculto');
 
-  const ordenados = [...estado.envios].sort((a, b) => new Date(a.dataISO) - new Date(b.dataISO));
-  const c = estado.consumo;
-  sel.innerHTML = '<div class="campo"><label>Comparando</label><div style="padding-top:7px;font-size:13.5px">' +
-    (c ? '<b>' + esc(c.de.nome) + '</b> (' + dataBr(c.de.dataISO) + ') → <b>' + esc(c.para.nome) + '</b> (' + dataBr(c.para.dataISO) + ') · <b>' + c.dias + ' dias</b>' : 'selecione um envio atual mais recente') + '</div></div>' +
-    '<div class="campo"><label for="fCobertura">Dias de cobertura desejada</label>' +
-    '<select id="fCobertura">' + [30, 45, 60, 90].map((d) => '<option value="' + d + '"' + (d === estado.diasCobertura ? ' selected' : '') + '>' + d + ' dias</option>').join('') + '</select></div>';
-  const fc = $('#fCobertura');
-  if (fc) fc.addEventListener('change', () => { estado.diasCobertura = Number(fc.value); recalcular(); renderTudo(); });
+  const dias = Math.max(1, Math.round((new Date(atual.dataISO) - new Date(anterior.dataISO)) / DIA));
+  $('#notaEvolucao').textContent = dataBr(anterior.dataISO) + ' → ' + dataBr(atual.dataISO) + ' · ' + dias + (dias > 1 ? ' dias' : ' dia');
 
-  if (!c) { $('#conteudoEvolucao').innerHTML = '<p class="nota">O envio selecionado é o mais antigo. Escolha um envio mais recente na aba Dados.</p>'; return; }
+  const antes = new Map(anterior.itens.map((i) => [i.interno || i.produto, i]));
+  const L = itens();
+  let saiu = 0, entrou = 0, comparados = 0;
+  const zerou = [], repostos = [];
+  for (const i of L) {
+    const a = antes.get(i.interno || i.produto);
+    if (!a || a.saldo === null || i.saldo === null) continue;
+    comparados++;
+    const delta = a.saldo - i.saldo;
+    if (delta > 0) saiu += delta; else entrou += -delta;
+    if (a.saldo > 0 && i.saldo === 0 && i.situacao === 'RUPTURA') zerou.push({ i, tinha: a.saldo });
+    if (a.saldo === 0 && i.saldo > 0) repostos.push({ i, agora: i.saldo });
+  }
+  const novos = L.filter((i) => !antes.has(i.interno || i.produto));
 
-  const antes = new Map(c.de.itens.map((i) => [i.interno || i.produto, i]));
-  const agora = estado.analise.itens;
-  const novasRupturas = agora.filter((i) => i.situacao === 'RUPTURA' && antes.has(i.interno || i.produto) && (antes.get(i.interno || i.produto).saldo || 0) > 0);
-  const resolvidas = agora.filter((i) => (i.saldo || 0) > 0 && antes.has(i.interno || i.produto) && antes.get(i.interno || i.produto).saldo === 0);
-  const maisSairam = agora.filter((i) => i.consumo).sort((a, b) => b.consumo.saida - a.consumo.saida).slice(0, 12);
-  const novos = agora.filter((i) => !antes.has(i.interno || i.produto));
+  zerou.sort((a, b) => b.i.prioridade - a.i.prioridade);
+  repostos.sort((a, b) => b.agora - a.agora);
+
+  const tabela = (titulo, linhas, cabecalhos, vazio) =>
+    '<div class="cartao"><div class="cartao-corpo">' +
+    '<div class="secao-topo"><h2>' + titulo + '</h2></div>' +
+    (linhas.length
+      ? '<div class="rolo" style="border:0;box-shadow:none"><table><thead><tr>' +
+        cabecalhos.map((c) => '<th' + (c[1] ? ' class="dir"' : '') + '>' + c[0] + '</th>').join('') +
+        '</tr></thead><tbody>' + linhas.join('') + '</tbody></table></div>'
+      : '<p class="nota">' + vazio + '</p>') +
+    '</div></div>';
 
   $('#conteudoEvolucao').innerHTML =
     '<div class="placas" style="margin-bottom:22px">' + [
-      placa({ rotulo: 'Saída no período', valor: n(c.totalSaida), rodape: 'unidades a menos em ' + c.dias + ' dias · ' + (c.totalSaida / c.dias).toFixed(1).replace('.', ',') + ' por dia', tom: 'marca' }),
-      placa({ rotulo: 'Entrada no período', valor: n(c.totalEntrada), rodape: 'unidades a mais — compras que chegaram', tom: 'saudavel' }),
-      placa({ rotulo: 'Rupturas novas', valor: n(novasRupturas.length), rodape: 'tinham saldo antes e zeraram sem cobertura', tom: 'critico' }),
-      placa({ rotulo: 'Rupturas resolvidas', valor: n(resolvidas.length), rodape: 'estavam zerados e voltaram para a prateleira', tom: 'saudavel' }),
-      placa({ rotulo: 'Itens novos no cadastro', valor: n(novos.length), rodape: 'não existiam no envio anterior', tom: 'neutro' }),
+      placa({ rotulo: 'Saiu do estoque', valor: n(saiu), rodape: (saiu / dias).toFixed(0) + ' un por dia · ' + n(comparados) + ' itens comparados', tom: 'marca' }),
+      placa({ rotulo: 'Entrou no estoque', valor: n(entrou), rodape: 'reposição que chegou no período', tom: 'saudavel' }),
+      placa({ rotulo: 'Zerou no período', valor: n(zerou.length), rodape: 'tinha saldo e virou ruptura real', tom: 'critico' }),
+      placa({ rotulo: 'Voltou à prateleira', valor: n(repostos.length), rodape: 'estava zerado e foi reposto', tom: 'saudavel' }),
+      placa({ rotulo: 'Cadastros novos', valor: n(novos.length), rodape: 'não existiam no envio anterior', tom: 'neutro' }),
     ].join('') + '</div>' +
     '<div class="grade">' +
-    '<div class="cartao"><div class="cartao-corpo"><div class="secao-topo"><h2>O que mais saiu</h2></div>' +
-    '<div class="listabarras">' + (maisSairam.length ? maisSairam.map((i) =>
-      barraHorizontal({ titulo: esc(i.descricao) + ' <span class="curva" data-c="' + (i.curva || 'F') + '">' + (i.curva || '—') + '</span>',
-        direita: i.consumo.saida + ' un · saldo ' + i.saldo, fracao: i.consumo.saida / maisSairam[0].consumo.saida, cor: 'var(--marinho)' })).join('')
-      : '<p class="nota">Nenhuma queda de saldo entre os dois envios.</p>') + '</div></div></div>' +
-    '<div class="cartao"><div class="cartao-corpo"><div class="secao-topo"><h2>Rupturas que apareceram</h2></div>' +
-    (novasRupturas.length ? '<div class="rolo" style="border:0;box-shadow:none"><table><thead><tr><th>Item</th><th class="dir">Tinha</th><th class="dir">Prioridade</th></tr></thead><tbody>' +
-      novasRupturas.sort((a, b) => b.prioridade - a.prioridade).slice(0, 14).map((i) =>
-        '<tr><td><b style="font-weight:600">' + esc(i.descricao) + '</b><br><span class="mono" style="color:var(--tinta-3)">' + esc(i.produto) + '</span></td>' +
-        '<td class="dir num">' + (antes.get(i.interno || i.produto).saldo) + '</td>' +
-        '<td class="dir">' + barraPrioridade(i.prioridade) + '</td></tr>').join('') + '</tbody></table></div>'
-      : '<p class="nota">Nenhum item saiu de saldo positivo para ruptura no período. Bom sinal.</p>') +
-    '</div></div></div>';
+    tabela('Zerou e virou ruptura', zerou.slice(0, 20).map((x) =>
+      '<tr><td><b style="font-weight:600">' + esc(x.i.descricao) + '</b><br><span class="mono" style="color:var(--tinta-3)">' + esc(x.i.produto) + '</span></td>' +
+      '<td class="dir num">' + n(x.tinha) + '</td>' +
+      '<td class="dir num"><b>' + x.i.prioridade + '</b></td>' +
+      '<td class="dir num"><b style="color:var(--laranja-texto)">' + x.i.qtd + '</b></td></tr>'),
+      [['Item', 0], ['Tinha', 1], ['Nota', 1], ['Pedir', 1]],
+      'Nenhum item saiu de saldo positivo para ruptura. Bom sinal.') +
+    tabela('Voltou à prateleira', repostos.slice(0, 20).map((x) =>
+      '<tr><td><b style="font-weight:600">' + esc(x.i.descricao) + '</b><br><span class="mono" style="color:var(--tinta-3)">' + esc(x.i.produto) + '</span></td>' +
+      '<td class="dir num"><b>' + n(x.agora) + '</b></td></tr>'),
+      [['Item', 0], ['Saldo agora', 1]],
+      'Nenhuma reposição chegou no período.') +
+    '</div>';
 }
 
 /* ─── 19. Dados e qualidade ──────────────────────────────────────── */
@@ -4003,7 +3572,6 @@ function renderDados() {
         : g.ok
         ? [['Última gravação', new Date(g.em).toLocaleString('pt-BR')],
            ['Como foi conferida', 'escrevi, li de volta e a contagem bateu'],
-           ['Chaves com marca (suas + automáticas)', st.marcas ? st.marcas.chavesDefinidas + ' de ' + st.marcas.chaves : '0'],
            ['Quantidades que você ajustou', String(st.ajustes)]]
         : [['Situação', 'nenhum arquivo foi carregado ainda']],
     }),
@@ -4123,14 +3691,13 @@ function textoSolicitacao(lista) {
   for (const [fam, is] of Object.entries(porGrupo).sort((a, b) => b[1].length - a[1].length)) {
     linhas.push('■ ' + fam.toUpperCase() + '  (' + is.length + ' itens)');
     for (const i of is) {
-      linhas.push('   ' + String(i.qtd).padStart(4, ' ') + ' un  ·  ' + (i.marca || '—').padEnd(12, ' ') + ' · ' + (i.produto || '').padEnd(16, ' ') +
-        ' · orig ' + (i.original || '—').padEnd(16, ' ') + ' · ' + i.descricao +
-        '  [curva ' + (i.curva || '—') + ' · saldo ' + (i.saldo ?? '—') + ' · prioridade ' + i.prioridade + ']');
+      linhas.push('  ' + String(i.qtd).padStart(5) + '  ' + (i.produto || '').padEnd(17) +
+        (i.original || '-').padEnd(16) + i.descricao.padEnd(32) +
+        'saldo ' + String(i.saldo ?? '-').padStart(4) +
+        (i.demandaUsada ? '   vendeu ' + String(Math.round(i.demandaUsada.unidades)).padStart(4) : ''));
     }
     linhas.push('');
   }
-  linhas.push('— Critério: prioridade = giro (30) + falta (26) + essencialidade (20) + linha comprometida (14) + mercado (10).');
-  linhas.push('— A origem indicada vem do formato do código original e não confirma aplicação em veículo.');
   return linhas.join('\n');
 }
 
@@ -4162,8 +3729,6 @@ function pedidosPorFornecedor(lista) {
     }
     linhas.push('');
   }
-  linhas.push('— A marca vem do mapa de prefixos desta filial, ou do esquema de codificação do fabricante.');
-  linhas.push('— A origem do código não confirma aplicação em veículo; confira no catálogo.');
   return linhas.join('\n');
 }
 
@@ -4399,8 +3964,6 @@ function trocarVista(vista) {
   });
   if (vista === 'evolucao') renderEvolucao();
   if (vista === 'dados') renderDados();
-  if (vista === 'frota') renderFrota();
-  if (vista === 'marcas') renderMarcas();
   if (vista === 'demanda') renderDemanda();
 }
 
@@ -4410,9 +3973,7 @@ function sincronizarFiltros() {
   $('#fSituacao').value = f.situacao;
   $('#fCurva').value = f.curva;
   $('#fClasse').value = f.classe;
-  $('#fMarca').value = f.marca;
-  $('#fOrigem').value = f.origem;
-  $('#fGrupo').value = f.grupo;
+  $('#fDesvio').value = f.desvio;
   $('#fNota').value = String(f.nota);
   $('#fAgrupar').value = estado.agrupar ? '1' : '0';
   $('#fCoberturaCompra').value = String(estado.diasCobertura);
@@ -4430,17 +3991,6 @@ function montarSelects() {
   };
   opc($('#fCurva'), ['A', 'B', 'C', 'D', 'E', 'F'].filter((c) => L.some((i) => i.curva === c)).map((c) => ({ valor: c, texto: 'Curva ' + c })), 'Todas');
   opc($('#fClasse'), Object.keys(ROTULO_CLASSE).filter((c) => L.some((i) => i.classe === c)).map((c) => ({ valor: c, texto: ROTULO_CLASSE[c] })), 'Todas');
-  const contagemMarca = {};
-  for (const i of L) if (i.marca) contagemMarca[i.marca] = (contagemMarca[i.marca] || 0) + 1;
-  opc($('#fMarca'), Object.entries(contagemMarca).sort((a, b) => b[1] - a[1])
-    .map(([m, q]) => ({ valor: m, texto: m + ' — ' + q + ' itens' }))
-    .concat([{ valor: '__sem', texto: '— sem marca definida —' }]), 'Todas');
-  const origens = [...new Set(L.map((i) => i.origem).filter(Boolean))].sort();
-  opc($('#fOrigem'), origens.map((o) => ({ valor: o, texto: o })).concat([{ valor: '__nenhuma', texto: '— sem origem identificada —' }]), 'Todas');
-  const grupos = [...new Set(L.map((i) => i.grupo))].filter(Boolean)
-    .map((g) => ({ g, t: estado.analise.saudeGrupo.get(g).tamanho }))
-    .sort((a, b) => b.t - a.t).slice(0, 80);
-  opc($('#fGrupo'), grupos.map((x) => ({ valor: x.g, texto: nomeGrupo(x.g) + ' — ' + x.t + ' itens' })), 'Todos');
 }
 
 function atualizarCarrinho() {
@@ -4528,14 +4078,6 @@ function renderEstado() {
         ? n(st.movimentacao.lancamentos) + ' lançamentos, ' + dataBr(st.movimentacao.inicio) + ' a ' + dataBr(st.movimentacao.fim)
         : null,
     },
-    {
-      n: 3, titulo: 'Marcas dos fornecedores',
-      feito: !!(st.marcas && st.marcas.chavesDefinidas > 0),
-      p: 'Opcional, e você faz uma vez só. Sem isso tudo funciona — com isso o pedido sai separado por fornecedor.',
-      confirma: st.marcas && st.marcas.itensComMarca
-        ? n(st.marcas.itensComMarca) + ' de ' + n(st.marcas.itens) + ' itens já têm marca'
-        : null,
-    },
   ];
   const primeiroPendente = passos.find((x) => !x.feito);
   $('#passos').innerHTML = passos.map((x) => {
@@ -4562,12 +4104,9 @@ function renderTudo() {
   $('#seloOport').textContent = n(itens().filter((i) => i.situacao === 'EXCESSO').length);
   const ativa = $$('.aba').find((a) => a.getAttribute('aria-selected') === 'true');
   const vista = ativa ? ativa.dataset.vista : 'painel';
-  if (vista === 'frota') renderFrota();
   if (vista === 'evolucao') renderEvolucao();
   if (vista === 'dados') renderDados();
-  if (vista === 'marcas') renderMarcas();
   renderDemanda();
-  $('#seloMarcas').textContent = n(itens().filter((i) => !i.marca).length);
   atualizarCarrinho();
 }
 
@@ -4600,13 +4139,13 @@ document.addEventListener('drop', (e) => { if (e.dataTransfer.files[0]) carregar
 
 const liga = (id, ev, fn) => $(id).addEventListener(ev, fn);
 liga('#fBusca', 'input', (e) => { estado.filtros.busca = e.target.value; estado.limite = 150; renderComprar(); });
-['fSituacao', 'fCurva', 'fClasse', 'fMarca', 'fOrigem', 'fGrupo'].forEach((id) =>
+['fSituacao', 'fCurva', 'fClasse', 'fDesvio'].forEach((id) =>
   liga('#' + id, 'change', (e) => { estado.filtros[id.slice(1).charAt(0).toLowerCase() + id.slice(2)] = e.target.value; estado.limite = 150; renderComprar(); }));
 liga('#fNota', 'change', (e) => { estado.filtros.nota = Number(e.target.value); estado.limite = 150; renderComprar(); });
 liga('#fAgrupar', 'change', (e) => { estado.agrupar = e.target.value === '1'; estado.limite = 150; renderComprar(); });
 liga('#fCoberturaCompra', 'change', (e) => { estado.diasCobertura = Number(e.target.value); recalcular(); renderTudo(); });
 liga('#btLimpar', 'click', () => {
-  estado.filtros = { busca: '', situacao: '', curva: '', classe: '', marca: '', origem: '', grupo: '', nota: 0 };
+  estado.filtros = { busca: '', situacao: '', curva: '', classe: '', desvio: '', nota: 0 };
   sincronizarFiltros();
 });
 liga('#btSelTodos', 'click', () => {
@@ -4648,53 +4187,7 @@ liga('#btPedidoUrgente', 'click', () => {
     pedidosPorFornecedor(lista), csvDeItens(lista), 'pedido-urgente-ribeirao-preto.csv');
 });
 
-liga('#btTabelaMarcas', 'click', () => $('#arquivo').click());
-liga('#btModeloMarcas', 'click', () => {
-  /* Uma linha por prefixo ou grupo, nao por item: preencher 30 linhas aqui
-     marca milhares de itens, enquanto 30 linhas item a item marcariam 30.
-     Ordenado pelo que ainda falta, entao as primeiras linhas rendem mais. */
-  const pendentes = resumoPrefixos().filter((p) => p.semMarca > 0);
-  if (!pendentes.length) { recado('Nada a preencher', 'Todos os prefixos e grupos ja tem marca.'); return; }
-  const marcasRef = MARCAS_PABU.map(([m]) => m);
-  const linhas = pendentes.map((p, idx) => {
-    const pecas = [...p.exemplos.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([d]) => d).join(' / ');
-    const codigos = itens().filter((x) => x.chaveDoMapa === p.chave && !x.marca).slice(0, 3).map((x) => x.produto).join(' / ');
-    return [
-      p.chave,
-      p.tipo === 'grupo' ? 'grupo' : 'prefixo',
-      p.rotulo + (p.detalhe ? ' (' + p.detalhe + ')' : ''),
-      p.semMarca,
-      pecas,
-      codigos,
-      '',
-      marcasRef[idx] || '',
-    ];
-  });
-  baixar('marcas-para-preencher.csv',
-    paraCsv(['Chave', 'Tipo', 'Prefixo ou grupo', 'Itens sem marca', 'Pecas tipicas', 'Codigos de exemplo', 'MARCA (preencha aqui)', 'Marcas validas (referencia)'], linhas),
-    'text/csv');
-  recado('Modelo baixado com ' + n(linhas.length) + ' linhas',
-    'Abra no Excel e preencha so a coluna MARCA. Nao mexa na coluna Chave. As linhas vem da que mais rende para a que menos rende \u2014 ' +
-    'as 20 primeiras ja marcam ' + n(pendentes.slice(0, 20).reduce((a, x) => a + x.semMarca, 0)) + ' itens. ' +
-    'A ultima coluna lista as marcas validas, e so copiar. Depois arraste o arquivo de volta para ca.');
-});
 
-liga('#fBuscaPrefixo', 'input', () => renderMarcas());
-liga('#fSoVazios', 'change', () => renderMarcas());
-liga('#fTipoChave', 'change', () => renderMarcas());
-liga('#btLimparMarcas', 'click', async () => {
-  if (!confirm('Apagar o mapa de marcas que você definiu? As marcas reconhecidas automaticamente continuam.')) return;
-  estado.mapaMarcas = {};
-  await guardarMapaMarcas().catch(() => {});
-  recalcular(); renderTudo(); renderMarcas();
-});
-liga('#btPedidosPorMarca', 'click', () => {
-  const lista = itens().filter((i) => i.situacao === 'RUPTURA' && i.prioridade >= 55 && (i.qtd || 0) > 0 && (estado.agrupar ? i.ehRepresentante || i.repetidos === 1 : true));
-  if (!lista.length) return;
-  abrirModal('Pedidos separados por fornecedor',
-    lista.length + ' itens em ruptura com prioridade 55 ou mais, agrupados por marca. Cada bloco é um pedido para um fornecedor.',
-    pedidosPorFornecedor(lista), csvDeItens(lista), 'pedidos-por-fornecedor-ribeirao-preto.csv');
-});
 
 liga('#btSolicitacao', 'click', () => {
   const lista = itensMarcados();
@@ -4891,7 +4384,6 @@ $('#logo').src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAOAAAAB4CAIAAABk
     recado('Recuperado deste navegador',
       [st.estoque.ok ? n(st.estoque.itens) + ' itens de estoque' : null,
        st.movimentacao.ok ? n(st.movimentacao.lancamentos) + ' lançamentos de movimentação' : null,
-       st.marcas && st.marcas.chavesDefinidas ? st.marcas.chavesDefinidas + ' chaves com marca' : null,
        st.ajustes ? st.ajustes + ' quantidades ajustadas por você' : null,
       ].filter(Boolean).join(' · ') + '. Nada se perdeu.');
   }

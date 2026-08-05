@@ -1,0 +1,8 @@
+# Publicação da Central de Compras.
+# A pasta é publicada como está: a página é um arquivo único, sem build.
+[build]
+  publish = "."
+  command = ""
+
+[functions]
+  directory = "netlify/functions"

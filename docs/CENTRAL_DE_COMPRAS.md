@@ -260,6 +260,76 @@ informa nada.
 
 ---
 
+## 3e. Venda que saiu por outra filial
+
+O relatório de consumo traz a coluna `Ff`: **qual filial faturou** cada venda. Quando não é a
+própria, o pedido apareceu aqui e saiu por outra — quase sempre porque aqui não tinha a peça.
+
+No arquivo real: **1.057 unidades, 9,7% de tudo que saiu, foram faturadas por outra filial**,
+e **todas dentro de São Paulo** — São José do Rio Preto (639), Campinas, São Bernardo,
+Guarulhos, São Paulo, Presidente Prudente.
+
+A distinção que muda a decisão:
+
+| Onde faturou | O que significa | Recomendação |
+|---|---|---|
+| Outra filial **de SP** | O cliente é daqui e a peça devia estar aqui. É venda perdida pela filial. | **Estocar aqui** |
+| Filial **de outro estado** | Entra ICMS interestadual: pode ter sido decisão fiscal, não falta de estoque. | **Avaliar antes** — não assumir |
+
+A tela lista peça a peça quanto saiu daqui, quanto saiu por outra, quais filiais faturaram e
+o saldo atual, com a recomendação já classificada. O CSV traz tudo.
+
+O catálogo de filiais (código → cidade e UF) está em `FILIAIS`, com as 28 filiais.
+
+---
+
+## 3f. Oportunidades: dois públicos, dois textos
+
+O vendedor precisa saber **o que tem e quanto tem**, para mandar no grupo do WhatsApp e sair
+vendendo. Curva ABC, giro e "capital parado" são conta de gestor: no texto dele viram ruído,
+e roteiro pronto de abordagem atrapalha quem já sabe vender.
+
+**Texto para os vendedores** — só peça, código e quantidade, em formato de WhatsApp:
+
+```
+*DISPONIVEL NO ESTOQUE - RIBEIRAO PRETO*
+_Posicao de 05/08/2026_
+
+*TRANSMISSÃO E RODAGEM*
+• Junta cubo reduzida - 59983NA - *308 un*
+• Retentor cubo roda - 01735BG - *269 un*
+
+Pronta entrega. Chama que a gente separa.
+```
+
+**Relatório para o gestor** — o mesmo recorte com curva, marca, venda medida no período,
+quantos itens do grupo não tiveram venda e o capital envolvido quando há custo.
+
+Os grupos são escolhidos por caixa de seleção: marca-se só o que vai no texto, e o resumo diz
+quantos itens e unidades a seleção cobre.
+
+---
+
+## 3g. Enviar para outra pessoa
+
+Duas formas, na aba Situação:
+
+**Página pronta (`.html`)** — a página se copia inteira, com os dados embutidos num
+`<script type="application/json">` dentro do próprio arquivo. Quem recebe dá dois cliques e vê
+tudo, sem carregar nada e sem internet. No arquivo real dá ~3 MB.
+
+O pacote embutido **só é aplicado se o navegador de quem abre ainda não tiver dados** — assim
+uma cópia recebida nunca sobrescreve o trabalho de quem já usa a página. Um aviso na abertura
+diz que veio de arquivo recebido.
+
+**Arquivo de dados (`.json`)** — só o conteúdo, para levar a outro computador ou guardar cópia
+de segurança. Volta arrastando para a página.
+
+O HTML é montado lendo o próprio DOM (`document.documentElement`), sem requisição de rede
+nenhuma — a regra de não falar com servidor continua valendo até na hora de exportar.
+
+---
+
 ## 4. Origem provável do código — o que ela é e o que ela não é
 
 > **A origem é inferida pelo formato do código original, não por catálogo de aplicação.**

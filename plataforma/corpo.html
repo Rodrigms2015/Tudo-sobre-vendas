@@ -774,7 +774,7 @@
         <button class="bt bt-forte" id="btEscolher" type="button">Escolher arquivo</button>
         <button class="bt" id="btExemplo" type="button">Ver com dados de exemplo</button>
       </div>
-      <input type="file" id="arquivo" accept=".xls,.xlsx,.csv,.txt,.pdf" class="oculto" />
+      <input type="file" id="arquivo" accept=".xls,.xlsx,.csv,.txt,.pdf,.json" class="oculto" />
     </div>
   </section>
 
@@ -947,9 +947,23 @@
         <h2>Capital parado — empurrar</h2>
         <span class="nota">Saldo alto em item de giro baixo. Dinheiro na prateleira que não gira sozinho.</span>
       </div>
+      <div class="filtros">
+        <div class="campo">
+          <label>Selecionar</label>
+          <div style="display:flex;gap:8px">
+            <button class="bt bt-mini" id="btSelTodosGrupos" type="button">Marcar todos</button>
+            <button class="bt bt-mini" id="btSelNenhumGrupo" type="button">Desmarcar</button>
+          </div>
+        </div>
+        <div class="campo" style="flex:1;min-width:240px">
+          <label>&nbsp;</label>
+          <div id="resumoSelecao" class="sobrancelha" style="padding-top:10px"></div>
+        </div>
+      </div>
       <div id="listaParado" class="grade"></div>
-      <div style="margin-top:12px;display:flex;gap:9px;flex-wrap:wrap">
-        <button class="bt bt-forte" id="btPautaParado" type="button">Gerar pauta para os vendedores</button>
+      <div style="margin-top:14px;display:flex;gap:9px;flex-wrap:wrap;align-items:center">
+        <button class="bt bt-forte" id="btPautaVendedores" type="button">Texto para o grupo dos vendedores</button>
+        <button class="bt" id="btPautaGestor" type="button">Relatório para o gestor</button>
         <button class="bt" id="btCsvParado" type="button">Baixar planilha</button>
       </div>
     </div>
@@ -985,6 +999,21 @@
         <div class="secao-topo"><h2>Venda por mês</h2><span class="nota" id="periodoDemanda"></span></div>
         <div class="cartao"><div class="cartao-corpo"><div id="curvaMensal"></div></div></div>
       </div>
+      <div class="secao oculto" id="secaoFilial">
+        <div class="secao-topo">
+          <h2>Venda que saiu por outra filial</h2>
+          <span class="nota">O pedido apareceu aqui e outra filial faturou. Dentro de SP, isso é peça que devia estar na prateleira.</span>
+        </div>
+        <div class="placas" id="placasFilial" style="margin-bottom:14px"></div>
+        <div class="rolo">
+          <table>
+            <thead><tr><th>Item</th><th>Faturou</th><th class="dir">Aqui</th><th class="dir">Por outra</th><th class="dir">Saldo</th><th style="width:170px">O que fazer</th></tr></thead>
+            <tbody id="corpoFilial"></tbody>
+          </table>
+        </div>
+        <div style="margin-top:12px"><button class="bt" id="btCsvFilial" type="button">Baixar planilha</button></div>
+      </div>
+
       <div class="secao">
         <div class="secao-topo">
           <h2>Zerado e vendendo</h2>
@@ -1207,6 +1236,40 @@
         <button class="bt bt-forte" id="btNovoEnvio" type="button">Carregar novo estoque</button>
         <button class="bt" id="btExportarTudo" type="button">Exportar análise completa (CSV)</button>
         <button class="bt" id="btApagar" type="button">Apagar tudo</button>
+      </div>
+    </div>
+
+    <div class="secao">
+      <div class="secao-topo">
+        <h2>Enviar para outra pessoa</h2>
+        <span class="nota">Um arquivo só, com os dados dentro. Quem receber dá dois cliques e vê tudo.</span>
+      </div>
+      <div class="grade">
+        <div class="ficha" style="border-left:4px solid var(--laranja)">
+          <div class="sobrancelha">Recomendado</div>
+          <h3>Página pronta, com os dados dentro</h3>
+          <p>
+            Gera <b>um arquivo HTML</b> que já vem com o estoque, a movimentação e as marcas embutidos.
+            Quem receber só abre no navegador — não precisa subir nada, não precisa saber usar.
+          </p>
+          <p style="font-size:12.5px">
+            Funciona sem internet. Se a pessoa carregar outro arquivo, vira a cópia dela e não mexe na sua.
+          </p>
+          <div style="margin-top:auto;padding-top:9px">
+            <button class="bt bt-forte bt-mini" id="btPacoteHtml" type="button">Gerar página para enviar</button>
+          </div>
+        </div>
+        <div class="ficha">
+          <div class="sobrancelha">Só os dados</div>
+          <h3>Arquivo de dados</h3>
+          <p>
+            Gera um <b>.json</b> com tudo o que está carregado. Serve para levar para outro computador
+            ou guardar como cópia de segurança — é só arrastar de volta para esta página.
+          </p>
+          <div style="margin-top:auto;padding-top:9px">
+            <button class="bt bt-mini" id="btPacoteDados" type="button">Baixar dados (.json)</button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -1735,6 +1798,7 @@ function lerConsumoAnalitico(linhas) {
       filial, produto, descricao: '',
       data: data.toISOString().slice(0, 10),
       documento: m[3], tr: m[6], tp: 'S', qtd,
+      ff: dosDigitos(m[2]),
       cliente: m[10] || '',
     });
   }
@@ -2186,6 +2250,35 @@ function inferirOrigem(codigo) {
   }
   return { origem: null, confianca: null, padrao: null, motivo: 'O formato do código ' + primeiro + ' não corresponde a nenhum padrão que eu reconheça com segurança.' };
 }
+
+/* ─── 4a. Filiais ────────────────────────────────────────────────────
+   O relatorio de consumo traz a coluna Ff: qual filial faturou a venda.
+   Quando nao e a propria, o pedido apareceu aqui e saiu por outra — quase
+   sempre porque aqui nao tinha a peca.
+
+   Dentro de Sao Paulo isso e venda perdida pela filial: o cliente e daqui
+   e a peca devia estar aqui. Fora do estado entra ICMS, e ai estocar aqui
+   pode nao compensar — precisa ser avaliado, nao assumido. */
+
+const FILIAIS = {
+  '03': ['Ribeirão Preto', 'SP'], '04': ['São José do Rio Preto', 'SP'],
+  '05': ['Contagem', 'MG'], '06': ['Uberlândia', 'MG'], '07': ['Curitiba', 'PR'],
+  '08': ['Recife', 'PE'], '09': ['Porto Alegre', 'RS'], '10': ['Rio de Janeiro', 'RJ'],
+  '11': ['Brasília', 'DF'], '12': ['Salvador', 'BA'], '13': ['Londrina', 'PR'],
+  '14': ['Campinas', 'SP'], '15': ['Belém', 'PA'], '16': ['Viana', 'ES'],
+  '17': ['Campo Grande', 'MS'], '18': ['Cuiabá', 'MT'], '19': ['Itajaí', 'SC'],
+  '20': ['São Paulo', 'SP'], '21': ['Goiânia', 'GO'], '22': ['Guarulhos', 'SP'],
+  '23': ['Fortaleza', 'CE'], '24': ['São Bernardo', 'SP'], '25': ['Presidente Prudente', 'SP'],
+  '27': ['Chapecó', 'SC'], '28': ['Caxias do Sul', 'RS'], '29': ['Cascavel', 'PR'],
+  '30': ['Maringá', 'PR'], '31': ['Pouso Alegre', 'MG'],
+};
+
+const dosDigitos = (v) => String(v ?? '').trim().padStart(2, '0');
+const nomeFilial = (ff) => {
+  const f = FILIAIS[dosDigitos(ff)];
+  return f ? f[0] : 'filial ' + dosDigitos(ff);
+};
+const ufDaFilial = (ff) => (FILIAIS[dosDigitos(ff)] || [null, null])[1];
 
 /* ─── 4b. Marcas ─────────────────────────────────────────────────────
    O catálogo de marcas da Pacaembu (pabu.com.br). A marca de cada item
@@ -2672,6 +2765,13 @@ function resumirDemanda(movimentos) {
   const porProduto = new Map();
   const porMes = new Map();
   const codigosTr = new Map();
+  const porFilialGeral = new Map();
+  /* A filial do relatorio e a que mais aparece faturando: e a dona do
+     recorte, e todas as outras sao desvio. */
+  const contagemFf = new Map();
+  for (const mv of movimentos) if (mv.ff) contagemFf.set(mv.ff, (contagemFf.get(mv.ff) || 0) + 1);
+  const ordemFf = [...contagemFf.entries()].sort((a, b) => b[1] - a[1]);
+  const filialDoRelatorio = ordemFf.length ? ordemFf[0][0] : null;
 
   for (const m of movimentos) {
     if (m.tr) {
@@ -2681,13 +2781,26 @@ function resumirDemanda(movimentos) {
     }
     if (m.tp !== 'S') continue;
     if (!porProduto.has(m.produto)) {
-      porProduto.set(m.produto, { unidades: 0, pedidos: new Set(), ultima: null, descricao: m.descricao, porMes: new Map() });
+      porProduto.set(m.produto, {
+        unidades: 0, pedidos: new Set(), ultima: null, descricao: m.descricao, porMes: new Map(),
+        proprias: 0, fora: 0, foraSP: 0, foraUF: 0, porFilial: new Map(),
+      });
     }
     const p = porProduto.get(m.produto);
     p.unidades += m.qtd;
     if (m.documento) p.pedidos.add(m.documento);
     if (!p.ultima || m.data > p.ultima) p.ultima = m.data;
     if (m.descricao && m.descricao.length > (p.descricao || '').length) p.descricao = m.descricao;
+    /* Faturado aqui, ou por outra filial? A distincao muda o que fazer. */
+    if (m.ff) {
+      if (filialDoRelatorio && m.ff === filialDoRelatorio) p.proprias += m.qtd;
+      else {
+        p.fora += m.qtd;
+        if (ufDaFilial(m.ff) === 'SP') p.foraSP += m.qtd; else p.foraUF += m.qtd;
+        p.porFilial.set(m.ff, (p.porFilial.get(m.ff) || 0) + m.qtd);
+        porFilialGeral.set(m.ff, (porFilialGeral.get(m.ff) || 0) + m.qtd);
+      }
+    } else p.proprias += m.qtd;
     const mes = m.data.slice(0, 7);
     p.porMes.set(mes, (p.porMes.get(mes) || 0) + m.qtd);
     porMes.set(mes, (porMes.get(mes) || 0) + m.qtd);
@@ -2716,6 +2829,8 @@ function resumirDemanda(movimentos) {
       /* Tendência só existe com pelo menos dois meses de cada lado. */
       tendencia: metade >= 2 && antes > 0 ? (depois - antes) / antes : null,
       antes, depois,
+      proprias: p.proprias, fora: p.fora, foraSP: p.foraSP, foraUF: p.foraUF,
+      porFilial: [...p.porFilial.entries()].sort((a, b) => b[1] - a[1]),
     });
   }
 
@@ -2730,6 +2845,12 @@ function resumirDemanda(movimentos) {
     linhas: movimentos.length,
     codigosTr: [...codigosTr.values()].sort((a, b) => b.linhas - a.linhas),
     filiais: [...new Set(movimentos.map((m) => m.filial).filter(Boolean))],
+    filialDoRelatorio,
+    temFf: movimentos.some((m) => m.ff),
+    porFilialGeral: [...porFilialGeral.entries()].sort((a, b) => b[1] - a[1]),
+    foraTotal: [...demanda.values()].reduce((a, d) => a + d.fora, 0),
+    foraSPTotal: [...demanda.values()].reduce((a, d) => a + d.foraSP, 0),
+    foraUFTotal: [...demanda.values()].reduce((a, d) => a + d.foraUF, 0),
   };
 }
 
@@ -3285,14 +3406,34 @@ function renderOportunidades() {
       .sort((a, b) => b.unidades - a.unidades);
   };
 
-  $('#listaParado').innerHTML = porFamilia(parados).slice(0, 6).map((b) => {
-    const top = b.itens.slice(0, 5);
-    return '<div class="ficha"><div class="sobrancelha">' + n(b.unidades) + ' unidades · ' + n(b.itens.length) + ' itens</div>' +
-      '<h3>' + esc(b.familia) + '</h3>' +
-      '<div>' + top.map((i) => '<div class="linhadados"><span>' + esc(i.descricao) + ' <span class="mono" style="color:var(--tinta-3)">' + esc(i.produto) + '</span></span><b>' + n(i.saldo) + '</b></div>').join('') + '</div>' +
-      '<div class="roteiro">' + esc(argumento(b)) + '</div>' +
-      '<div class="fonte">Curvas ' + esc([...new Set(b.itens.map((i) => i.curva).filter(Boolean))].sort().join(', ') || '—') + ' — giro baixo com saldo alto. Sai com desconto ou em pacote.</div></div>';
+  const blocos = porFamilia(parados);
+  estado.blocosOportunidade = blocos;
+  if (!estado.gruposEscolhidos) estado.gruposEscolhidos = new Set(blocos.slice(0, 6).map((b) => b.familia));
+
+  $('#listaParado').innerHTML = blocos.map((b) => {
+    const top = b.itens.slice(0, 6);
+    const marcado = estado.gruposEscolhidos.has(b.familia);
+    return '<div class="ficha" style="border-left:4px solid ' + (marcado ? 'var(--laranja)' : 'var(--borda)') + '">' +
+      '<label style="display:flex;align-items:center;gap:9px;cursor:pointer;min-height:34px">' +
+        '<input type="checkbox" class="grupo-oport" data-familia="' + esc(b.familia) + '"' + (marcado ? ' checked' : '') +
+        ' style="width:19px;height:19px;cursor:pointer" />' +
+        '<b style="font-size:14.5px;font-weight:650">' + esc(b.familia) + '</b></label>' +
+      '<div class="sobrancelha">' + n(b.unidades) + ' unidades · ' + n(b.itens.length) + ' itens</div>' +
+      '<div>' + top.map((i) => '<div class="linhadados"><span>' + esc(i.descricao) + ' <span class="mono" style="color:var(--tinta-3)">' + esc(i.produto) + '</span></span><b>' + n(i.saldo) + '</b></div>').join('') +
+        (b.itens.length > top.length ? '<div style="font-size:12px;color:var(--tinta-3);padding-top:6px">e mais ' + n(b.itens.length - top.length) + ' itens</div>' : '') +
+      '</div></div>';
   }).join('') || '<p class="nota">Nenhum item em excesso neste envio.</p>';
+
+  $$('.grupo-oport').forEach((cb) => cb.addEventListener('change', () => {
+    if (cb.checked) estado.gruposEscolhidos.add(cb.dataset.familia);
+    else estado.gruposEscolhidos.delete(cb.dataset.familia);
+    renderOportunidades();
+  }));
+  const escolhidos = blocos.filter((b) => estado.gruposEscolhidos.has(b.familia));
+  $('#resumoSelecao').textContent = escolhidos.length
+    ? n(escolhidos.length) + ' grupos marcados · ' + n(escolhidos.reduce((a, b) => a + b.itens.length, 0)) + ' itens · ' +
+      n(escolhidos.reduce((a, b) => a + b.unidades, 0)) + ' unidades'
+    : 'nenhum grupo marcado — marque ao menos um para gerar o texto';
 
   $('#listaForte').innerHTML = porFamilia(fortes).slice(0, 6).map((b) => {
     const top = b.itens.slice(0, 5);
@@ -3303,12 +3444,69 @@ function renderOportunidades() {
   }).join('') || '<p class="nota">Nenhum item de curva A ou B com saldo folgado.</p>';
 }
 
-function argumento(bloco) {
-  const curvas = [...new Set(bloco.itens.map((i) => i.curva).filter(Boolean))].sort();
-  const raras = curvas.filter((c) => 'DEF'.includes(c)).length > 0;
-  return 'Temos ' + bloco.unidades + ' unidades de ' + bloco.familia.toLowerCase() + ' paradas em ' + bloco.itens.length +
-    ' itens' + (raras ? ' de giro baixo' : '') + '. Oferecer na próxima visita a oficinas e frotistas: ' +
-    bloco.itens.slice(0, 3).map((i) => i.descricao).join('; ') + '. Fecha em pacote e libera prateleira.';
+/* Dois publicos, dois textos.
+
+   O vendedor precisa saber o que tem e quanto tem, para mandar no grupo do
+   WhatsApp e sair vendendo. Curva ABC, giro e "capital parado" sao conta
+   de gestor: no texto dele viram ruido, e roteiro pronto de abordagem so
+   atrapalha quem ja sabe vender. */
+
+function textoParaVendedores(blocos) {
+  const e = envioAtual();
+  const linhas = [];
+  linhas.push('*DISPONIVEL NO ESTOQUE - RIBEIRAO PRETO*');
+  linhas.push('_Posicao de ' + (e ? dataBr(e.dataISO) : '-') + '_');
+  linhas.push('');
+  for (const b of blocos) {
+    linhas.push('*' + b.familia.toUpperCase() + '*');
+    for (const i of b.itens.slice(0, 20)) {
+      linhas.push('• ' + i.descricao + ' - ' + (i.produto || '') + ' - *' + i.saldo + ' un*');
+    }
+    if (b.itens.length > 20) linhas.push('_e mais ' + (b.itens.length - 20) + ' itens desta linha_');
+    linhas.push('');
+  }
+  linhas.push('Pronta entrega. Chama que a gente separa.');
+  return linhas.join('\n');
+}
+
+function textoParaGestor(blocos) {
+  const e = envioAtual();
+  const R = estado.resumoDemanda;
+  const itensTotais = blocos.reduce((a, b) => a + b.itens.length, 0);
+  const unidades = blocos.reduce((a, b) => a + b.unidades, 0);
+  const linhas = [];
+  linhas.push('OPORTUNIDADES DE GIRO - FILIAL RIBEIRAO PRETO');
+  linhas.push('Gerado em ' + new Date().toLocaleString('pt-BR'));
+  linhas.push('Base: ' + (e ? e.nome + ', estoque de ' + dataBr(e.dataISO) : '-'));
+  linhas.push('');
+  linhas.push('RESUMO');
+  linhas.push('  Grupos selecionados...: ' + blocos.length);
+  linhas.push('  Itens.................: ' + itensTotais);
+  linhas.push('  Unidades paradas......: ' + unidades);
+  if (temCusto()) {
+    const valor = blocos.reduce((a, b) => a + somaValor(b.itens, (i) => i.saldo || 0), 0);
+    linhas.push('  Capital envolvido.....: ' + brl(valor));
+  }
+  linhas.push(R
+    ? '  Criterio..............: saldo alto com venda medida baixa em ' + R.dias + ' dias de movimentacao'
+    : '  Criterio..............: saldo alto para a curva do item, sem movimentacao carregada');
+  linhas.push('');
+  for (const b of blocos) {
+    const curvas = [...new Set(b.itens.map((i) => i.curva).filter(Boolean))].sort().join(', ') || '-';
+    const semVenda = b.itens.filter((i) => !i.demandaUsada).length;
+    linhas.push('='.repeat(70));
+    linhas.push(b.familia.toUpperCase() + ' - ' + b.itens.length + ' itens, ' + b.unidades + ' unidades');
+    linhas.push('  Curvas: ' + curvas + (R ? '  |  sem venda no periodo: ' + semVenda + ' de ' + b.itens.length : ''));
+    linhas.push('='.repeat(70));
+    for (const i of b.itens.slice(0, 25)) {
+      const vendeu = i.demandaUsada ? Math.round(i.demandaUsada.unidades) + ' un no periodo' : 'sem venda medida';
+      linhas.push('  ' + String(i.saldo).padStart(5) + ' un  ' + (i.produto || '').padEnd(16) +
+        (i.marca || '-').padEnd(12) + ' curva ' + (i.curva || '-') + '  ' + i.descricao + '  [' + vendeu + ']');
+    }
+    if (b.itens.length > 25) linhas.push('  ... e mais ' + (b.itens.length - 25) + ' itens');
+    linhas.push('');
+  }
+  return linhas.join('\n');
 }
 
 /* ─── 16a. Demanda ───────────────────────────────────────────────── */
@@ -3416,6 +3614,62 @@ function renderDemanda() {
     '<td class="dir num">' + n(c.linhas) + '</td>' +
     '<td class="dir num">' + n(Math.round(c.unidades)) + '</td>' +
     '<td style="font-size:12.5px;color:var(--tinta-2)">' + (c.tp === 'S' ? 'Sim — conta como demanda' : 'Não — entrada não é venda') + '</td></tr>').join('');
+
+  // ── Venda faturada por outra filial.
+  const secaoFilial = $('#secaoFilial');
+  const comFora = L.filter((i) => i.demandaUsada && i.demandaUsada.fora > 0)
+    .sort((a, b) => b.demandaUsada.fora - a.demandaUsada.fora);
+  secaoFilial.classList.toggle('oculto', !R.temFf || !comFora.length);
+
+  if (R.temFf && comFora.length) {
+    const totalGeral = R.totalSaida || 1;
+    $('#placasFilial').innerHTML = [
+      placa({
+        rotulo: 'Faturado por outra filial', valor: n(Math.round(R.foraTotal || 0)),
+        rodape: pct((R.foraTotal || 0) / totalGeral) + ' de tudo que saiu · ' + n(comFora.length) + ' peças diferentes',
+        tom: 'atencao',
+      }),
+      placa({
+        rotulo: 'Dentro de São Paulo', valor: n(Math.round(R.foraSPTotal || 0)),
+        rodape: 'venda que era desta filial e saiu por outra do estado — é peça que devia estar aqui',
+        tom: 'critico',
+      }),
+      placa({
+        rotulo: 'Fora do estado', valor: n(Math.round(R.foraUFTotal || 0)),
+        rodape: (R.foraUFTotal ? 'entra ICMS interestadual: avalie caso a caso se compensa estocar aqui' : 'nenhuma venda saiu por filial de outro estado'),
+        tom: R.foraUFTotal ? 'parado' : 'saudavel',
+      }),
+      placa({
+        rotulo: 'Filial que mais faturou por aqui',
+        valor: R.porFilialGeral.length ? nomeFilial(R.porFilialGeral[0][0]) : '—',
+        rodape: R.porFilialGeral.length ? n(Math.round(R.porFilialGeral[0][1])) + ' unidades' : '',
+        tom: 'neutro',
+      }),
+    ].join('');
+
+    $('#corpoFilial').innerHTML = comFora.slice(0, 40).map((i) => {
+      const d = i.demandaUsada;
+      const filiais = (d.porFilial || []).slice(0, 3)
+        .map(([ff, q]) => nomeFilial(ff) + ' <span style="color:var(--tinta-3)">' + Math.round(q) + '</span>')
+        .join('<br>');
+      const soSP = d.foraUF === 0;
+      const acao = soSP
+        ? { tom: 'critico', txt: 'Estocar aqui', nota: 'tudo dentro de SP — venda que era sua' }
+        : d.foraSP > d.foraUF
+        ? { tom: 'atencao', txt: 'Estocar, mas conferir', nota: 'a maior parte é de SP; o resto tem ICMS' }
+        : { tom: 'parado', txt: 'Avaliar imposto', nota: 'saiu por filial de outro estado' };
+      return '<tr><td><b style="font-weight:600">' + esc(d.descricao || i.descricao) + '</b>' +
+          (i.repetidos > 1 ? ' <span class="etiqueta" data-tom="neutro">' + i.repetidos + ' variantes fiscais</span>' : '') +
+          '<br><span class="mono" style="color:var(--tinta-3)">' + esc(i.produto) + '</span></td>' +
+        '<td style="font-size:12.5px">' + filiais + '</td>' +
+        '<td class="dir num">' + n(Math.round(d.proprias)) + '</td>' +
+        '<td class="dir num"><b style="color:var(--critico)">' + n(Math.round(d.fora)) + '</b>' +
+          '<br><span style="font-size:10.5px;color:var(--tinta-3)">' + pct(d.fora / Math.max(1, d.unidades)) + ' do total</span></td>' +
+        '<td class="dir num">' + (i.saldo === null ? '—' : n(i.saldo)) + '</td>' +
+        '<td><span class="etiqueta" data-tom="' + acao.tom + '">' + acao.txt + '</span>' +
+          '<br><span style="font-size:11px;color:var(--tinta-3)">' + acao.nota + '</span></td></tr>';
+    }).join('');
+  }
 
   $('#seloDemanda').textContent = n(zeradoVendendo.length);
 }
@@ -3961,6 +4215,15 @@ async function carregarArquivo(file) {
   const nome = file.name;
   let linhas;
   try {
+    if (/\.json$/i.test(nome)) {
+      await aplicarPacote(JSON.parse(await file.text()));
+      const e = envioAtual();
+      recado('Pacote carregado',
+        n(itens().length) + ' itens' + (e ? ' de ' + dataBr(e.dataISO) : '') +
+        (estado.movimentos ? ' e ' + n(estado.movimentos.length) + ' movimentos' : '') + '. Tudo pronto.');
+      return;
+    }
+
     if (/\.pdf$/i.test(nome)) {
       /* PDF e sempre relatorio de venda: o estoque sai em Excel. */
       const linhasTexto = await lerPdf(await file.arrayBuffer());
@@ -4359,6 +4622,22 @@ $$('thead th.ord').forEach((th) => th.addEventListener('click', () => {
 }));
 
 liga('#btMovimentacao', 'click', () => $('#arquivo').click());
+liga('#btCsvFilial', 'click', () => {
+  const lista = itens().filter((i) => i.demandaUsada && i.demandaUsada.fora > 0)
+    .sort((a, b) => b.demandaUsada.fora - a.demandaUsada.fora);
+  if (!lista.length) return;
+  baixar('venda-por-outra-filial.csv', paraCsv(
+    ['Descricao', 'Cod. Produto', 'Cod. Original', 'Marca', 'Saldo aqui', 'Unid. faturadas aqui', 'Unid. por outra filial', 'Dentro de SP', 'Fora do estado', 'Filiais que faturaram', 'Recomendacao'],
+    lista.map((i) => {
+      const d = i.demandaUsada;
+      return [i.descricao, i.produto, i.original, i.marca || '', i.saldo ?? '',
+        Math.round(d.proprias), Math.round(d.fora), Math.round(d.foraSP), Math.round(d.foraUF),
+        (d.porFilial || []).map(([ff, q]) => nomeFilial(ff) + ': ' + Math.round(q)).join(' | '),
+        d.foraUF === 0 ? 'Estocar aqui - tudo dentro de SP' : (d.foraSP > d.foraUF ? 'Estocar, conferir a parte interestadual' : 'Avaliar ICMS antes de estocar')];
+    })), 'text/csv');
+  recado('Planilha baixada', n(lista.length) + ' peças que tiveram venda faturada por outra filial.');
+});
+
 liga('#btPedidoUrgente', 'click', () => {
   const lista = itens().filter((i) => i.situacao === 'RUPTURA' && i.demandaUsada && (i.qtd || 0) > 0 &&
       (estado.agrupar ? i.ehRepresentante || i.repetidos === 1 : true))
@@ -4426,29 +4705,129 @@ liga('#btSolicitacao', 'click', () => {
 });
 liga('#btFecharModal', 'click', () => $('#modal').close());
 
-liga('#btPautaParado', 'click', () => {
-  const parados = itens().filter((i) => i.situacao === 'EXCESSO').sort((a, b) => (b.saldo || 0) - (a.saldo || 0));
-  if (!parados.length) return;
-  const porFam = {};
-  for (const i of parados) (porFam[i.familia] = porFam[i.familia] || []).push(i);
-  const linhas = ['PAUTA DE OPORTUNIDADES — FILIAL RIBEIRÃO PRETO', 'Gerada em ' + new Date().toLocaleString('pt-BR'),
-    'Base: estoque de ' + dataBr(envioAtual().dataISO), '',
-    'O que está abaixo tem saldo alto e giro baixo. Não falta — sobra. Cada bloco é uma oferta pronta.', ''];
-  for (const [fam, is] of Object.entries(porFam).sort((a, b) => b[1].reduce((s, x) => s + x.saldo, 0) - a[1].reduce((s, x) => s + x.saldo, 0))) {
-    linhas.push('■ ' + fam.toUpperCase() + ' — ' + is.reduce((s, x) => s + x.saldo, 0) + ' unidades em ' + is.length + ' itens');
-    for (const i of is.slice(0, 12)) {
-      linhas.push('   ' + String(i.saldo).padStart(4, ' ') + ' un  ·  ' + (i.produto || '').padEnd(16, ' ') + ' · ' + i.descricao + '  [curva ' + (i.curva || '—') + ']');
-    }
-    linhas.push('   → ' + argumento({ familia: fam, itens: is, unidades: is.reduce((s, x) => s + x.saldo, 0) }));
-    linhas.push('');
-  }
-  abrirModal('Pauta para os vendedores', 'Manda no grupo da equipe ou imprime para a reunião de segunda.',
-    linhas.join('\n'), csvDeItens(parados), 'oportunidades-ribeirao-preto.csv');
+const blocosEscolhidos = () => (estado.blocosOportunidade || [])
+  .filter((b) => estado.gruposEscolhidos && estado.gruposEscolhidos.has(b.familia));
+
+liga('#btSelTodosGrupos', 'click', () => {
+  estado.gruposEscolhidos = new Set((estado.blocosOportunidade || []).map((b) => b.familia));
+  renderOportunidades();
+});
+liga('#btSelNenhumGrupo', 'click', () => {
+  estado.gruposEscolhidos = new Set();
+  renderOportunidades();
+});
+
+liga('#btPautaVendedores', 'click', () => {
+  const blocos = blocosEscolhidos();
+  if (!blocos.length) { recado('Nenhum grupo marcado', 'Marque ao menos um grupo acima para gerar o texto.', 'erro'); return; }
+  const itensSel = blocos.flatMap((b) => b.itens);
+  abrirModal('Texto para o grupo dos vendedores',
+    'Pronto para colar no WhatsApp. Só o que eles precisam: peça, código e quantidade.',
+    textoParaVendedores(blocos), csvDeItens(itensSel), 'oportunidades-vendedores.csv');
+});
+
+liga('#btPautaGestor', 'click', () => {
+  const blocos = blocosEscolhidos();
+  if (!blocos.length) { recado('Nenhum grupo marcado', 'Marque ao menos um grupo acima para gerar o relatório.', 'erro'); return; }
+  const itensSel = blocos.flatMap((b) => b.itens);
+  abrirModal('Relatório para o gestor',
+    'Com curva, marca, venda medida e capital envolvido — o que sustenta a decisão.',
+    textoParaGestor(blocos), csvDeItens(itensSel), 'oportunidades-gestor.csv');
 });
 
 liga('#btCsvParado', 'click', () => {
   const parados = itens().filter((i) => i.situacao === 'EXCESSO').sort((a, b) => (b.saldo || 0) - (a.saldo || 0));
   baixar('oportunidades-ribeirao-preto.csv', csvDeItens(parados), 'text/csv');
+});
+
+/* ── Empacotar para enviar ───────────────────────────────────────────
+   Duas formas. O .json e so o conteudo, para reimportar. O .html e a
+   pagina inteira com os dados embutidos: quem recebe da dois cliques e ve
+   tudo, sem precisar saber que existe importacao.
+
+   Para montar o HTML, a pagina le o proprio DOM — nao ha requisicao de
+   rede nenhuma, o que mantem a regra de nao falar com servidor. */
+
+function pacoteDeDados() {
+  const e = envioAtual();
+  return {
+    formato: 'central-de-compras-ribeirao-preto',
+    versao: 1,
+    geradoEm: new Date().toISOString(),
+    envios: estado.envios,
+    atualId: estado.atualId,
+    movimentos: estado.movimentos,
+    nomeMovimentos: estado.nomeMovimentos,
+    formatoMovimentos: estado.formatoMovimentos,
+    mapaMarcas: estado.mapaMarcas,
+    tabelaMarcas: estado.tabelaMarcas,
+    nomeTabelaMarcas: estado.nomeTabelaMarcas,
+    quantidades: estado.quantidades,
+    diasCobertura: estado.diasCobertura,
+    resumo: {
+      itens: e ? e.itens.length : 0,
+      dataEstoque: e ? e.dataISO : null,
+      movimentos: estado.movimentos ? estado.movimentos.length : 0,
+    },
+  };
+}
+
+async function aplicarPacote(pacote) {
+  if (!pacote || pacote.formato !== 'central-de-compras-ribeirao-preto') {
+    throw new Error('Este arquivo não é um pacote desta página.');
+  }
+  estado.envios = pacote.envios || [];
+  estado.atualId = pacote.atualId || (estado.envios.length ? estado.envios[estado.envios.length - 1].id : null);
+  estado.movimentos = pacote.movimentos || null;
+  estado.nomeMovimentos = pacote.nomeMovimentos || null;
+  estado.formatoMovimentos = pacote.formatoMovimentos || null;
+  estado.mapaMarcas = pacote.mapaMarcas || {};
+  estado.tabelaMarcas = pacote.tabelaMarcas || null;
+  estado.nomeTabelaMarcas = pacote.nomeTabelaMarcas || null;
+  estado.quantidades = pacote.quantidades || {};
+  if (pacote.diasCobertura) estado.diasCobertura = pacote.diasCobertura;
+  estado.marcados.clear();
+  try {
+    for (const env of estado.envios) await guardarEnvio(env);
+    if (estado.movimentos) await guardarMovimentos(estado.nomeMovimentos || 'pacote');
+    if (estado.tabelaMarcas) await guardarTabelaMarcas(estado.nomeTabelaMarcas || 'pacote');
+    await guardarMapaMarcas();
+    await guardarQuantidades();
+  } catch (err) {
+    estado.gravacao = { ok: false, em: null, erro: err.message || String(err) };
+  }
+  recalcular();
+  renderTudo();
+  trocarVista('painel');
+}
+
+liga('#btPacoteDados', 'click', () => {
+  if (!itens().length) { recado('Nada para enviar', 'Carregue o estoque antes de gerar o pacote.', 'erro'); return; }
+  const pacote = pacoteDeDados();
+  baixar('dados-central-de-compras.json', JSON.stringify(pacote), 'application/json');
+  recado('Arquivo de dados baixado',
+    n(pacote.resumo.itens) + ' itens e ' + n(pacote.resumo.movimentos) + ' movimentos. ' +
+    'Para usar em outro computador, arraste este arquivo para a página lá.');
+});
+
+liga('#btPacoteHtml', 'click', () => {
+  if (!itens().length) { recado('Nada para enviar', 'Carregue o estoque antes de gerar a página.', 'erro'); return; }
+  const pacote = pacoteDeDados();
+  const doc = document.documentElement.cloneNode(true);
+  /* Tira o que e estado de tela para a copia abrir limpa. */
+  doc.querySelectorAll('.recado, #modal[open]').forEach((el) => el.remove());
+  const semiEscape = (txt) => txt.replace(/<\/script/gi, '<\\/script');
+  const embutido = '<script id="pacoteEmbutido" type="application/json">' +
+    semiEscape(JSON.stringify(pacote)) + '<\/script>';
+  const html = '<!doctype html>\n<html lang="pt-BR">' +
+    doc.innerHTML.replace('</head>', embutido + '</head>') +
+    '</html>';
+  const e = envioAtual();
+  const nome = 'Central-de-Compras-' + (e ? dataBr(e.dataISO).replace(/\//g, '-') : 'sem-data') + '.html';
+  baixar(nome, html, 'text/html');
+  recado('Página gerada: ' + nome,
+    'Vem com ' + n(pacote.resumo.itens) + ' itens e ' + n(pacote.resumo.movimentos) + ' movimentos dentro. ' +
+    'Mande por WhatsApp ou e-mail — quem receber só dá dois cliques, sem precisar carregar nada.');
 });
 
 liga('#btExportarTudo', 'click', () => {
@@ -4486,13 +4865,29 @@ $('#logo').src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAOAAAAB4CAIAAABk
     estado.atualId = [...estado.envios].sort((a, b) => new Date(b.dataISO) - new Date(a.dataISO))[0].id;
     recalcular();
   }
+  /* Copia recebida por e-mail ou WhatsApp: os dados vieram dentro do
+     proprio arquivo. So entra se este navegador ainda nao tem nada, para
+     nunca sobrescrever o trabalho de quem ja usa a pagina. */
+  const embutido = document.getElementById('pacoteEmbutido');
+  let veioDePacote = false;
+  if (embutido && !estado.envios.length && !estado.movimentos) {
+    try {
+      await aplicarPacote(JSON.parse(embutido.textContent));
+      veioDePacote = true;
+    } catch { /* pacote invalido: segue como pagina vazia */ }
+  }
   if (estado.envios.length || estado.movimentos) {
     estado.gravacao = { ok: true, em: new Date().toISOString(), erro: null };
   }
   renderTudo();
   trocarVista('painel');
   const st = situacaoDoSistema();
-  if (st.estoque.ok || st.movimentacao.ok) {
+  if (veioDePacote) {
+    recado('Aberto a partir do arquivo que você recebeu',
+      [st.estoque.ok ? n(st.estoque.itens) + ' itens de estoque' : null,
+       st.movimentacao.ok ? n(st.movimentacao.lancamentos) + ' lançamentos de venda' : null,
+      ].filter(Boolean).join(' · ') + '. Os dados já vieram dentro desta página — é só navegar pelas abas.');
+  } else if (st.estoque.ok || st.movimentacao.ok) {
     recado('Recuperado deste navegador',
       [st.estoque.ok ? n(st.estoque.itens) + ' itens de estoque' : null,
        st.movimentacao.ok ? n(st.movimentacao.lancamentos) + ' lançamentos de movimentação' : null,

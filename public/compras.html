@@ -1590,8 +1590,8 @@ function normalizarMovimentacao(linhas, iCab) {
    uma planilha feita à mão. O código pode ser o interno, o do produto ou
    o original — a busca tenta os três. */
 
-const NOMES_CODIGO = ['codigo', 'cod', 'sku', 'codproduto', 'produto', 'referencia', 'ref', 'item', 'codinterno'];
-const NOMES_MARCA = ['marca', 'fabricante', 'manufacturer', 'brand', 'fornecedor'];
+const NOMES_CODIGO = ['chave', 'codigo', 'cod', 'sku', 'codproduto', 'produto', 'referencia', 'ref', 'item', 'codinterno'];
+const NOMES_MARCA = ['marca', 'fabricante', 'manufacturer', 'brand', 'fornecedor', 'marcapreenchaaqui'];
 
 function ehTabelaDeMarcas(linhas) {
   for (let i = 0; i < Math.min(linhas.length, 25); i++) {
@@ -1612,21 +1612,31 @@ function normalizarTabelaDeMarcas(linhas, iCab) {
   const cab = linhas[iCab].map((c) => chave(c));
   const iCodigo = cab.findIndex((k) => NOMES_CODIGO.includes(k));
   const iMarca = cab.findIndex((k) => NOMES_MARCA.includes(k));
-  const tabela = {};
-  let lidas = 0;
+  const porCodigo = {};
+  const porChave = {};
+  let lidas = 0, vazias = 0;
   for (let i = iCab + 1; i < linhas.length; i++) {
     const l = linhas[i];
     if (!l) continue;
     const codigo = String(l[iCodigo] ?? '').trim();
     const marca = String(l[iMarca] ?? '').trim();
-    if (!codigo || !marca || /^-+$/.test(codigo)) continue;
-    const k = chave(codigo);
-    if (!k) continue;
-    tabela[k] = marca.toUpperCase();
+    if (!codigo || /^-+$/.test(codigo)) continue;
+    if (!marca) { vazias++; continue; }
+    /* O modelo que a propria pagina gera volta com a chave do mapa
+       (P:REX, G:004784). Preencher uma linha dessas marca o prefixo ou o
+       grupo inteiro de uma vez, e nao um codigo so. */
+    if (/^[PG]:/.test(codigo)) porChave[codigo] = marca.toUpperCase();
+    else {
+      const k = chave(codigo);
+      if (k) porCodigo[k] = marca.toUpperCase();
+    }
     lidas++;
   }
-  if (!lidas) throw new Error('Encontrei as colunas de código e marca, mas nenhuma linha tinha os dois preenchidos.');
-  return tabela;
+  if (!lidas) {
+    throw new Error('Achei as colunas de codigo e marca, mas nenhuma linha tinha a marca preenchida' +
+      (vazias ? ' (' + vazias + ' linhas vieram com o codigo e a marca em branco).' : '.'));
+  }
+  return { porCodigo, porChave, lidas, vazias };
 }
 
 /* Tenta o código interno, o do produto (com e sem variante fiscal) e o
@@ -3485,23 +3495,35 @@ async function carregarArquivo(file) {
     /* Os três arquivos entram pela mesma porta; o cabeçalho diz qual é qual. */
     const iTab = ehTabelaDeMarcas(linhas);
     if (iTab >= 0) {
-      const tabela = normalizarTabelaDeMarcas(linhas, iTab);
-      estado.tabelaMarcas = tabela;
-      estado.nomeTabelaMarcas = nome;
-      let gravados = null;
-      try { gravados = await guardarTabelaMarcas(nome); }
-      catch (err) { estado.gravacao = { ok: false, em: null, erro: err.message || String(err) }; }
+      const lido = normalizarTabelaDeMarcas(linhas, iTab);
+      const antes = itens().filter((i) => i.marca).length;
+      const nCodigos = Object.keys(lido.porCodigo).length;
+      const nChaves = Object.keys(lido.porChave).length;
+      if (nCodigos) {
+        estado.tabelaMarcas = Object.assign({}, estado.tabelaMarcas || {}, lido.porCodigo);
+        estado.nomeTabelaMarcas = nome;
+      }
+      if (nChaves) Object.assign(estado.mapaMarcas, lido.porChave);
+      let erroGrav = null;
+      try {
+        if (nCodigos) await guardarTabelaMarcas(nome);
+        if (nChaves) await guardarMapaMarcas();
+      } catch (err) { erroGrav = err.message || String(err); estado.gravacao = { ok: false, em: null, erro: erroGrav }; }
       recalcular();
       renderTudo();
-      const total = Object.keys(tabela).length;
-      const casaram = itens().filter((i) => i.marca).length;
-      if (estado.gravacao.ok) {
-        recado('Tabela de marcas carregada e gravada',
-          n(total) + ' códigos com marca. Conferi a gravação: ' + n(gravados) + ' voltaram do banco. ' +
-          'Agora ' + n(casaram) + ' dos ' + n(itens().length) + ' itens do estoque têm marca.');
+      const depois = itens().filter((i) => i.marca).length;
+      const ganho = depois - antes;
+      const oQue = [nChaves ? n(nChaves) + ' prefixos ou grupos' : null, nCodigos ? n(nCodigos) + ' codigos' : null]
+        .filter(Boolean).join(' e ');
+      if (!erroGrav) {
+        recado('Marcas aplicadas e gravadas',
+          oQue + ' vieram preenchidos. ' +
+          (ganho > 0 ? n(ganho) + ' itens ganharam marca agora' : 'Nenhum item novo casou') +
+          ', totalizando ' + n(depois) + ' de ' + n(itens().length) + '.' +
+          (lido.vazias ? ' Deixei de fora ' + n(lido.vazias) + ' linhas que voltaram sem marca; e so preencher e subir de novo.' : ''));
       } else {
-        recado('Tabela carregada, mas NÃO gravada',
-          n(total) + ' códigos já valem nesta tela, mas não consegui gravar (' + estado.gravacao.erro + ').', 'erro');
+        recado('Marcas aplicadas, mas NAO gravadas',
+          oQue + ' valem nesta tela, mas nao consegui gravar (' + erroGrav + ').', 'erro');
       }
       trocarVista('marcas');
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -3859,13 +3881,33 @@ liga('#btPedidoUrgente', 'click', () => {
 
 liga('#btTabelaMarcas', 'click', () => $('#arquivo').click());
 liga('#btModeloMarcas', 'click', () => {
-  const exemplos = itens().filter((i) => !i.marca).slice(0, 30);
-  baixar('modelo-tabela-de-marcas.csv',
-    paraCsv(['Codigo', 'Marca'], exemplos.map((i) => [i.produto || i.interno, ''])),
+  /* Uma linha por prefixo ou grupo, nao por item: preencher 30 linhas aqui
+     marca milhares de itens, enquanto 30 linhas item a item marcariam 30.
+     Ordenado pelo que ainda falta, entao as primeiras linhas rendem mais. */
+  const pendentes = resumoPrefixos().filter((p) => p.semMarca > 0);
+  if (!pendentes.length) { recado('Nada a preencher', 'Todos os prefixos e grupos ja tem marca.'); return; }
+  const marcasRef = MARCAS_PABU.map(([m]) => m);
+  const linhas = pendentes.map((p, idx) => {
+    const pecas = [...p.exemplos.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([d]) => d).join(' / ');
+    const codigos = itens().filter((x) => x.chaveDoMapa === p.chave && !x.marca).slice(0, 3).map((x) => x.produto).join(' / ');
+    return [
+      p.chave,
+      p.tipo === 'grupo' ? 'grupo' : 'prefixo',
+      p.rotulo + (p.detalhe ? ' (' + p.detalhe + ')' : ''),
+      p.semMarca,
+      pecas,
+      codigos,
+      '',
+      marcasRef[idx] || '',
+    ];
+  });
+  baixar('marcas-para-preencher.csv',
+    paraCsv(['Chave', 'Tipo', 'Prefixo ou grupo', 'Itens sem marca', 'Pecas tipicas', 'Codigos de exemplo', 'MARCA (preencha aqui)', 'Marcas validas (referencia)'], linhas),
     'text/csv');
-  recado('Modelo baixado',
-    'Abra no Excel, preencha a coluna Marca e arraste o arquivo de volta para cá. ' +
-    'Pode acrescentar quantas linhas quiser — o código pode ser o interno, o do produto ou o original.');
+  recado('Modelo baixado com ' + n(linhas.length) + ' linhas',
+    'Abra no Excel e preencha so a coluna MARCA. Nao mexa na coluna Chave. As linhas vem da que mais rende para a que menos rende \u2014 ' +
+    'as 20 primeiras ja marcam ' + n(pendentes.slice(0, 20).reduce((a, x) => a + x.semMarca, 0)) + ' itens. ' +
+    'A ultima coluna lista as marcas validas, e so copiar. Depois arraste o arquivo de volta para ca.');
 });
 
 liga('#fBuscaPrefixo', 'input', () => renderMarcas());

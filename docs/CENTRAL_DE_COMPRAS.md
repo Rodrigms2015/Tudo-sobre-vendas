@@ -261,7 +261,20 @@ exporta a lista de produtos com o fabricante; o **Opus** tem o campo de marca no
 produtos. Serve qualquer planilha, até feita à mão — o botão *Baixar modelo* gera um CSV já
 preenchido com os códigos que faltam.
 
-**3. Mapa de prefixos e grupos**, preenchido à mão na aba Marcas.
+**3. Mapa de prefixos e grupos**, preenchido à mão na aba Marcas — ou pelo modelo que a
+própria página gera.
+
+O botão *Baixar modelo* exporta **uma linha por prefixo ou grupo pendente**, não por item:
+preencher 25 linhas marca milhares de itens, enquanto 25 linhas item a item marcariam 25. No
+arquivo real, o modelo sai com 516 linhas, e as 20 primeiras cobrem 3.855 itens.
+
+Cada linha traz a evidência para decidir — peças típicas e códigos de exemplo — e a última
+coluna lista as 61 marcas válidas, para copiar em vez de digitar. A coluna `Chave` carrega o
+identificador (`P:REX`, `G:004784`); ao voltar, a importação reconhece que aquilo é chave de
+mapa e não código de produto, e marca o prefixo ou o grupo inteiro.
+
+Linhas devolvidas em branco são ignoradas sem reclamar, e a confirmação diz quantas ficaram
+de fora — preencher aos poucos e subir várias vezes funciona: cada carga soma à anterior.
 
 **4. Detecção pelo padrão do código** — a única que adivinha, e por isso a última.
 

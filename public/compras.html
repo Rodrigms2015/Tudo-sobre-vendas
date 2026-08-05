@@ -989,6 +989,7 @@
     </div>
     <div id="demandaConteudo">
       <div class="secao"><div class="placas" id="placasDemanda"></div></div>
+      <div class="secao"><div class="aviso oculto" data-tom="atencao" id="avisoParcial"></div></div>
       <div class="secao">
         <div class="secao-topo"><h2>Venda por mês</h2><span class="nota" id="periodoDemanda"></span></div>
         <div class="cartao"><div class="cartao-corpo"><div id="curvaMensal"></div></div></div>
@@ -1678,9 +1679,27 @@ async function lerPdf(buf) {
 
 /* A descricao que ocupa a coluna inteira fica colada na data por um
    espaco so; exigir dois perdia justamente as linhas mais completas. */
-const LINHA_MOVIMENTO = /^\s*(\d{1,3})\s+(\d{1,3})\s+(\d{6,14})\s+(.+?)\s+(\d{1,2}\/\d{1,2}\/\d{2,4})\s+(\S+)\s+(\S{1,3})\s+([ESes])\s+([\d.,]+)/;
+/* Numero com sinal: as devolucoes vem negativas, e o relatorio usa ponto
+   ou virgula como decimal dependendo de qual e. */
+function paraQuantidade(v) {
+  let t = String(v ?? '').trim();
+  if (!t) return null;
+  const negativo = t.startsWith('-');
+  if (negativo) t = t.slice(1);
+  if (t.includes(',')) t = t.replace(/\./g, '').replace(',', '.');
+  const n = Number(t);
+  if (!Number.isFinite(n)) return null;
+  return negativo ? -n : n;
+}
 
-function movimentosDeTexto(linhas) {
+/* ── Formato 1: Movimentacao Atual de Produto ────────────────────────
+   Uma linha por movimento, com o codigo do produto na propria linha e
+   coluna TP dizendo se e entrada ou saida.
+   A descricao que ocupa a coluna inteira fica colada na data por um
+   espaco so; exigir dois perdia justamente as linhas mais completas. */
+const LINHA_MOVIMENTO = /^\s*(\d{1,3})\s+(\d{1,3})\s+(\d{6,14})\s+(.+?)\s+(\d{1,2}\/\d{1,2}\/\d{2,4})\s+(\S+)\s+(\S{1,3})\s+([ESes])\s+(-?[\d.,]+)/;
+
+function lerMovimentacaoDireta(linhas) {
   const movimentos = [];
   let ignoradas = 0;
   for (const l of linhas) {
@@ -1688,7 +1707,7 @@ function movimentosDeTexto(linhas) {
     const m = LINHA_MOVIMENTO.exec(l);
     if (!m) { ignoradas++; continue; }
     const data = paraData(m[5]);
-    const qtd = paraDinheiro(m[9]);
+    const qtd = paraQuantidade(m[9]);
     if (!data || qtd === null) { ignoradas++; continue; }
     movimentos.push({
       filial: m[1], produto: m[3], descricao: m[4].trim(),
@@ -1697,6 +1716,56 @@ function movimentosDeTexto(linhas) {
     });
   }
   return { movimentos, ignoradas };
+}
+
+/* ── Formato 2: Relacao de Consumo Analitica (IAMMR2) ────────────────
+   O produto nao esta na linha: vem num cabecalho "Produto...: 0210525003"
+   e vale para o bloco inteiro abaixo dele. Todo lancamento e consumo, ou
+   seja, saida — e devolucao aparece com quantidade negativa, que precisa
+   abater a demanda em vez de somar. */
+const CABECALHO_PRODUTO = /^\s*Produto\.*\s*:\s*(\S+)/i;
+const LINHA_CONSUMO = /^\s*(\d{1,2}\/\d{1,2}\/\d{2,4})\s+(\d{1,3})\s+(\S+)\s+(\d{1,3})\s+(\d{1,3})\s+(\d{1,3})\s+(-?[\d.,]+)(?:\s+(\d{1,3})\s+(\d{1,3})\s+(\S+))?/;
+
+function lerConsumoAnalitico(linhas) {
+  const movimentos = [];
+  let ignoradas = 0, produto = null, filial = '';
+  for (const l of linhas) {
+    if (!l || !l.trim()) continue;
+    const cab = CABECALHO_PRODUTO.exec(l);
+    if (cab) { produto = /^\d{4,}$/.test(cab[1]) ? cab[1] : null; continue; }
+    const fi = /^\s*Fi:\s*(\d+)/.exec(l);
+    if (fi) { filial = fi[1]; continue; }
+    const m = LINHA_CONSUMO.exec(l);
+    if (!m || !produto) { ignoradas++; continue; }
+    const data = paraData(m[1]);
+    const qtd = paraQuantidade(m[7]);
+    if (!data || qtd === null || qtd === 0) { ignoradas++; continue; }
+    movimentos.push({
+      filial, produto, descricao: '',
+      data: data.toISOString().slice(0, 10),
+      documento: m[3], tr: m[6], tp: 'S', qtd,
+      cliente: m[10] || '',
+    });
+  }
+  return { movimentos, ignoradas };
+}
+
+const LEITORES_TEXTO = [
+  { nome: 'Movimentação Atual de Produto', ler: lerMovimentacaoDireta },
+  { nome: 'Relação de Consumo, analítica', ler: lerConsumoAnalitico },
+];
+
+/* Tenta os formatos conhecidos e fica com o que reconheceu mais linhas.
+   Nao ha ambiguidade na pratica: um relatorio so casa com o proprio. */
+function movimentosDeTexto(linhas) {
+  let melhor = { movimentos: [], ignoradas: linhas.length, formato: null };
+  for (const leitor of LEITORES_TEXTO) {
+    const r = leitor.ler(linhas);
+    if (r.movimentos.length > melhor.movimentos.length) {
+      melhor = { movimentos: r.movimentos, ignoradas: r.ignoradas, formato: leitor.nome };
+    }
+  }
+  return melhor;
 }
 
 function lerCsv(texto) {
@@ -2324,6 +2393,19 @@ function analisar(itens, mapaMarcas = {}, resumo = null, tabelaMarcas = null) {
      quanto o item realmente saiu. A escala é relativa à própria carteira:
      o topo da casa vale o peso inteiro. Volume e frequência entram
      juntos — 440 unidades em 1 pedido não é giro, é uma obra. */
+  /* Um relatorio filtrado cobre poucos produtos. Nesse caso, "nao aparece
+     no relatorio" NAO significa "nao vendeu" — significa que nao foi
+     medido. Tratar ausencia como zero inventaria capital morto que nao
+     existe e derrubaria a nota de itens que vendem bem. */
+  let cobertura = 0, abrangente = false;
+  if (resumo) {
+    const noRelatorio = itens.filter((i) => resumo.demanda.has(i.interno)).length;
+    cobertura = itens.length ? noRelatorio / itens.length : 0;
+    abrangente = cobertura >= 0.5;
+    resumo.cobertura = cobertura;
+    resumo.abrangente = abrangente;
+    resumo.itensCobertos = noRelatorio;
+  }
   let escalaVolume = 0, escalaPedidos = 0;
   if (resumo) {
     const vols = [...resumo.demanda.values()].map((d) => d.porDia).sort((a, b) => a - b);
@@ -2424,10 +2506,16 @@ function analisar(itens, mapaMarcas = {}, resumo = null, tabelaMarcas = null) {
       fatores.push({ nome: 'Giro', pontos: p, texto: 'Saíram ' + Math.round(dem.unidades) + ' unidades em ' + dem.pedidos +
         ' pedido' + (dem.pedidos > 1 ? 's' : '') + ' ao longo de ' + resumo.dias + ' dias' +
         (dem.mesesComVenda > 1 ? ', em ' + dem.mesesComVenda + ' meses diferentes' : ', concentradas num mês só') + '.' });
-    } else if (resumo) {
+    } else if (resumo && abrangente) {
       const p = 0;
       pontos += p; pesoAplicado += PESOS.giro;
       fatores.push({ nome: 'Giro', pontos: p, texto: 'Nenhuma saída em ' + resumo.dias + ' dias de movimentação. Curva ' + (item.curva || '—') + ' no cadastro, mas sem venda medida.' });
+    } else if (resumo && item.curva && PESO_CURVA[item.curva] !== undefined) {
+      /* Fora do recorte do relatorio: cai para a curva e diz por que. */
+      const p = PESOS.giro * PESO_CURVA[item.curva];
+      pontos += p; pesoAplicado += PESOS.giro;
+      fatores.push({ nome: 'Giro', pontos: p, texto: 'Este item não está no relatório de venda carregado, que cobre ' +
+        pct(cobertura) + ' do cadastro. Sem medida, vale a curva ' + item.curva + ' — não é venda zero, é venda não medida.' });
     } else if (item.curva && PESO_CURVA[item.curva] !== undefined) {
       const p = PESOS.giro * PESO_CURVA[item.curva];
       pontos += p; pesoAplicado += PESOS.giro;
@@ -2645,6 +2733,7 @@ function resumirDemanda(movimentos) {
     inicio: new Date(inicio).toISOString().slice(0, 10),
     fim: new Date(fim).toISOString().slice(0, 10),
     porMes: meses.map((mes) => ({ mes, unidades: porMes.get(mes) })),
+    formato: estado.formatoMovimentos || null,
     totalSaida: [...demanda.values()].reduce((s, d) => s + d.unidades, 0),
     produtosComVenda: demanda.size,
     linhas: movimentos.length,
@@ -2725,6 +2814,7 @@ const estado = {
   quantidades: {},
   tabelaMarcas: null,
   nomeTabelaMarcas: null,
+  formatoMovimentos: null,
   gravacao: { ok: null, em: null, erro: null },
   nomeMovimentos: null,
   emMovimentos: null,
@@ -3248,20 +3338,39 @@ function renderDemanda() {
     .sort((a, b) => b.demandaUsada.unidades - a.demandaUsada.unidades);
   const unidadesMortas = mortos.reduce((s, i) => s + (i.saldo || 0), 0);
 
+  const abrangente = R.abrangente !== false;
   $('#placasDemanda').innerHTML = [
     placa({ rotulo: 'Saída no período', valor: n(Math.round(R.totalSaida)), rodape: n(R.produtosComVenda) + ' peças diferentes em ' + R.dias + ' dias · ' + (R.totalSaida / R.dias).toFixed(0) + ' unidades por dia', tom: 'marca' }),
     placa({ rotulo: 'Zerado e vendendo', valor: n(zeradoVendendo.length), rodape: 'saldo zero com venda comprovada — é a compra que não pode esperar', tom: 'critico' }),
-    placa({ rotulo: 'Não vendeu nada', valor: n(semVenda.length), rodape: pct(semVenda.length / L.length) + ' do cadastro sem uma única saída no período', tom: 'atencao' }),
-    placa({
-      rotulo: 'Capital morto',
-      valor: temCusto() ? brl(somaValor(mortos, (i) => i.saldo || 0)) : n(unidadesMortas),
-      rodape: n(mortos.length) + ' itens com saldo e zero venda' + (temCusto() ? '' : ' · ' + n(unidadesMortas) + ' unidades'),
-      tom: 'parado',
-    }),
+    /* Com relatorio parcial, "nao vendeu" e indistinguivel de "nao foi
+       medido". Dizer o numero seria inventar capital morto. */
+    abrangente
+      ? placa({ rotulo: 'Não vendeu nada', valor: n(semVenda.length), rodape: pct(semVenda.length / L.length) + ' do cadastro sem uma única saída no período', tom: 'atencao' })
+      : placa({ rotulo: 'Fora do relatório', valor: n(semVenda.length), rodape: 'não foram medidos — o relatório cobre ' + pct(R.cobertura || 0) + ' do cadastro. Não é venda zero.', tom: 'neutro' }),
+    abrangente
+      ? placa({
+          rotulo: 'Capital morto',
+          valor: temCusto() ? brl(somaValor(mortos, (i) => i.saldo || 0)) : n(unidadesMortas),
+          rodape: n(mortos.length) + ' itens com saldo e zero venda' + (temCusto() ? '' : ' · ' + n(unidadesMortas) + ' unidades'),
+          tom: 'parado',
+        })
+      : placa({ rotulo: 'Itens medidos', valor: n(R.itensCobertos || 0), rodape: 'de ' + n(L.length) + ' no cadastro. Para ver capital morto, rode o relatório sem filtrar produto.', tom: 'neutro' }),
   ].join('');
 
   $('#periodoDemanda').textContent = 'de ' + dataBr(R.inicio) + ' a ' + dataBr(R.fim) + ' · ' + n(R.linhas) + ' lançamentos' +
-    (R.filiais.length ? ' · filial ' + R.filiais.join(', ') : '');
+    (R.filiais.length ? ' · filial ' + R.filiais.join(', ') : '') +
+    (R.formato ? ' · ' + R.formato : '');
+
+  const avisoParcial = $('#avisoParcial');
+  if (avisoParcial) {
+    avisoParcial.classList.toggle('oculto', abrangente);
+    if (!abrangente) {
+      avisoParcial.innerHTML = '<span class="icone">!</span><div><b>Este relatório cobre ' +
+        pct(R.cobertura || 0) + ' do cadastro</b> — ' + n(R.itensCobertos || 0) + ' de ' + n(L.length) + ' itens. ' +
+        'Para os outros, a página <b>não conclui que não venderam</b>: eles continuam sendo avaliados pela curva ABC, e o detalhe de cada um diz isso. ' +
+        'Se quiser a foto inteira, rode o mesmo relatório <b>sem filtrar produto</b> e suba de novo.</div>';
+    }
+  }
 
   const maxMes = Math.max(...R.porMes.map((m) => m.unidades), 1);
   const nomeMes = (iso) => {
@@ -3830,8 +3939,10 @@ function abrirModal(titulo, nota, texto, csv, nomeCsv) {
 /* ─── 21. Carregar arquivo ───────────────────────────────────────── */
 
 async function aplicarMovimentos(movimentos, nome, extra = '') {
+  const produtosDistintos = new Set(movimentos.map((m) => m.produto)).size;
   estado.movimentos = movimentos;
   estado.nomeMovimentos = nome;
+  estado.formatoMovimentos = movimentos.formato || estado.formatoMovimentos || null;
   let gravados = null;
   try { gravados = await guardarMovimentos(nome); }
   catch (err) { estado.gravacao = { ok: false, em: null, erro: err.message || String(err) }; }
@@ -3841,7 +3952,12 @@ async function aplicarMovimentos(movimentos, nome, extra = '') {
   if (estado.gravacao.ok) {
     recado('Movimentação carregada e gravada',
       n(movimentos.length) + ' lançamentos de ' + dataBr(R.inicio) + ' a ' + dataBr(R.fim) + ' (' + R.dias + ' dias). ' +
-      'Conferi a gravação: ' + n(gravados) + ' linhas voltaram do banco. A sugestão de compra agora usa venda medida.' + extra);
+      'Conferi a gravação: ' + n(gravados) + ' linhas voltaram do banco. ' +
+      'Cobre ' + n(produtosDistintos) + ' produtos' +
+      (R.cobertura !== undefined ? ' (' + pct(R.cobertura) + ' do cadastro)' : '') + '. ' +
+      (R.abrangente === false
+        ? 'Como é um recorte, os itens de fora continuam avaliados pela curva — a página não conclui que eles não venderam.'
+        : 'A sugestão de compra agora usa venda medida.') + extra);
   } else {
     recado('Movimentação carregada, mas NÃO gravada',
       n(movimentos.length) + ' lançamentos valem nesta tela, mas não consegui gravar (' + estado.gravacao.erro + ').', 'erro');
@@ -3857,7 +3973,8 @@ async function carregarArquivo(file) {
     if (/\.pdf$/i.test(nome)) {
       /* PDF e sempre relatorio de venda: o estoque sai em Excel. */
       const linhasTexto = await lerPdf(await file.arrayBuffer());
-      const { movimentos, ignoradas } = movimentosDeTexto(linhasTexto);
+      const { movimentos, ignoradas, formato } = movimentosDeTexto(linhasTexto);
+      estado.formatoMovimentos = formato;
       if (!movimentos.length) {
         throw new Error('Li ' + linhasTexto.length + ' linhas de texto no PDF, mas nenhuma tinha o formato de movimentação ' +
           '(filial, código, descrição, data, documento, tipo E/S e quantidade). ' +
@@ -3874,6 +3991,7 @@ async function carregarArquivo(file) {
       const texto = await file.text();
       const doTexto = movimentosDeTexto(texto.split(/\r?\n/));
       if (doTexto.movimentos.length > 20) {
+        estado.formatoMovimentos = doTexto.formato;
         await aplicarMovimentos(doTexto.movimentos, nome,
           ' Lidas ' + n(doTexto.movimentos.length) + ' linhas de movimentação do texto.');
         return;
@@ -3930,6 +4048,7 @@ async function carregarArquivo(file) {
     const iMov = ehMovimentacao(linhas);
     if (iMov >= 0) {
       const movimentos = normalizarMovimentacao(linhas, iMov);
+      estado.formatoMovimentos = 'planilha de movimentação';
       await aplicarMovimentos(movimentos, nome);
       return;
     }

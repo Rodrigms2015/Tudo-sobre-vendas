@@ -177,6 +177,37 @@ Dois erros custaram o resultado até chegar lá, e ambos são fáceis de repetir
 PDF digitalizado (foto de papel) não tem texto, e a leitura avisa isso em vez de devolver
 vazio. `.txt` de captura de tela do terminal entra pelo mesmo caminho.
 
+### Dois relatórios de venda, layouts diferentes
+
+O Opus entrega a venda em mais de um formato, e eles não se parecem:
+
+| Relatório | Como vem |
+|---|---|
+| **Movimentação Atual de Produto** | uma linha por movimento, com o código do produto na própria linha e coluna `TP` dizendo E ou S |
+| **IAMMR2 — Relação de Consumo, analítica** | agrupado: o código vem num cabeçalho `Produto...: 0210525003` e vale para o bloco abaixo. Todo lançamento é saída, e **devolução aparece com quantidade negativa** |
+
+A leitura tenta os dois e fica com o que reconhecer mais linhas — não há ambiguidade na
+prática, cada relatório só casa com o próprio. O decimal também muda entre eles (`1,00` num,
+`5.00` no outro) e os dois são aceitos.
+
+### Ausência de medida não é venda zero
+
+Um relatório filtrado cobre poucos produtos. O PDF real que chegou cobria **51 produtos de
+9.383 — 0,5% do cadastro.**
+
+Tratar "não aparece no relatório" como "não vendeu" inventaria capital morto que não existe e
+derrubaria a nota de itens que vendem bem. Então, quando a cobertura fica abaixo de 50%:
+
+- o componente **Giro** volta a valer pela curva ABC para os itens de fora, e o fator escrito
+  no item diz: *"não está no relatório de venda carregado, que cobre 0,5% do cadastro. Sem
+  medida, vale a curva A — não é venda zero, é venda não medida"*;
+- as placas **Não vendeu nada** e **Capital morto** são substituídas por *Fora do relatório* e
+  *Itens medidos*, que descrevem o que de fato se sabe;
+- um aviso no topo diz a cobertura e como obter a foto inteira.
+
+É a mesma regra de sempre, aplicada à cobertura em vez de ao campo: dado ausente não vira
+zero disfarçado.
+
 ---
 
 ## 3b. Quantidade sugerida — e o que muda no segundo envio

@@ -487,8 +487,9 @@ footer b{color:var(--texto)}
       </div>
       <div class="metrica">
         <span class="rot">Bloqueio</span><div class="val sm">Fila de decisão</div>
-        <p class="nota">Só a fila, com veredito, evidência, decisão e observação. É o anexo do e-mail para quem opera a plataforma.</p>
-        <div class="acoes" style="margin-top:12px"><button class="b" id="expFila" type="button">Baixar .xlsx</button></div>
+        <p class="nota">Duas abas: uma para cortar no site, outra para cortar no catálogo. É o anexo do e-mail para quem opera cada plataforma. O <b>.csv</b> é a versão que abre em qualquer lugar, até na pré-visualização do e-mail.</p>
+        <div class="acoes" style="margin-top:12px"><button class="b" id="expFila" type="button">Baixar .xlsx</button>
+        <button class="b" id="expCsv" type="button">Baixar .csv</button></div>
       </div>
     </div>
   </div>
@@ -635,7 +636,7 @@ async function lerZip(buffer){
   return saida;
 }
 
-/* ---------- ZIP: escrita (sem compressão, só CRC) ---------- */
+/* ---------- ZIP: escrita ---------- */
 
 const TABELA_CRC = (() => {
   const t = new Uint32Array(256);
@@ -653,8 +654,22 @@ function crc32(bytes){
   return (c ^ 0xFFFFFFFF) >>> 0;
 }
 
-/** entradas: [{nome, texto}] -> Blob de ZIP com entradas armazenadas. */
-function escreverZip(entradas){
+async function comprimir(bytes){
+  if (typeof CompressionStream === 'undefined') return null;
+  try {
+    const fluxo = new Blob([bytes]).stream().pipeThrough(new CompressionStream('deflate-raw'));
+    return new Uint8Array(await new Response(fluxo).arrayBuffer());
+  } catch { return null; }
+}
+
+/**
+ * entradas: [{nome, texto}] -> Blob de ZIP.
+ *
+ * As entradas vão DEFLATADAS, não apenas armazenadas. Um ZIP sem compressão
+ * é válido e o Excel abre, mas fica enorme e os visualizadores online (Gmail,
+ * Drive) recusam. Comprimir resolve os dois de uma vez.
+ */
+async function escreverZip(entradas){
   const cod = new TextEncoder();
   const locais = [];
   const centrais = [];
@@ -662,17 +677,23 @@ function escreverZip(entradas){
 
   for (const e of entradas){
     const nome = cod.encode(e.nome);
-    const dados = cod.encode(e.texto);
-    const crc = crc32(dados);
+    const cru = cod.encode(e.texto);
+    const crc = crc32(cru);
+
+    const comprimido = await comprimir(cru);
+    // Só vale a pena se encolheu de verdade.
+    const usaDeflate = comprimido && comprimido.length < cru.length;
+    const dados = usaDeflate ? comprimido : cru;
+    const metodo = usaDeflate ? 8 : 0;
 
     const lh = new Uint8Array(30 + nome.length);
     const lv = new DataView(lh.buffer);
     lv.setUint32(0, 0x04034b50, true);
     lv.setUint16(4, 20, true);
-    lv.setUint16(8, 0, true);          // método 0 = armazenado
+    lv.setUint16(8, metodo, true);
     lv.setUint32(14, crc, true);
     lv.setUint32(18, dados.length, true);
-    lv.setUint32(22, dados.length, true);
+    lv.setUint32(22, cru.length, true);
     lv.setUint16(26, nome.length, true);
     lh.set(nome, 30);
     locais.push(lh, dados);
@@ -682,10 +703,10 @@ function escreverZip(entradas){
     cv.setUint32(0, 0x02014b50, true);
     cv.setUint16(4, 20, true);
     cv.setUint16(6, 20, true);
-    cv.setUint16(10, 0, true);
+    cv.setUint16(10, metodo, true);
     cv.setUint32(16, crc, true);
     cv.setUint32(20, dados.length, true);
-    cv.setUint32(24, dados.length, true);
+    cv.setUint32(24, cru.length, true);
     cv.setUint16(28, nome.length, true);
     cv.setUint32(42, desloc, true);
     ch.set(nome, 46);
@@ -842,7 +863,7 @@ function nomeAbaValido(nome, usados){
  * abas: [{ nome, linhas: [[valor,...]] }]. Primeira linha vira cabeçalho em negrito.
  * Números viram número de verdade na planilha; o resto vai como texto.
  */
-function escreverXlsx(abas){
+async function escreverXlsx(abas){
   const usados = new Set();
   const prontas = abas.map((a) => ({ nome: nomeAbaValido(a.nome, usados), linhas: a.linhas || [] }));
 
@@ -2790,6 +2811,10 @@ function abaFila(plat){
       aval.acao, aval.fatores.join(' | '), aval.lacunas.join(' | '),
       aval.decisao || '', BASE.observacoes[chaveDecisao(c.codigo, pl)] || '']);
   }
+  if (l.length === 1){
+    l.push([plat ? PLATAFORMAS[plat].rotulo : '—', '—', '—',
+      'Nenhum caso: com a régua atual ninguém entrou nesta fila.', '', '', null, null, null, null, null, '', '', '', '', '']);
+  }
   return { nome: plat === 'ECOMMERCE' ? 'Cortar site' : (plat === 'CATALOGO' ? 'Cortar Carpa' : 'Fila de decisão'), linhas: l };
 }
 
@@ -2845,9 +2870,9 @@ function linhasCarteira(vend){
   return [CAB_CLIENTE, ...lista.map(linhaCliente)];
 }
 
-function exportarCarteira(vend){
+async function exportarCarteira(vend){
   const nome = nomeAbaVend(vend).replace(/[^\wÀ-ÿ.-]+/g, '_');
-  baixar(escreverXlsx([{ nome: nomeAbaVend(vend).slice(0, 28), linhas: linhasCarteira(vend) }]),
+  baixar(await escreverXlsx([{ nome: nomeAbaVend(vend).slice(0, 28), linhas: linhasCarteira(vend) }]),
     nomeArquivo(`Carteira_${nome}`, 'xlsx'));
 }
 
@@ -2864,12 +2889,38 @@ function exportarPacote(){
   baixar(new Blob([JSON.stringify(BASE)], { type: 'application/json' }), nomeArquivo('pacote-carpa', 'json'));
 }
 
-function exportarHtmlCompleto(){
+/** CSV com ponto e vírgula e BOM: é o que o Excel em português espera. */
+function paraCsv(linhas){
+  const campo = (v) => {
+    if (v === null || v === undefined) return '';
+    const t = String(v);
+    return /[";\n\r]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t;
+  };
+  return '\ufeff' + linhas.map((l) => l.map(campo).join(';')).join('\r\n');
+}
+
+function exportarCsvFila(){
+  const abas = [abaFila('ECOMMERCE'), abaFila('CATALOGO')];
+  const linhas = [abas[0].linhas[0], ...abas[0].linhas.slice(1), ...abas[1].linhas.slice(1)];
+  baixar(new Blob([paraCsv(linhas)], { type: 'text/csv;charset=utf-8' }), nomeArquivo('FilaBloqueio', 'csv'));
+}
+
+async function exportarHtmlCompleto(){
   salvar();
   if (!MOLDE){ alert('Não consegui montar o arquivo. Recarregue a página e tente de novo.'); return; }
-  const json = JSON.stringify(BASE)
-    .replace(/</g, '\\u003c').replace(/>/g, '\\u003e')
-    .replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
+
+  // O pacote vai compactado e em base64: sem isso o HTML fica com megabytes
+  // de JSON cru, o que trava anexo de e-mail e visualizador online.
+  const cru = new TextEncoder().encode(JSON.stringify(BASE));
+  const gz = await comprimir(cru);
+  let json;
+  if (gz){
+    json = `"gz:${btoa(bytesParaBin(gz))}"`;
+  } else {
+    json = JSON.stringify(BASE)
+      .replace(/</g, '\\u003c').replace(/>/g, '\\u003e')
+      .replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
+  }
   const script = `<script id="pacote-embutido">window.__PACOTE_CARPA__=${json};<\/script>`;
   const saida = MOLDE.replace(/<script id="pacote-embutido">[\s\S]*?<\/script>/, script);
   if (saida === MOLDE){ alert('Não achei onde encaixar os dados neste arquivo.'); return; }
@@ -3034,16 +3085,17 @@ function ligarEventos(){
   };
 
   $('#expJson').onclick = exportarPacote;
+  $('#expCsv').onclick = exportarCsvFila;
   $('#expHtml').onclick = exportarHtmlCompleto;
-  $('#expGeral').onclick = () => baixar(escreverXlsx([
+  $('#expGeral').onclick = async () => baixar(await escreverXlsx([
     abaResumo(), abaClientes(), abaFila('ECOMMERCE'), abaFila('CATALOGO'), abaVendedores(), abaCadastros(), abaLacunas(),
   ]), nomeArquivo('PainelCarpa', 'xlsx'));
-  $('#expFila').onclick = () => baixar(escreverXlsx([abaResumo(), abaFila('ECOMMERCE'), abaFila('CATALOGO')]),
+  $('#expFila').onclick = async () => baixar(await escreverXlsx([abaResumo(), abaFila('ECOMMERCE'), abaFila('CATALOGO')]),
     nomeArquivo('FilaBloqueio', 'xlsx'));
-  $('#expCarteiras').onclick = () => {
+  $('#expCarteiras').onclick = async () => {
     const vs = vendedoresPorPlacar(false);
     if (!vs.length) return;
-    baixar(escreverXlsx(vs.map((v) => ({ nome: nomeAbaVend(v), linhas: linhasCarteira(v) }))),
+    baixar(await escreverXlsx(vs.map((v) => ({ nome: nomeAbaVend(v), linhas: linhasCarteira(v) }))),
       nomeArquivo('Carteiras', 'xlsx'));
   };
   $('#expPorVend').onclick = () => {
@@ -3058,7 +3110,7 @@ function ligarEventos(){
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') fecharGaveta(); });
 }
 
-function partir(){
+async function partir(){
   // O molde é tirado antes de qualquer pintura e antes de marcar o tema,
   // para que o HTML gerado saia limpo e respeite a escolha de quem abrir.
   MOLDE = document.documentElement.outerHTML;
@@ -3066,7 +3118,7 @@ function partir(){
   aplicarTema(temaInicial());
 
   const tinha = carregar();
-  const embutido = window.__PACOTE_CARPA__;
+  const embutido = await abrirPacoteEmbutido(window.__PACOTE_CARPA__);
   if (embutido && embutido.versao === 1){
     const vazio = !tinha || (!Object.keys(BASE.competencias).length && !BASE.cadastros.length);
     if (vazio){
@@ -3090,6 +3142,23 @@ function partir(){
 
   if (typeof DecompressionStream === 'undefined'){
     anotar('! Este navegador é antigo demais para abrir .xlsx e .pdf aqui dentro. Use Chrome, Edge, Firefox ou Safari atualizados — ou importe um pacote .json.', 'warn');
+  }
+}
+
+/** O pacote pode vir como objeto (formato antigo) ou compactado em base64. */
+async function abrirPacoteEmbutido(p){
+  if (!p) return null;
+  if (typeof p === 'object') return p;
+  if (typeof p !== 'string' || !p.startsWith('gz:')) return null;
+  try {
+    const b64 = p.slice(3);
+    const bin = atob(b64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return JSON.parse(new TextDecoder().decode(await inflar(bytes, 'deflate-raw')));
+  } catch (e){
+    console.warn('não consegui abrir o pacote embutido', e);
+    return null;
   }
 }
 

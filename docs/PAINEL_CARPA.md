@@ -42,6 +42,14 @@ código — se o layout mudar de largura, o leitor acompanha.
 O `.xlsx` é lido pelo mesmo caminho: ZIP aberto na mão, XML pelo `DOMParser`.
 Nenhuma biblioteca, nenhuma rede.
 
+### Escrita: comprimir não é opcional
+
+O escritor de ZIP usa `CompressionStream('deflate-raw')`. Um ZIP com entradas
+apenas **armazenadas** é válido e o Excel abre — mas fica ~12× maior, e os
+visualizadores online (Gmail, Drive) recusam o arquivo. O mesmo vale para o
+pacote embutido no HTML gerado: ele vai compactado e em base64, senão o arquivo
+carrega megabytes de JSON cru e trava como anexo.
+
 ## 3. Duas plataformas, duas decisões
 
 Este é o ponto que não pode ser confundido:
@@ -126,8 +134,9 @@ O arquivo é montado por concatenação de partes, mas vive versionado inteiro e
 
 - Abra com os relatórios de verdade e confira se a contagem de linhas do PDF bate
   com o rodapé do relatório.
-- Exporte um `.xlsx` e abra fora do navegador. O escritor de ZIP é próprio; se
-  quebrar, quebra silenciosamente.
+- Exporte um `.xlsx` e abra fora do navegador **e** confira o tamanho. O escritor
+  de ZIP é próprio; se quebrar, quebra silenciosamente, e se parar de comprimir
+  o arquivo incha sem dar erro nenhum.
 - Exporte o **HTML completo** e abra num perfil limpo de navegador. É o caminho
   que o outro gestor vai usar, e é o único que não passa por `localStorage`.
 - `npm run check` não cobre este arquivo (os testes varrem `src/`). A conferência

@@ -249,6 +249,37 @@ A distribuição é muito desigual, e a tabela vem ordenada por tamanho: **preen
 maiores marca ~1.500 itens; as 30 maiores, ~3.100.** A lista nunca precisa ser preenchida
 inteira, e a tela diz isso.
 
+### Como trazer a marca, do melhor para o pior
+
+**1. Coluna `Marca` no próprio relatório de estoque.** Cadastro do sistema é a verdade.
+
+**2. Tabela de marcas importada.** Uma planilha com **duas colunas: um código e uma marca**.
+Entra pela mesma porta dos outros arquivos — o cabeçalho identifica sozinho. O código pode
+ser o interno, o do produto (com ou sem variante fiscal) ou o original; a busca tenta os
+quatro e o primeiro que casar vence. De onde tirar: o **site é Magento**, e o painel dele
+exporta a lista de produtos com o fabricante; o **Opus** tem o campo de marca no cadastro de
+produtos. Serve qualquer planilha, até feita à mão — o botão *Baixar modelo* gera um CSV já
+preenchido com os códigos que faltam.
+
+**3. Mapa de prefixos e grupos**, preenchido à mão na aba Marcas.
+
+**4. Detecção pelo padrão do código** — a única que adivinha, e por isso a última.
+
+> **Sobre raspar o site:** `pabu.com.br/robots.txt` declara `Disallow: /` para todos os
+> agentes. A exportação do painel Magento resolve o mesmo problema de forma completa,
+> autoritativa e sem carga no site.
+
+### Prefixo de fornecedor × prefixo de categoria
+
+Nem todo prefixo é fornecedor. Boa parte é abreviação de categoria da própria casa: `BB` são
+95% bronzinas, `AC` 81% amortecedores, `UB` 100% bombas d'água. Mapear esses para uma marca
+só estaria errado — dentro deles a marca varia item a item.
+
+A regra prática que a tela aplica: prefixo espalhado por **muitos tipos de peça** costuma ser
+fornecedor (`REX` e `MBU` cobrem categorias variadas); prefixo concentrado em **um tipo só**
+costuma ser categoria. Cada linha do mapa mostra essa pista, e a coluna *O que tem aqui
+dentro* dá a evidência para a pessoa julgar.
+
 ### O que a marca destrava
 
 - Coluna e filtro de marca na lista de compra.

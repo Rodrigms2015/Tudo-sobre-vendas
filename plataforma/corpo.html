@@ -670,6 +670,46 @@
     color: var(--tinta-2);
   }
 
+  /* Ajuda por aba: fica fechada, abre quando a pessoa quer, e lembra a escolha. */
+  .ajuda {
+    background: var(--papel);
+    border: 1px solid var(--borda);
+    border-left: 4px solid var(--marinho);
+    border-radius: var(--raio);
+    margin-bottom: 18px;
+    box-shadow: var(--sombra);
+    overflow: hidden;
+  }
+  .ajuda summary {
+    cursor: pointer;
+    padding: 13px 16px;
+    font-size: 13.5px;
+    font-weight: 650;
+    color: var(--marinho);
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    list-style: none;
+    min-height: 46px;
+  }
+  .ajuda summary::-webkit-details-marker { display: none; }
+  .ajuda summary::before {
+    content: "?";
+    width: 20px; height: 20px; border-radius: 50%;
+    background: var(--marinho); color: var(--papel);
+    display: grid; place-items: center;
+    font-size: 12px; font-weight: 800; flex-shrink: 0;
+  }
+  .ajuda summary::after { content: "abrir"; margin-left: auto; font-size: 11.5px; font-weight: 600; color: var(--tinta-3); }
+  .ajuda[open] summary::after { content: "fechar"; }
+  .ajuda summary:hover { background: var(--papel-2); }
+  .ajuda .corpo { padding: 0 16px 16px 45px; font-size: 13.5px; line-height: 1.6; color: var(--tinta-2); }
+  .ajuda .corpo p { margin-bottom: 9px; }
+  .ajuda .corpo p:last-child { margin-bottom: 0; }
+  .ajuda .corpo b { color: var(--tinta); }
+  .ajuda .corpo ol { margin: 0 0 9px; padding-left: 20px; }
+  .ajuda .corpo li { margin-bottom: 5px; }
+
   .oculto { display: none !important; }
 
   @media (max-width: 700px) {
@@ -739,6 +779,7 @@
 
   <!-- ── PAINEL ──────────────────────────────────────────────── -->
   <section class="vista ativa" id="vista-painel" hidden>
+    <details class="ajuda"><summary>O que esta tela responde</summary><div class="corpo"><p><b>Vale a pena olhar primeiro.</b> Ela pega os 9 mil itens do estoque e mostra quantos realmente exigem decisão sua nesta semana.</p><p>Leia de cima para baixo: as cinco placas dão o tamanho do problema; a régua <b>Da lista bruta à lista de compra</b> mostra como a lista encolhe e <b>por que</b> cada pedaço saiu; a matriz <b>Onde a falta dói</b> cruza giro com situação — <b>clique em qualquer célula</b> e ela abre a lista já filtrada.</p><p><b>Ruptura real</b> é diferente de saldo zero: o item só entra aí se nenhuma variante fiscal nem equivalente tiver peça na prateleira. É a falta que o cliente sente.</p></div></details>
     <div class="secao">
       <div class="placas" id="placasPainel"></div>
     </div>
@@ -786,6 +827,7 @@
 
   <!-- ── COMPRAR ─────────────────────────────────────────────── -->
   <section class="vista" id="vista-comprar" hidden>
+    <details class="ajuda"><summary>Como montar um pedido aqui</summary><div class="corpo"><ol><li>A lista já vem ordenada por <b>prioridade</b> — quanto maior a nota, mais o item precisa ser comprado agora.</li><li><b>Clique numa linha</b> para ver de onde saiu a nota. Cada ponto tem motivo escrito.</li><li>A coluna <b>Pedir</b> é sua: use os botões − e + ou digite. Fica laranja quando você muda, e mostra a sugestão ao lado.</li><li>Marque os itens no quadradinho e clique em <b>Montar solicitação de compra</b> na barra de baixo.</li></ol><p>Os filtros no topo estreitam a lista. O padrão já é o mais útil: ruptura real com prioridade 55 ou mais. Se quiser ver tudo, clique em <b>Limpar filtros</b>.</p></div></details>
     <div class="secao">
       <div class="secao-topo">
         <h2>Lista de compra priorizada</h2>
@@ -890,6 +932,7 @@
 
   <!-- ── OPORTUNIDADES ───────────────────────────────────────── -->
   <section class="vista" id="vista-oportunidades" hidden>
+    <details class="ajuda"><summary>Para que serve esta tela</summary><div class="corpo"><p>É o contrário da compra: aqui está o que já está na prateleira e <b>precisa sair</b>.</p><p><b>Capital parado</b> junta o que tem saldo alto e giro baixo — dinheiro que não gira sozinho. Cada bloco vira uma oferta pronta para a equipe.</p><p><b>Forte e disponível</b> é o contrário: curva A e B com saldo folgado, onde o vendedor pode prometer entrega sem consultar ninguém.</p><p>O botão <b>Gerar pauta para os vendedores</b> monta um texto pronto para mandar no grupo ou imprimir para a reunião.</p></div></details>
     <div class="secao">
       <div class="secao-topo">
         <h2>Lista de oportunidades para os vendedores</h2>
@@ -921,6 +964,7 @@
 
   <!-- ── DEMANDA ─────────────────────────────────────────────── -->
   <section class="vista" id="vista-demanda" hidden>
+    <details class="ajuda"><summary>O que a movimentação mostra</summary><div class="corpo"><p>Esta tela só existe depois que você sobe o relatório de <b>Movimentação de Produto</b>. Com ele, a compra deixa de ser estimativa e passa a ser venda medida.</p><p><b>Zerado e vendendo</b> é a lista mais importante do sistema: itens sem saldo que comprovadamente venderam no período. Cada linha ali é venda que você está perdendo hoje.</p><p><b>Capital morto</b> é o oposto: tem saldo e não vendeu <b>nenhuma</b> unidade no período inteiro. Não é giro baixo, é giro zero.</p><p>Se um item parou de vender porque <b>acabou</b>, a conta usa o ritmo de quando havia peça — senão a reposição repetiria a falta. Esses aparecem com <b>VENDA REAL ↑</b>.</p></div></details>
     <div id="demandaVazia" class="secao oculto">
       <div class="vazio">
         <div class="sobrancelha">Falta o relatório de movimentação</div>
@@ -982,6 +1026,7 @@
 
   <!-- ── MARCAS ──────────────────────────────────────────────── -->
   <section class="vista" id="vista-marcas" hidden>
+    <details class="ajuda"><summary>Por que definir marca</summary><div class="corpo"><p>Sem marca a plataforma funciona. Com marca, o pedido sai <b>separado por fornecedor</b> — que é como a compra realmente acontece.</p><p>O jeito rápido é <b>importar uma tabela</b> com código e marca. O jeito manual é preencher a tabela abaixo, que vem ordenada da maior para a menor: as 10 primeiras linhas já marcam mais de mil itens.</p><p><b>Você nunca precisa preencher tudo.</b> A barra de progresso mostra quanto do cadastro já tem marca.</p></div></details>
     <div class="secao">
       <div class="placas" id="placasMarcas"></div>
     </div>
@@ -995,16 +1040,46 @@
         <h2>De quem é cada prefixo</h2>
         <span class="nota">Você define uma vez e vale para o cadastro inteiro. Fica guardado neste navegador.</span>
       </div>
-      <div class="aviso" data-tom="neutro" style="margin-bottom:14px">
-        <span class="icone" style="color:var(--marinho)">i</span>
-        <div>
-          Quatro esquemas de filtro são reconhecidos sozinhos — <b>MANN</b>, <b>MAHLE</b>,
-          <b>FLEETGUARD</b> e <b>HENGST</b> — porque o próprio fabricante codifica assim e a
-          descrição confirma. O resto dos prefixos é fornecedor que só você sabe qual é.
-          Quando o código começa com letra, a chave é o <b>prefixo</b> (todo <code>REX…</code> é do
-          mesmo fornecedor). Quando o código é só número, a chave é o <b>grupo</b> — o prefixo não
-          diria nada. Cada linha que você preencher marca todos os itens dela de uma vez, e o
-          pedido de compra passa a sair separado por fornecedor.
+      <div class="grade" style="margin-bottom:16px">
+        <div class="ficha" style="border-left:4px solid var(--laranja)">
+          <div class="sobrancelha">Jeito rápido · recomendado</div>
+          <h3>Importar uma tabela de marcas</h3>
+          <p>
+            Uma planilha com <b>duas colunas: código e marca</b>. Arraste aqui como qualquer outro
+            arquivo — a página reconhece sozinha. Preenche tudo de uma vez, sem digitar nada.
+          </p>
+          <p style="font-size:12.5px">
+            De onde tirar: no <b>site</b> (Magento), o painel exporta a lista de produtos com o
+            fabricante. No <b>Opus</b>, o cadastro de produtos tem o campo de marca. Serve qualquer
+            planilha, até feita à mão.
+          </p>
+          <div style="margin-top:auto;padding-top:8px;display:flex;gap:8px;flex-wrap:wrap">
+            <button class="bt bt-forte bt-mini" id="btTabelaMarcas" type="button">Importar tabela</button>
+            <button class="bt bt-mini" id="btModeloMarcas" type="button">Baixar modelo</button>
+          </div>
+        </div>
+        <div class="ficha">
+          <div class="sobrancelha">Já vem pronto</div>
+          <h3>Quatro marcas se reconhecem sozinhas</h3>
+          <p>
+            <b>MANN</b>, <b>MAHLE</b>, <b>FLEETGUARD</b> e <b>HENGST</b> — porque o próprio fabricante
+            codifica os filtros assim e a descrição da peça confirma. São 691 itens sem você
+            fazer nada.
+          </p>
+          <div class="fonte">Só entram padrões que acertam 100% no seu arquivo. Marca errada num pedido é pior que marca em branco.</div>
+        </div>
+        <div class="ficha">
+          <div class="sobrancelha">Jeito manual</div>
+          <h3>Preencher a tabela abaixo</h3>
+          <p>
+            Cada linha marca todos os itens dela de uma vez. Vem ordenada da maior para a menor:
+            as <b>10 primeiras</b> já pegam mais de mil itens.
+          </p>
+          <p style="font-size:12.5px">
+            Repare na coluna <b>O que tem aqui dentro</b>: se o prefixo tem peças de <b>vários tipos</b>,
+            é fornecedor. Se tem <b>só um tipo</b> (só amortecedor, só bronzina), provavelmente é
+            código de categoria da casa, e aí a marca pode variar item a item.
+          </p>
         </div>
       </div>
       <div class="filtros">
@@ -1059,6 +1134,7 @@
 
   <!-- ── FROTA & REGIÃO ──────────────────────────────────────── -->
   <section class="vista" id="vista-frota" hidden>
+    <details class="ajuda"><summary>Como ler esta tela</summary><div class="corpo"><p>São dados públicos de mercado — frota da região, emplacamentos por montadora, tamanho do setor de reposição — com <b>fonte e data em cada ficha</b>.</p><p>O cruzamento no fim compara a participação de cada montadora <b>no seu cadastro</b> com a participação dela <b>no mercado</b>. Barra laranja bem maior que a azul indica marca com muito caminhão rodando e pouca cobertura sua.</p><p><b>Atenção:</b> a origem é deduzida do formato do código, e indica de qual montadora ele veio. <b>Não afirma que a peça serve num veículo</b> — para isso, catálogo do fabricante.</p></div></details>
     <div class="secao">
       <div class="aviso" data-tom="atencao">
         <span class="icone">!</span>
@@ -1098,6 +1174,7 @@
 
   <!-- ── EVOLUÇÃO ────────────────────────────────────────────── -->
   <section class="vista" id="vista-evolucao" hidden>
+    <details class="ajuda"><summary>Para que serve</summary><div class="corpo"><p>Compara dois envios de estoque e mostra o que mudou entre eles: o que saiu, o que entrou, quais rupturas apareceram e quais foram resolvidas.</p><p>Se você já subiu o relatório de movimentação, esta tela vira complemento — a movimentação é uma medida melhor, porque vem de lançamento e não de diferença entre duas fotos.</p></div></details>
     <div class="secao">
       <div class="secao-topo">
         <h2>Evolução entre dois envios</h2>
@@ -1110,6 +1187,7 @@
 
   <!-- ── DADOS ───────────────────────────────────────────────── -->
   <section class="vista" id="vista-dados" hidden>
+    <details class="ajuda"><summary>O que conferir aqui</summary><div class="corpo"><p>Os três cartões de cima respondem: <b>o estoque entrou? a movimentação entrou? gravou mesmo?</b> Se está escrito ali, entrou.</p><p>"Gravação confirmada" não é promessa: a página escreve, lê de volta e confere a contagem antes de dizer isso. Se falhar, o cartão fica vermelho e avisa que os dados valem só enquanto a aba estiver aberta.</p><p><b>Qualidade do cadastro</b> mostra o que atrapalha a análise. Variante fiscal não é erro — é a mesma peça entrando com imposto diferente.</p></div></details>
     <div class="secao">
       <div class="secao-topo"><h2>O que está carregado agora</h2><span class="nota">Se não está escrito aqui, não entrou.</span></div>
       <div class="grade" id="situacaoCartoes"></div>
@@ -1497,6 +1575,64 @@ function normalizarMovimentacao(linhas, iCab) {
   return movimentos;
 }
 
+/* ── Tabela de marcas ────────────────────────────────────────────────
+   Duas colunas: um código e uma marca. Serve tanto para a exportação de
+   produtos do site (Magento) quanto para o cadastro do Opus, quanto para
+   uma planilha feita à mão. O código pode ser o interno, o do produto ou
+   o original — a busca tenta os três. */
+
+const NOMES_CODIGO = ['codigo', 'cod', 'sku', 'codproduto', 'produto', 'referencia', 'ref', 'item', 'codinterno'];
+const NOMES_MARCA = ['marca', 'fabricante', 'manufacturer', 'brand', 'fornecedor'];
+
+function ehTabelaDeMarcas(linhas) {
+  for (let i = 0; i < Math.min(linhas.length, 25); i++) {
+    const chaves = linhas[i].map((c) => chave(c)).filter(Boolean);
+    if (chaves.length < 2) continue;
+    const temMarca = chaves.some((k) => NOMES_MARCA.includes(k));
+    const temCodigo = chaves.some((k) => NOMES_CODIGO.includes(k));
+    /* Estoque e movimentação também têm código; o que os distingue é a
+       ausência das colunas que fazem deles estoque ou movimentação. */
+    const ehEstoque = chaves.some((k) => k === 'curva') && chaves.some((k) => k.startsWith('saldo'));
+    const ehMov = chaves.some((k) => k === 'tp' || k === 'es');
+    if (temMarca && temCodigo && !ehEstoque && !ehMov) return i;
+  }
+  return -1;
+}
+
+function normalizarTabelaDeMarcas(linhas, iCab) {
+  const cab = linhas[iCab].map((c) => chave(c));
+  const iCodigo = cab.findIndex((k) => NOMES_CODIGO.includes(k));
+  const iMarca = cab.findIndex((k) => NOMES_MARCA.includes(k));
+  const tabela = {};
+  let lidas = 0;
+  for (let i = iCab + 1; i < linhas.length; i++) {
+    const l = linhas[i];
+    if (!l) continue;
+    const codigo = String(l[iCodigo] ?? '').trim();
+    const marca = String(l[iMarca] ?? '').trim();
+    if (!codigo || !marca || /^-+$/.test(codigo)) continue;
+    const k = chave(codigo);
+    if (!k) continue;
+    tabela[k] = marca.toUpperCase();
+    lidas++;
+  }
+  if (!lidas) throw new Error('Encontrei as colunas de código e marca, mas nenhuma linha tinha os dois preenchidos.');
+  return tabela;
+}
+
+/* Tenta o código interno, o do produto (com e sem variante fiscal) e o
+   original. O primeiro que casar vence. */
+function marcaDaTabela(item, tabela) {
+  if (!tabela) return null;
+  const candidatos = [item.interno, semSufixo(item.produto), item.produto, item.original];
+  for (const c of candidatos) {
+    if (!c) continue;
+    const achado = tabela[chave(c)];
+    if (achado) return achado;
+  }
+  return null;
+}
+
 function paraInteiro(v) {
   if (typeof v === 'number') return Number.isFinite(v) ? Math.round(v) : null;
   const s = String(v ?? '').trim().replace(/\./g, '').replace(',', '.');
@@ -1814,7 +1950,7 @@ const chaveFiscal = (item) => {
   return b && d ? b + '|' + d : null;
 };
 
-function analisar(itens, mapaMarcas = {}, resumo = null) {
+function analisar(itens, mapaMarcas = {}, resumo = null, tabelaMarcas = null) {
   /* Com venda medida, "giro" deixa de ser a letra da curva e passa a ser
      quanto o item realmente saiu. A escala é relativa à própria carteira:
      o topo da casa vale o peso inteiro. Volume e frequência entram
@@ -1900,9 +2036,11 @@ function analisar(itens, mapaMarcas = {}, resumo = null) {
     /* O mapa que o usuário definiu manda. Ele conhece o fornecedor; a
        regra automática só conhece o formato do código. */
     const marcaManual = mapaMarcas[chaveDoMapa];
-    /* Marca vinda do próprio relatório é a verdade: nem mapa manual nem
-       regra de código competem com o cadastro do sistema. */
-    const marca = item.marcaArquivo || marcaManual || (detectada ? detectada.marca : null);
+    const marcaTabela = marcaDaTabela(item, tabelaMarcas);
+    /* Ordem: o que veio do cadastro do sistema vence sempre; depois a
+       tabela importada; depois o que a pessoa definiu à mão; por último a
+       regra de código, que é a única que adivinha. */
+    const marca = item.marcaArquivo || marcaTabela || marcaManual || (detectada ? detectada.marca : null);
 
     const fatores = [];
     const lacunas = [];
@@ -1991,7 +2129,8 @@ function analisar(itens, mapaMarcas = {}, resumo = null) {
     return {
       ...item, situacao, familia, classe,
       prefixo, chaveDoMapa, marca, demanda: dem,
-      origemDaMarca: item.marcaArquivo ? 'veio no próprio relatório'
+      origemDaMarca: item.marcaArquivo ? 'veio no próprio relatório de estoque'
+        : marcaTabela ? 'veio da tabela de marcas que você importou'
         : (marcaManual ? 'definida por você no ' + rotuloChave(chaveDoMapa)
         : (detectada ? 'detectada pelo código ' + detectada.padrao : null)),
       chaveDuplicata: kFiscal,
@@ -2187,6 +2326,10 @@ async function gravarVerificado(registro, contar) {
 const guardarEnvio = (e) => gravarVerificado(e, (r) => (r.itens || []).length);
 const guardarMapaMarcas = () => comLoja('readwrite', (l) => l.put({ id: '__marcas', mapa: estado.mapaMarcas }));
 const guardarQuantidades = () => comLoja('readwrite', (l) => l.put({ id: '__quantidades', mapa: estado.quantidades }));
+const guardarTabelaMarcas = (nome) => gravarVerificado(
+  { id: '__tabelaMarcas', nome, em: new Date().toISOString(), tabela: estado.tabelaMarcas },
+  (r) => Object.keys(r.tabela || {}).length);
+
 const guardarMovimentos = (nome) => gravarVerificado(
   { id: '__movimentos', nome, em: new Date().toISOString(), movimentos: estado.movimentos },
   (r) => (r.movimentos || []).length);
@@ -2211,6 +2354,8 @@ const estado = {
   resumoDemanda: null,
   mapaMarcas: {},
   quantidades: {},
+  tabelaMarcas: null,
+  nomeTabelaMarcas: null,
   gravacao: { ok: null, em: null, erro: null },
   nomeMovimentos: null,
   emMovimentos: null,
@@ -2259,6 +2404,9 @@ function situacaoDoSistema() {
       chavesDefinidas: chaves.length - semMarca.length, chaves: chaves.length,
       itensSemMarca: semMarca.reduce((s, c) => s + c.itens, 0),
     } : null,
+    tabelaMarcas: estado.tabelaMarcas
+      ? { ok: true, nome: estado.nomeTabelaMarcas, codigos: Object.keys(estado.tabelaMarcas).length }
+      : { ok: false },
     ajustes: Object.keys(estado.quantidades).length,
     gravacao: estado.gravacao,
   };
@@ -2304,7 +2452,7 @@ function recalcular() {
   const atual = envioAtual();
   if (!atual) { estado.analise = null; estado.consumo = null; return; }
   estado.resumoDemanda = resumirDemanda(estado.movimentos);
-  estado.analise = analisar(atual.itens, estado.mapaMarcas, estado.resumoDemanda);
+  estado.analise = analisar(atual.itens, estado.mapaMarcas, estado.resumoDemanda, estado.tabelaMarcas);
   const anteriores = estado.envios
     .filter((e) => new Date(e.dataISO) < new Date(atual.dataISO))
     .sort((a, b) => new Date(b.dataISO) - new Date(a.dataISO));
@@ -2817,37 +2965,46 @@ function resumoPrefixos() {
         rotulo: ehGrupo ? k.slice(2) : pref,
         detalhe: ehGrupo ? null : (fam || null),
         tipo: ehGrupo ? 'grupo' : 'prefixo',
-        itens: 0, ruptura: 0, exemplos: new Map(), marca: null, auto: false,
+        itens: 0, semMarca: 0, ruptura: 0, exemplos: new Map(), marca: null, fonte: null,
       });
     }
     const r = mapa.get(k);
     r.itens++;
     if (i.situacao === 'RUPTURA') r.ruptura++;
     if (i.descricao) r.exemplos.set(i.descricao, (r.exemplos.get(i.descricao) || 0) + 1);
-    if (i.marca) { r.marca = i.marca; r.auto = !estado.mapaMarcas[k]; }
+    if (i.marca) {
+      r.marca = i.marca;
+      /* De onde veio importa: o que veio de arquivo ou tabela nao se edita
+         aqui, e dizer "automatica" para tudo confunde quem esta mapeando. */
+      r.fonte = i.marcaArquivo ? 'relatorio'
+        : (estado.tabelaMarcas && marcaDaTabela(i, estado.tabelaMarcas)) ? 'tabela'
+        : estado.mapaMarcas[k] ? 'manual' : 'automatica';
+    } else r.semMarca++;
   }
-  return [...mapa.values()].sort((a, b) => b.itens - a.itens);
+  /* Ordena pelo que ainda falta: e o que rende trabalho, nao o tamanho total. */
+  return [...mapa.values()].sort((a, b) => b.semMarca - a.semMarca || b.itens - a.itens);
 }
 
 function renderMarcas() {
   const L = itens();
   const comMarca = L.filter((i) => i.marca);
   const prefixos = resumoPrefixos();
-  const semDefinir = prefixos.filter((p) => !p.marca);
+  const semDefinir = prefixos.filter((p) => p.semMarca > 0);
+  const faltandoPlaca = L.length - comMarca.length;
 
   $('#placasMarcas').innerHTML = [
     placa({ rotulo: 'Itens com marca', valor: n(comMarca.length), rodape: pct(comMarca.length / Math.max(1, L.length)) + ' do cadastro · ' + n(new Set(comMarca.map((i) => i.marca)).size) + ' marcas em uso', tom: comMarca.length > L.length * 0.5 ? 'saudavel' : 'atencao' }),
-    placa({ rotulo: 'Chaves sem marca', valor: n(semDefinir.length), rodape: n(semDefinir.reduce((s, p) => s + p.itens, 0)) + ' itens esperando você definir', tom: semDefinir.length ? 'atencao' : 'saudavel' }),
-    placa({ rotulo: 'A mais rendosa agora', valor: semDefinir.length ? n(semDefinir[0].itens) : '—', rodape: semDefinir.length ? semDefinir[0].tipo + ' ' + semDefinir[0].rotulo + (semDefinir[0].detalhe ? ' em ' + semDefinir[0].detalhe : '') + ' — definir esta primeiro marca mais itens de uma vez' : 'tudo definido', tom: 'marca' }),
+    placa({ rotulo: 'Itens sem marca', valor: n(faltandoPlaca), rodape: n(semDefinir.length) + ' prefixos ou grupos ainda com item em aberto', tom: faltandoPlaca ? 'atencao' : 'saudavel' }),
+    placa({ rotulo: 'A mais rendosa agora', valor: semDefinir.length ? n(semDefinir[0].semMarca) : '—', rodape: semDefinir.length ? semDefinir[0].tipo + ' ' + semDefinir[0].rotulo + (semDefinir[0].detalhe ? ' em ' + semDefinir[0].detalhe : '') + ' — definir esta primeiro marca mais itens de uma vez' : 'tudo definido', tom: 'marca' }),
     placa({ rotulo: 'Marcas do catálogo', valor: n(MARCAS_PABU.length), rodape: 'lidas do site da Pacaembu (pabu.com.br)', tom: 'neutro' }),
   ].join('');
 
   /* A distribuição é muito desigual: poucas chaves cobrem quase tudo.
      Mostrar isso evita que a lista de 500 linhas pareça trabalho infinito. */
-  const ordenadasPorTamanho = [...semDefinir].sort((a, b) => b.itens - a.itens);
-  const faltando = ordenadasPorTamanho.reduce((s, p) => s + p.itens, 0);
+  const ordenadasPorTamanho = [...semDefinir].sort((a, b) => b.semMarca - a.semMarca);
+  const faltando = faltandoPlaca;
   const cobertura = comMarca.length / Math.max(1, L.length);
-  const proximas = (q) => ordenadasPorTamanho.slice(0, q).reduce((s, p) => s + p.itens, 0);
+  const proximas = (q) => ordenadasPorTamanho.slice(0, q).reduce((s, p) => s + p.semMarca, 0);
   $('#progressoMarcas').innerHTML =
     '<div class="secao-topo" style="margin-bottom:8px"><h2>Quanto do cadastro já tem marca</h2></div>' +
     '<div class="trilho" style="height:14px"><i style="width:' + Math.max(1, cobertura * 100) + '%;background:var(--saudavel)"></i></div>' +
@@ -2862,7 +3019,7 @@ function renderMarcas() {
   const busca = chave($('#fBuscaPrefixo') ? $('#fBuscaPrefixo').value : '');
   const soVazios = $('#fSoVazios') ? $('#fSoVazios').value === '1' : true;
   const visiveis = prefixos.filter((p) => {
-    if (soVazios && p.marca) return false;
+    if (soVazios && p.semMarca === 0) return false;
     const tipo = $('#fTipoChave') ? $('#fTipoChave').value : '';
     if (tipo && p.tipo !== tipo) return false;
     if (busca && !chave(p.rotulo + ' ' + (p.detalhe || '') + ' ' + [...p.exemplos.keys()].join(' ')).includes(busca)) return false;
@@ -2874,16 +3031,30 @@ function renderMarcas() {
 
   $('#corpoPrefixos').innerHTML = visiveis.slice(0, 150).map((p) => {
     const ex = [...p.exemplos.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([d, q]) => esc(d) + ' (' + q + ')').join(' · ');
+    /* Prefixo espalhado por vários tipos de peça é fornecedor; prefixo
+       concentrado num tipo só costuma ser código de categoria da casa,
+       e aí uma marca só pode estar errada. */
+    const tipos = new Set([...p.exemplos.keys()].map((d) => chave(d).slice(0, 6)));
+    const pista = p.tipo === 'grupo' ? null
+      : tipos.size >= 4 ? { tom: 'saudavel', txt: 'peças variadas — parece fornecedor' }
+      : tipos.size <= 1 ? { tom: 'atencao', txt: 'um tipo só — pode ser código de categoria' }
+      : null;
     return '<tr>' +
       '<td><b class="mono" style="font-size:14px;font-weight:700">' + esc(p.rotulo) + '</b>' +
         '<br><span style="font-size:10px;color:var(--tinta-3);text-transform:uppercase;letter-spacing:.06em">' + esc(p.tipo) + '</span>' +
         (p.detalhe ? '<br><span class="etiqueta" data-tom="neutro" style="margin-top:3px" title="Este prefixo tem mais de um fornecedor. A família separa os dois.">' + esc(p.detalhe) + '</span>' : '') +
         '</td>' +
-      '<td class="dir num">' + n(p.itens) + '</td>' +
+      '<td class="dir num">' + n(p.itens) +
+        (p.semMarca && p.semMarca < p.itens ? '<br><span style="font-size:10.5px;color:var(--atencao-texto);font-weight:700">' + n(p.semMarca) + ' sem marca</span>' : '') + '</td>' +
       '<td class="dir num">' + (p.ruptura ? '<b style="color:var(--critico)">' + n(p.ruptura) + '</b>' : '0') + '</td>' +
-      '<td style="font-size:12.5px;color:var(--tinta-2)">' + ex + '</td>' +
-      '<td>' + (p.auto
-        ? '<span class="etiqueta" data-tom="neutro" title="Reconhecida pelo esquema do próprio fabricante">' + esc(p.marca) + ' — automática</span>'
+      '<td style="font-size:12.5px;color:var(--tinta-2)">' + ex +
+        (pista ? '<br><span class="etiqueta" data-tom="' + pista.tom + '" style="margin-top:4px" ' +
+          'title="Um prefixo com peças de vários tipos costuma ser o código de um fornecedor. Um prefixo com um tipo só costuma ser a abreviação da categoria (BB=bronzina biela, AC=amortecedor), e aí a marca pode variar item a item.">' +
+          esc(pista.txt) + '</span>' : '') + '</td>' +
+      '<td>' + ((p.fonte === 'automatica' || p.fonte === 'tabela' || p.fonte === 'relatorio') && p.semMarca === 0
+        ? '<span class="etiqueta" data-tom="' + (p.fonte === 'automatica' ? 'neutro' : 'saudavel') + '" title="' +
+            esc({ automatica: 'Reconhecida pelo esquema de codificacao do proprio fabricante.', tabela: 'Veio da tabela de marcas que voce importou.', relatorio: 'Veio no proprio relatorio de estoque.' }[p.fonte]) + '">' +
+            esc(p.marca) + ' \u2014 ' + { automatica: 'automatica', tabela: 'da tabela', relatorio: 'do relatorio' }[p.fonte] + '</span>'
         : '<select class="mapa-marca" data-chave="' + esc(p.chave) + '" style="width:100%;min-height:38px;padding:6px 8px;border:1px solid ' + (p.marca ? 'var(--saudavel)' : 'var(--borda-forte)') + ';border-radius:6px;background:var(--papel)" aria-label="Marca do ' + esc(p.tipo + ' ' + p.rotulo) + '">' + opcoes(p.marca) + '</select>') +
       '</td></tr>';
   }).join('') || '<tr><td colspan="5" style="padding:24px;text-align:center;color:var(--tinta-2)">Nenhum prefixo com esses filtros. Todos já têm marca definida.</td></tr>';
@@ -2920,7 +3091,7 @@ function renderMarcas() {
       '<span style="font-size:11px;color:var(--tinta-3)">' + Math.round(cobertura * 100) + '% do sortimento com saldo</span></td></tr>';
   }).join('') || '<tr><td colspan="6" style="padding:24px;text-align:center;color:var(--tinta-2)">Nenhuma marca definida ainda. Preencha os prefixos acima.</td></tr>';
 
-  $('#seloMarcas').textContent = n(semDefinir.length);
+  $('#seloMarcas').textContent = n(faltandoPlaca);
 }
 
 /* ─── 17. Frota e região ─────────────────────────────────────────── */
@@ -3302,7 +3473,32 @@ async function carregarArquivo(file) {
       }
       linhas = lerPlanilha(lerOle(buf));
     }
-    /* Os dois relatórios do Opus entram pela mesma porta; o cabeçalho diz qual é. */
+    /* Os três arquivos entram pela mesma porta; o cabeçalho diz qual é qual. */
+    const iTab = ehTabelaDeMarcas(linhas);
+    if (iTab >= 0) {
+      const tabela = normalizarTabelaDeMarcas(linhas, iTab);
+      estado.tabelaMarcas = tabela;
+      estado.nomeTabelaMarcas = nome;
+      let gravados = null;
+      try { gravados = await guardarTabelaMarcas(nome); }
+      catch (err) { estado.gravacao = { ok: false, em: null, erro: err.message || String(err) }; }
+      recalcular();
+      renderTudo();
+      const total = Object.keys(tabela).length;
+      const casaram = itens().filter((i) => i.marca).length;
+      if (estado.gravacao.ok) {
+        recado('Tabela de marcas carregada e gravada',
+          n(total) + ' códigos com marca. Conferi a gravação: ' + n(gravados) + ' voltaram do banco. ' +
+          'Agora ' + n(casaram) + ' dos ' + n(itens().length) + ' itens do estoque têm marca.');
+      } else {
+        recado('Tabela carregada, mas NÃO gravada',
+          n(total) + ' códigos já valem nesta tela, mas não consegui gravar (' + estado.gravacao.erro + ').', 'erro');
+      }
+      trocarVista('marcas');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
     const iMov = ehMovimentacao(linhas);
     if (iMov >= 0) {
       const movimentos = normalizarMovimentacao(linhas, iMov);
@@ -3587,7 +3783,7 @@ function renderTudo() {
   if (vista === 'dados') renderDados();
   if (vista === 'marcas') renderMarcas();
   renderDemanda();
-  $('#seloMarcas').textContent = n(resumoPrefixos().filter((p) => !p.marca).length);
+  $('#seloMarcas').textContent = n(itens().filter((i) => !i.marca).length);
   atualizarCarrinho();
 }
 
@@ -3650,6 +3846,17 @@ liga('#btPedidoUrgente', 'click', () => {
   abrirModal('Pedido urgente — zerado e vendendo',
     lista.length + ' itens com saldo zero e venda comprovada no período. Cada um destes é venda que está sendo perdida hoje.',
     pedidosPorFornecedor(lista), csvDeItens(lista), 'pedido-urgente-ribeirao-preto.csv');
+});
+
+liga('#btTabelaMarcas', 'click', () => $('#arquivo').click());
+liga('#btModeloMarcas', 'click', () => {
+  const exemplos = itens().filter((i) => !i.marca).slice(0, 30);
+  baixar('modelo-tabela-de-marcas.csv',
+    paraCsv(['Codigo', 'Marca'], exemplos.map((i) => [i.produto || i.interno, ''])),
+    'text/csv');
+  recado('Modelo baixado',
+    'Abra no Excel, preencha a coluna Marca e arraste o arquivo de volta para cá. ' +
+    'Pode acrescentar quantas linhas quiser — o código pode ser o interno, o do produto ou o original.');
 });
 
 liga('#fBuscaPrefixo', 'input', () => renderMarcas());
@@ -3724,10 +3931,12 @@ $('#logo').src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAOAAAAB4CAIAAABk
     const marcas = guardados.find((e) => e.id === '__marcas');
     const quantidades = guardados.find((e) => e.id === '__quantidades');
     const movs = guardados.find((e) => e.id === '__movimentos');
+    const tab = guardados.find((e) => e.id === '__tabelaMarcas');
+    if (tab) { estado.tabelaMarcas = tab.tabela || null; estado.nomeTabelaMarcas = tab.nome || null; }
     if (marcas) estado.mapaMarcas = marcas.mapa || {};
     if (quantidades) estado.quantidades = quantidades.mapa || {};
     if (movs) { estado.movimentos = movs.movimentos || null; estado.nomeMovimentos = movs.nome || null; }
-    estado.envios = guardados.filter((e) => Array.isArray(e.itens));
+    estado.envios = guardados.filter((e) => Array.isArray(e.itens) && !String(e.id).startsWith('__'));
   } catch {
     estado.bancoOk = false;
     estado.envios = [];

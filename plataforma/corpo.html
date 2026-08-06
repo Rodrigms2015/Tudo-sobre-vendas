@@ -158,6 +158,19 @@
   .marca-txt { min-width: 0; }
   .marca-txt h1 { font-size: 16px; font-weight: 650; letter-spacing: -.01em; }
   .marca-txt .sobrancelha { color: rgba(255, 255, 255, .62); }
+  /* Assinatura do rodapé. O espaço extra embaixo existe porque a barra de
+     itens marcados é fixa e cobriria a última linha. */
+  .rodape-pagina {
+    max-width: var(--largura);
+    margin: 8px auto 0;
+    padding: 22px 22px 96px;
+    border-top: 1px solid var(--borda);
+    text-align: center;
+  }
+  .rodape-pagina p { margin: 0; font-size: 12.5px; line-height: 1.6; color: var(--tinta-3); }
+  .rodape-pagina p:first-child { color: var(--tinta-2); }
+  .rodape-pagina b { font-weight: 700; color: var(--tinta); }
+
   .topo-dir { margin-left: auto; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
   .bt-sair { text-decoration: none; }
   .bt-sair[hidden] { display: none; }
@@ -1179,6 +1192,11 @@
     </div>
   </section>
 </main>
+
+<footer class="rodape-pagina">
+  <p><b>Central de Compras</b> — criada e desenvolvida por <b>Rodrigo Soares</b></p>
+  <p>Supervisor · Filial 03, Ribeirão Preto · Pacaembu Autopeças</p>
+</footer>
 
 <div class="barra-fixa oculto" id="barraCarrinho">
   <div class="barra-fixa-interno">

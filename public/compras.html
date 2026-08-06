@@ -1220,6 +1220,26 @@
   </div>
 </div>
 
+<!-- Trocar a filial de casa sem querer troca a análise inteira. Quando o nome
+     do arquivo não diz a praça e o conteúdo não parece o estoque daqui, a
+     página pergunta em vez de assumir. -->
+<dialog id="dlgFilial">
+  <div class="modal-topo">
+    <h2>De qual filial é este arquivo?</h2>
+  </div>
+  <div class="modal-corpo">
+    <p id="dlgFilialTexto" style="font-size:13.5px;line-height:1.55;color:var(--tinta-2);margin:0 0 14px"></p>
+    <div class="campo">
+      <label for="dlgFilialSel">Filial</label>
+      <select id="dlgFilialSel"></select>
+    </div>
+  </div>
+  <div class="modal-pe">
+    <button class="bt bt-fantasma" id="btFilialCancelar" type="button">Não carregar</button>
+    <button class="bt bt-forte" id="btFilialOk" type="button">Confirmar</button>
+  </div>
+</dialog>
+
 <dialog id="modal">
   <div class="modal-topo">
     <h2 id="modalTitulo">Solicitação de compra</h2>
@@ -3974,13 +3994,27 @@ async function carregarArquivo(file) {
     const itensLidos = normalizar(linhas);
 
     /* Estoque de outra praça: o arquivo é igual, o destino é que muda. A
-       praça sai do nome do arquivo; quando não dá para reconhecer com
-       certeza, a página pergunta em vez de chutar. Sem resposta, o arquivo
-       segue o caminho de sempre e vira o estoque de casa. */
-    const ffDetectado = estado.redeEsperando || reconhecerFilial(nome);
+       praça sai do nome do arquivo. Quando o nome não diz, o conteúdo diz:
+       se o cadastro mal se parece com o estoque de casa que está carregado,
+       é de outra filial, e a página pergunta em vez de assumir. Assumir
+       errado aqui troca a filial da análise inteira. */
+    let comoVeio = estado.redeEsperando ? 'escolha' : 'nome';
+    let ff = estado.redeEsperando || reconhecerFilial(nome);
     estado.redeEsperando = null;
-    if (ffDetectado && ffDetectado !== AQUI) {
-      await aplicarFilialIrma(ffDetectado, itensLidos, nome, file);
+    if (!ff) {
+      const semelhanca = semelhancaComOAtual(itensLidos);
+      if (semelhanca !== null && semelhanca < LIMIAR_MESMA_FILIAL) {
+        comoVeio = 'escolha';
+        ff = await perguntarFilial(nome, itensLidos, semelhanca);
+        if (!ff) {
+          recado('Arquivo não carregado',
+            'Nada foi alterado. Se ' + nome + ' for de outra praça, escolha a filial na aba Rede antes de carregar.');
+          return;
+        }
+      }
+    }
+    if (ff && ff !== AQUI) {
+      await aplicarFilialIrma(ff, itensLidos, nome, file, comoVeio);
       return;
     }
 
@@ -4485,17 +4519,39 @@ const palavrasDe = (t) =>
 /* Palavras que aparecem em nome de relatório e não ajudam a identificar praça. */
 const RUIDO_NOME = new Set(['ESTOQUE', 'RELATORIO', 'POSICAO', 'FILIAL', 'GERAL', 'ATUAL', 'XLS', 'DOS', 'DAS']);
 
+/* Distância de edição, limitada: quantas letras é preciso trocar, tirar ou
+   pôr para uma palavra virar a outra. Existe aqui por causa de um caso real —
+   `ESTOQUE SÃO BERNADO` sem o segundo R. Um erro de digitação no nome do
+   arquivo não pode decidir de qual filial é o estoque. */
+function distancia(a, b, teto) {
+  if (Math.abs(a.length - b.length) > teto) return teto + 1;
+  let ant = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    const atual = [i];
+    let melhor = i;
+    for (let j = 1; j <= b.length; j++) {
+      atual[j] = Math.min(ant[j] + 1, atual[j - 1] + 1, ant[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+      if (atual[j] < melhor) melhor = atual[j];
+    }
+    if (melhor > teto) return teto + 1;
+    ant = atual;
+  }
+  return ant[b.length];
+}
+
 /**
  * Descobre a praça pelo nome do arquivo — `ESTOQUE PRES. PRUD 0608.xls`
  * vira Presidente Prudente. Uma palavra do arquivo casa com uma palavra da
- * cidade quando uma é começo da outra, o que resolve as abreviações que o
- * pessoal usa. Devolve `null` quando não dá para ter certeza: nesse caso a
- * página pergunta em vez de chutar.
+ * cidade quando uma é começo da outra (resolve as abreviações que o pessoal
+ * usa) ou quando está a uma ou duas letras de distância (resolve erro de
+ * digitação). Devolve `null` quando não dá para ter certeza.
  */
 function reconhecerFilial(nomeArquivo) {
   const alvo = palavrasDe(nomeArquivo).filter((p) => !RUIDO_NOME.has(p));
   if (!alvo.length) return null;
-  const casa = (a, b) => a === b || a.startsWith(b) || b.startsWith(a);
+  const casa = (a, b) =>
+    a === b || a.startsWith(b) || b.startsWith(a) ||
+    (Math.min(a.length, b.length) >= 6 && distancia(a, b, 2) <= 2);
 
   const notas = Object.entries(FILIAIS).map(([ff, [cidade]]) => {
     const termos = palavrasDe(cidade);
@@ -4682,8 +4738,24 @@ function renderRede() {
   montarSeletorDeFilial();
   $('#btLimparRede').hidden = !irmas.length;
 
+  /* Cartão de casa primeiro. Existe para uma coisa: se o estoque de casa for
+     o arquivo errado, isso tem que estar na cara antes de qualquer número. */
+  const meuEnvio = envioAtual();
+  const cartaoCasa = meuEnvio
+    ? '<div class="ficha" style="border-left:4px solid var(--laranja)">' +
+      '<div class="sobrancelha">Filial ' + AQUI + ' · SP · aqui</div>' +
+      '<h3>' + esc(nomeFilial(AQUI)) + '</h3>' +
+      '<p>' + n(Object.keys(pecasDaFilial(itens())).length) + ' peças · ' +
+      n(itens().filter((i) => (i.saldo || 0) > 0).length) + ' itens com saldo · ' +
+      n(itens().reduce((t, i) => t + (i.saldo || 0), 0)) + ' unidades<br>' +
+      '<span style="color:var(--tinta-3);font-size:12.5px">' + esc(meuEnvio.nome) + ' · ' + dataBr(meuEnvio.dataISO) + '</span></p>' +
+      '<p style="font-size:12.5px;color:var(--tinta-3);margin-top:auto;padding-top:9px">' +
+      'É este arquivo que vale como estoque de casa. Se não for de ' + esc(nomeFilial(AQUI)) +
+      ', troque na aba Situação antes de olhar a comparação.</p></div>'
+    : '';
+
   /* Cartões das filiais carregadas. */
-  $('#cartoesRede').innerHTML = irmas.length
+  $('#cartoesRede').innerHTML = cartaoCasa + (irmas.length
     ? irmas.map((f) => {
         const r = resumoDaFilial(f.pecas);
         return '<div class="ficha">' +
@@ -4697,7 +4769,7 @@ function renderRede() {
     : '<div class="ficha"><div class="sobrancelha">Nenhuma filial carregada</div>' +
       '<h3>Comece pelo estoque das praças vizinhas</h3>' +
       '<p>Carregue o relatório de estoque de São Paulo, Campinas, São José do Rio Preto, Presidente Prudente — ' +
-      'o mesmo arquivo que você tira daqui, só que da outra filial. A praça é reconhecida pelo nome do arquivo.</p></div>';
+      'o mesmo arquivo que você tira daqui, só que da outra filial. A praça é reconhecida pelo nome do arquivo.</p></div>');
 
   $$('#cartoesRede [data-tira]').forEach((b) => b.addEventListener('click', async () => {
     delete estado.rede[b.dataset.tira];
@@ -4839,8 +4911,64 @@ function renderRede() {
   });
 }
 
+/**
+ * Quanto do arquivo novo já existe no estoque de casa que está carregado.
+ *
+ * É a rede de segurança contra o pior erro possível aqui: trocar a filial de
+ * casa sem perceber, o que troca a análise inteira. Estoque da mesma praça em
+ * datas diferentes repete quase todo o cadastro; estoque de outra praça, não.
+ * Medido nos arquivos reais: 98% entre dois envios de Ribeirão, 36% a 64%
+ * contra qualquer irmã. O limiar de 80% fica na folga entre os dois.
+ *
+ * Devolve `null` quando não há estoque carregado para comparar.
+ */
+const LIMIAR_MESMA_FILIAL = 0.8;
+
+function semelhancaComOAtual(itensNovos) {
+  const atual = envioAtual();
+  if (!atual || !atual.itens || !atual.itens.length) return null;
+  const antes = new Set(atual.itens.map((i) => semSufixo(i.produto) || i.interno).filter(Boolean));
+  const agora = [...new Set(itensNovos.map((i) => semSufixo(i.produto) || i.interno).filter(Boolean))];
+  if (!antes.size || !agora.length) return null;
+  return agora.filter((k) => antes.has(k)).length / agora.length;
+}
+
+/** Pergunta de qual praça é o arquivo. Devolve o código, ou `null` se desistiu. */
+function perguntarFilial(nomeArquivo, itensLidos, semelhanca) {
+  const dlg = $('#dlgFilial');
+  const sel = $('#dlgFilialSel');
+
+  sel.innerHTML = '<option value="' + AQUI + '">' + esc(nomeFilial(AQUI)) + ' — é o estoque de casa mesmo</option>' +
+    Object.entries(FILIAIS).filter(([ff]) => ff !== AQUI)
+      .sort((a, b) => (a[1][1] === 'SP' ? 0 : 1) - (b[1][1] === 'SP' ? 0 : 1) || a[1][0].localeCompare(b[1][0], 'pt-BR'))
+      .map(([ff, [cidade, uf]]) => '<option value="' + ff + '">' + esc(cidade) + ' — ' + esc(uf) + ' (filial ' + ff + ')</option>')
+      .join('');
+  sel.value = AQUI;
+
+  $('#dlgFilialTexto').innerHTML =
+    '<b>' + esc(nomeArquivo) + '</b> tem ' + n(itensLidos.length) + ' itens, e o nome não diz de qual praça é.<br><br>' +
+    'Só <b>' + pct(semelhanca) + '</b> dos códigos batem com o estoque de ' + esc(nomeFilial(AQUI)) +
+    ' que já está carregado. Dois relatórios da mesma filial repetem quase todo o cadastro, então este arquivo ' +
+    '<b>provavelmente é de outra praça</b>.<br><br>' +
+    'Se confirmar como ' + esc(nomeFilial(AQUI)) + ', ele substitui o estoque de casa e muda toda a análise.';
+
+  dlg.showModal();
+  return new Promise((resolver) => {
+    const fechar = (valor) => {
+      $('#btFilialOk').onclick = null;
+      $('#btFilialCancelar').onclick = null;
+      dlg.onclose = null;
+      dlg.close();
+      resolver(valor);
+    };
+    $('#btFilialOk').onclick = () => fechar(sel.value);
+    $('#btFilialCancelar').onclick = () => fechar(null);
+    dlg.onclose = () => resolver(null);
+  });
+}
+
 /** Guarda o estoque de uma praça irmã e avisa o que foi reconhecido. */
-async function aplicarFilialIrma(ff, itensLidos, nomeArquivo, file) {
+async function aplicarFilialIrma(ff, itensLidos, nomeArquivo, file, comoVeio = 'nome') {
   const pecas = pecasDaFilial(itensLidos);
   estado.rede[ff] = {
     ff,
@@ -4867,7 +4995,7 @@ async function aplicarFilialIrma(ff, itensLidos, nomeArquivo, file) {
   }
   recado(nomeFilial(ff) + ' entrou na comparação',
     n(r.pecas) + ' peças, ' + n(r.comSaldo) + ' com saldo, ' + n(r.unidades) + ' unidades. ' +
-    'Reconheci a praça pelo nome do arquivo. ' +
+    (comoVeio === 'nome' ? 'Reconheci a praça pelo nome do arquivo. ' : 'Praça escolhida por você. ') +
     (quantas === 1
       ? 'Carregue as outras praças para o quadro ficar completo.'
       : n(quantas) + ' filiais irmãs na comparação.'));

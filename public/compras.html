@@ -2352,8 +2352,51 @@ const SITUACOES = {
 
    Confundir as duas ou inventa ruptura que não existe, ou junta marcas
    diferentes no mesmo pedido. */
-const chaveFiscal = (item) => {
-  const b = semSufixo(item.produto).toUpperCase();
+/**
+ * O Opus tem DOIS sufixos de recadastro, não um:
+ *
+ *   `[n]`  variante fiscal — `648661[3]`. Tratado por `semSufixo`.
+ *   `-N`   recadastro — `WK11001X` vira `WK11001X-1`, e a peça é a mesma.
+ *
+ * O segundo passou despercebido até o Rodrigo mostrar a tela de "produtos com
+ * mesmo código de fábrica": `KC597D` e `KC597D-1`, `H328WK` e `H328WK-1[2]`,
+ * mesma descrição e mesmo fabricante. Sem juntar, o saldo fica num cadastro e
+ * a compra é pedida no outro — 220 rupturas inventadas no relatório de 06/08.
+ *
+ * O `-N` só vale como sufixo quando o código sem ele **existe no mesmo
+ * conjunto, com a mesma descrição**. Essa condição não é preciosismo:
+ * `30.001.228-4` é o código do fabricante, e cortar cegamente produziria
+ * `30.001.228`, que não existe. Já `30.001.228-4-1` volta corretamente para
+ * `30.001.228-4`, que existe.
+ *
+ * Recebe pares [código, descrição] e devolve a função código → raiz.
+ */
+function resolvedorDeRecadastro(pares) {
+  const descricoes = new Map();
+  for (const [codigo, descricao] of pares) {
+    if (!codigo) continue;
+    if (!descricoes.has(codigo)) descricoes.set(codigo, new Set());
+    if (descricao) descricoes.get(codigo).add(chave(descricao));
+  }
+  const memoria = new Map();
+  const raiz = (codigo, passo = 0) => {
+    if (memoria.has(codigo)) return memoria.get(codigo);
+    let r = codigo;
+    const casou = /^(.+[^-])-\d+$/.exec(codigo);
+    if (casou && passo < 4) {
+      const base = casou[1];
+      const daBase = descricoes.get(base);
+      const daAtual = descricoes.get(codigo);
+      if (daBase && daAtual && [...daAtual].some((d) => daBase.has(d))) r = raiz(base, passo + 1);
+    }
+    memoria.set(codigo, r);
+    return r;
+  };
+  return raiz;
+}
+
+const chaveFiscal = (item, raiz) => {
+  const b = raiz(semSufixo(item.produto).toUpperCase());
   const d = chave(item.descricao);
   return b && d ? b + '|' + d : null;
 };
@@ -2400,9 +2443,12 @@ function analisar(itens, mapaMarcas = {}, resumo = null, tabelaMarcas = null) {
     if (!porOriginal.has(k)) porOriginal.set(k, []);
     porOriginal.get(k).push(it);
   }
+  const raizCodigo = resolvedorDeRecadastro(
+    itens.map((i) => [semSufixo(i.produto).toUpperCase(), i.descricao]));
+
   const porFiscal = new Map();
   for (const it of itens) {
-    const k = chaveFiscal(it);
+    const k = chaveFiscal(it, raizCodigo);
     if (!k) continue;
     if (!porFiscal.has(k)) porFiscal.set(k, []);
     porFiscal.get(k).push(it);
@@ -2441,7 +2487,7 @@ function analisar(itens, mapaMarcas = {}, resumo = null, tabelaMarcas = null) {
   const analisados = itens.map((item) => {
     /* Atende o balcão quem tem a peça: o irmão fiscal ou o equivalente. */
     const kOriginal = item.original ? item.original.toUpperCase() + '|' + chave(item.descricao) : null;
-    const kFiscal = chaveFiscal(item);
+    const kFiscal = chaveFiscal(item, raizCodigo);
     const irmaosFiscais = (kFiscal ? porFiscal.get(kFiscal) || [] : []).filter((x) => x !== item);
     const equivalentes = (kOriginal ? porOriginal.get(kOriginal) || [] : []).filter((x) => x !== item && !irmaosFiscais.includes(x));
     const irmaos = irmaosFiscais.concat(equivalentes);
@@ -4639,14 +4685,39 @@ function resumoDaFilial(pecas) {
  * — a tela então mostra o convite para carregar, não uma tabela vazia.
  */
 function analisarRede() {
-  const irmas = filiaisIrmas();
-  if (!irmas.length || !itens().length) return null;
+  const carregadas = filiaisIrmas();
+  if (!carregadas.length || !itens().length) return null;
 
-  const aqui = pecasDaFilial(itens());
   const praças = [
-    { ff: AQUI, nome: nomeFilial(AQUI), uf: ufDaFilial(AQUI), pecas: aqui, casa: true, dataISO: (envioAtual() || {}).dataISO || null },
-    ...irmas.map((f) => ({ ...f, casa: false })),
+    { ff: AQUI, nome: nomeFilial(AQUI), uf: ufDaFilial(AQUI), pecas: pecasDaFilial(itens()), casa: true, dataISO: (envioAtual() || {}).dataISO || null },
+    ...carregadas.map((f) => ({ ...f, casa: false })),
   ];
+
+  /* O sufixo de recadastro `-N` é resolvido contra a rede inteira, não contra
+     cada relatório isolado. A razão é concreta: Ribeirão recadastrou o filtro
+     MANN como `WK11001X-1[2]` e o relatório daqui já nem traz mais o
+     `WK11001X` original — a prova de que `-1` é sufixo está no relatório da
+     irmã, que ainda carrega o código antigo. Sem olhar a rede, a peça
+     apareceria como "não temos" tendo cadastro aqui. */
+  const raizCodigo = resolvedorDeRecadastro(
+    praças.flatMap((p) => Object.entries(p.pecas).map(([k, a]) => [k, a.d])));
+
+  for (const p of praças) {
+    const reunido = {};
+    for (const [k, a] of Object.entries(p.pecas)) {
+      const r = raizCodigo(k);
+      const alvo = reunido[r] || (reunido[r] = { c: '', s: null, d: '', o: '' });
+      if (a.s !== null && a.s !== undefined) alvo.s = (alvo.s === null ? 0 : alvo.s) + a.s;
+      if (a.c && postoCurva(a.c) < postoCurva(alvo.c)) alvo.c = a.c;
+      if (!alvo.d && a.d) alvo.d = a.d;
+      if (!alvo.o && a.o) alvo.o = a.o;
+    }
+    p.pecas = reunido;
+  }
+  const aqui = praças[0].pecas;
+  /* Daqui para baixo, `irmas` são as cópias já reunidas — nunca os objetos
+     guardados em `estado.rede`, que continuam com os códigos originais. */
+  const irmas = praças.filter((p) => !p.casa);
 
   /* Ruptura por curva, praça a praça. É o quadro que responde "o buraco é
      meu ou é de todo mundo?" — e às vezes a resposta é que é de todo mundo. */

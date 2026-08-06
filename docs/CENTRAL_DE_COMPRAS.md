@@ -43,6 +43,27 @@ Daí saem duas relações, e confundi-las custa caro nos dois sentidos:
 As duas cobrem o cliente, então as duas tiram o item da ruptura. Só a primeira vira uma linha
 de compra somada.
 
+### O segundo sufixo: `-N` de recadastro
+
+O `[n]` não é o único. Quando um cadastro é refeito, o Opus acrescenta `-1`, `-2` ao código:
+`WK11001X` vira `WK11001X-1`, `KC597D` vira `KC597D-1`. A tela do ERP "produtos com mesmo
+código de fábrica" mostra os dois lado a lado, mesma descrição e mesmo fabricante — e às vezes
+os dois sufixos empilhados, `H328WK-1[2]`.
+
+Sem juntar, o saldo fica num cadastro e a compra é pedida no outro. No relatório de 06/08 isso
+valia **220 rupturas inventadas**: `P559148` aparecia zerado enquanto `P559148-1[2]` tinha 55
+unidades na prateleira. Ao juntar, os grupos com saldo zero caem de 1.031 para 811.
+
+**A regra tem uma condição que não é preciosismo.** O `-N` só conta como sufixo quando o código
+sem ele **existe no mesmo conjunto, com a mesma descrição**. `30.001.228-4` é código de
+fabricante: cortado cegamente viraria `30.001.228`, que não existe em lugar nenhum. Já
+`30.001.228-4-1` volta corretamente para `30.001.228-4`, que existe.
+
+Na aba Rede a resolução olha a **rede inteira**, não cada relatório isolado. O motivo é
+concreto: Ribeirão recadastrou o filtro MANN como `WK11001X-1[2]` e o relatório daqui já nem
+traz mais o `WK11001X` original — a prova de que `-1` é sufixo está no relatório da irmã, que
+ainda carrega o código antigo.
+
 Agrupar só por `Cód. Original`, como a primeira versão fazia, perdia **700 itens** cujas
 variantes fiscais não têm código original preenchido — eles apareciam como ruptura enquanto o
 cadastro irmão tinha 46 unidades na prateleira. Corrigido isso, a ruptura real caiu de 1.778

@@ -4811,9 +4811,9 @@ function renderRede() {
         (atras > 0 ? ' ' + esc(R.lider.nome) + ' tem ' + n(R.lider.tem) + ' — ' + n(atras) + ' a mais.' : '') },
     { tom: 'parado', valor: n(R.unidadesParadas), rot: 'Unidades nas irmãs',
       pe: 'Somadas nas praças que mantêm as peças que faltam aqui. É estoque que a rede já comprou.' },
-    { tom: 'neutro', valor: n(R.semCadastroAB.length), rot: 'Sem cadastro e girando',
-      pe: 'Curva A ou B na rede e sem nenhum registro no relatório daqui. ' +
-        'No total, ' + n(R.semCadastro.length) + ' peças em prateleira nas irmãs não aparecem no nosso cadastro.' },
+    { tom: 'neutro', valor: n(R.semCadastroAB.length), rot: 'Nem temos o código',
+      pe: 'Curva A ou B na rede e sem nenhuma linha no nosso relatório de estoque. ' +
+        'No total, ' + n(R.semCadastro.length) + ' peças que as irmãs mantêm não aparecem no nosso.' },
   ];
 
   const linhasMatriz = R.matriz.map((l) => {
@@ -4837,6 +4837,13 @@ function renderRede() {
       '<td class="dir">' + n(p.tem) + '</td><td class="dir">' + pct(p.taxa) + '</td></tr>';
   }).join('');
 
+  const fonte = envioAtual();
+  const fonteDeCasa = {
+    arquivo: fonte ? fonte.nome : 'nenhum arquivo carregado',
+    data: fonte ? dataBr(fonte.dataISO) : '—',
+    pecas: Object.keys(R.praças[0].pecas).length,
+  };
+
   const lista = faltaFiltrada(R);
   const linhasFalta = lista.slice(0, 300).map((f) => {
     const selos = f.com.map((x) =>
@@ -4847,7 +4854,8 @@ function renderRede() {
       (f.original ? ' · orig. ' + esc(f.original) : '') + '</span></td>' +
       '<td>' + (f.aqui
         ? '<span class="curva" data-c="' + esc(f.aqui.curva || 'F') + '">' + esc(f.aqui.curva || '–') + '</span> zerado'
-        : '<span style="color:var(--critico);font-weight:700" title="Este código não aparece no relatório de estoque de Ribeirão Preto">sem cadastro</span>') + '</td>' +
+        : '<span style="color:var(--critico);font-weight:700">não temos</span>' +
+          '<br><span style="color:var(--tinta-3);font-size:12px">código não está no nosso relatório</span>') + '</td>' +
       '<td class="dir">' + n(f.praças) + '</td>' +
       '<td class="dir">' + n(f.unidades) + '</td>' +
       '<td><div class="grupo-filiais">' + selos + '</div></td></tr>';
@@ -4879,6 +4887,15 @@ function renderRede() {
     '<div class="secao"><div class="secao-topo">' +
       '<h2>O que pedir de abastecimento</h2>' +
       '<span class="nota">' + n(lista.length) + ' peças no filtro atual' + (lista.length > 300 ? ' — mostrando as 300 primeiras' : '') + '.</span></div>' +
+      /* Toda a coluna "aqui" sai deste arquivo. Dizer qual e nao e detalhe:
+         com o arquivo errado carregado, a tabela inteira mente — e foi o que
+         aconteceu quando o estoque de outra praca entrou como o de casa. */
+      '<p style="margin:-4px 0 12px;font-size:13px;line-height:1.55;color:var(--tinta-2)">' +
+        'A coluna <b>aqui</b> sai de <b>' + esc(fonteDeCasa.arquivo) + '</b>, de ' + esc(fonteDeCasa.data) + ' — ' +
+        n(fonteDeCasa.pecas) + ' peças de ' + esc(nomeFilial(AQUI)) + '.<br>' +
+        '<b>zerado</b>: a peça está no nosso cadastro e o saldo é zero. ' +
+        '<b>não temos</b>: o código não aparece nesse relatório, então não há nem cadastro para comprar contra.' +
+      '</p>' +
       '<div class="filtros">' +
         '<div class="campo"><label for="fRedeSo">Recorte</label><select id="fRedeSo">' +
           '<option value="ab">Só as que giram no estado (A ou B em 2+ praças)</option>' +
@@ -4892,7 +4909,7 @@ function renderRede() {
           '<input id="fRedeBusca" type="search" placeholder="descrição, código ou original" value="' + esc(filtroRede.busca) + '" /></div>' +
       '</div>' +
       '<div class="rolo" style="margin-top:12px"><table><thead><tr>' +
-        '<th>Peça</th><th>Aqui</th><th class="dir">Praças</th><th class="dir">Un. na rede</th><th>Onde tem</th>' +
+        '<th>Peça</th><th>Em Ribeirão Preto</th><th class="dir">Praças</th><th class="dir">Un. na rede</th><th>Onde tem</th>' +
       '</tr></thead><tbody>' + (linhasFalta ||
         '<tr><td colspan="5" style="padding:18px;color:var(--tinta-2)">Nenhuma peça neste recorte. Afrouxe o filtro acima.</td></tr>') +
       '</tbody></table></div>' +
@@ -5021,7 +5038,7 @@ function csvRede(R, lista) {
       .concat(irmas.flatMap((f) => ['Curva ' + f.nome, 'Saldo ' + f.nome])),
     lista.map((f) => [
       f.descricao, f.codigo, f.original,
-      f.aqui ? 'zerado' : 'sem cadastro',
+      f.aqui ? 'zerado' : 'codigo nao existe no nosso estoque',
       f.aqui ? (f.aqui.curva || '') : '',
       f.praças, f.unidades, f.abNaRede,
     ].concat(irmas.flatMap((x) => {
@@ -5054,7 +5071,7 @@ function textoAbastecimento(R, lista) {
   for (const f of lista.slice(0, 120)) {
     linhas.push('- ' + (f.descricao || f.codigo) + ' | cód. ' + f.codigo +
       (f.original ? ' | orig. ' + f.original : '') +
-      ' | aqui: ' + (f.aqui ? 'zerado (curva ' + (f.aqui.curva || 'sem') + ')' : 'sem cadastro') +
+      ' | aqui: ' + (f.aqui ? 'zerado (curva ' + (f.aqui.curva || 'sem') + ')' : 'codigo nao existe no nosso estoque') +
       ' | na rede: ' + f.com.map((x) => x.nome + ' ' + (x.c || '–') + '/' + n(x.s)).join(', '));
   }
   if (lista.length > 120) linhas.push('', '(+ ' + n(lista.length - 120) + ' peças na planilha em anexo)');

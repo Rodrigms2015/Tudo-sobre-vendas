@@ -4193,6 +4193,27 @@ function renderEstado() {
       : 'Nada foi gravado ainda neste navegador.',
   });
 
+  /* Ficha da base compartilhada. Fica no topo, ao lado de "gravado", porque
+     saber que a tela esta com a versao certa e tao importante quanto saber
+     que gravou — e nao pode depender de abrir aba nenhuma. */
+  if (equipe.ativa) {
+    const quando = equipe.atualizadoEm
+      ? new Date(equipe.atualizadoEm).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })
+      : null;
+    fichas.push({
+      ok: equipe.erro ? 'erro' : equipe.versao ? 'sim' : 'nao',
+      rot: 'Base da equipe',
+      val: equipe.erro ? 'desatualizada' : equipe.versao ? 'versão ' + equipe.versao : 'vazia',
+      titulo: equipe.erro
+        ? 'A base tem dados mais novos e não consegui trazer: ' + equipe.erro +
+          '. A tela pode estar desatualizada. Clique para abrir a aba Situação.'
+        : equipe.versao
+        ? 'Versão ' + equipe.versao + ', publicada por ' + (equipe.atualizadoPor || '—') +
+          (quando ? ' em ' + quando : '') + '. É o que todo mundo da equipe está vendo.'
+        : 'Ninguém publicou dados ainda. O primeiro que carregar o estoque publica para os outros.',
+    });
+  }
+
   $('#estadoFichas').innerHTML = fichas.map((f) =>
     '<button class="ficha-estado" data-ok="' + f.ok + '" data-ir="dados" type="button" title="' + esc(f.titulo) + '">' +
     '<span class="sinal" aria-hidden="true">' + (f.ok === 'sim' ? '\u2713' : f.ok === 'erro' ? '!' : '\u2026') + '</span>' +
@@ -5184,6 +5205,63 @@ function equipeAgendarEnvio() {
   }, 2500);
 }
 
+/* A aba fica aberta o dia inteiro. Enquanto ela fica, a base anda: outra
+   pessoa publica, ou a mesma pessoa sobe arquivo em outro computador. Sem
+   conferir, a tela mostra dado velho e ninguem desconfia — foi exatamente o
+   que aconteceu quando a correcao de uma filial trocada nao chegou na tela.
+
+   Confere ao voltar para a aba, no maximo uma vez a cada 30 s, e so quando
+   nao ha nada local esperando para subir. */
+let ultimaConferencia = 0;
+
+async function equipeConferir({ forcar = false } = {}) {
+  if (!equipe.ativa || equipe.enviando) return;
+  /* Tem alteracao daqui ainda por subir: puxar agora apagaria o trabalho. */
+  if (equipe.agendado || equipe.erro || equipe.conflito) return;
+
+  const agora = Date.now();
+  if (!forcar && agora - ultimaConferencia < 30000) return;
+  ultimaConferencia = agora;
+
+  let situacao;
+  try {
+    const r = await fetch('/api/dados', { cache: 'no-store', headers: { Accept: 'application/json' } });
+    if (!r.ok) return;
+    situacao = await r.json();
+  } catch {
+    return;
+  }
+
+  const laFora = Number(situacao.versao) || 0;
+  if (laFora <= equipe.versao) {
+    /* Mesma versao: so atualiza quem gravou e quando, para a tela nao mentir. */
+    if (laFora === equipe.versao) {
+      equipe.atualizadoPor = situacao.atualizadoPor || equipe.atualizadoPor;
+      equipe.atualizadoEm = situacao.atualizadoEm || equipe.atualizadoEm;
+      renderEquipe();
+    }
+    return;
+  }
+
+  const vista = ($$('.aba').find((a) => a.getAttribute('aria-selected') === 'true') || {}).dataset;
+  try {
+    await equipeBaixar();
+    renderTudo();
+    if (vista && vista.vista) trocarVista(vista.vista);
+    recado('Dados atualizados',
+      'Versão ' + equipe.versao + ', publicada por ' + (equipe.atualizadoPor || '—') +
+      '. A tela já está mostrando esses dados.');
+  } catch (err) {
+    equipe.erro = err && err.message ? err.message : String(err);
+    renderEstado();
+    recado('A base tem dados mais novos e eu não consegui trazer',
+      (equipe.erro) + '. Abra a aba Situação e use "Trazer a versão da equipe".', 'erro');
+  }
+}
+
+document.addEventListener('visibilitychange', () => { if (!document.hidden) equipeConferir(); });
+window.addEventListener('focus', () => equipeConferir());
+
 function renderEquipe() {
   const alvo = $('#painelEquipe');
   if (!alvo) return;
@@ -5320,7 +5398,11 @@ $('#logo').src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAOAAAAB4CAIAAABk
     const vazio = !estado.envios.length && !estado.movimentos;
     if (vazio || naEquipe.versao > equipe.versao) {
       try { veioDaEquipe = await equipeBaixar(); }
-      catch { /* base fora do ar: segue com o que este navegador tem */ }
+      catch (err) {
+        /* Antes isso era engolido em silencio, e o navegador ficava com dado
+           velho sem ninguem saber. Agora aparece na tela. */
+        equipe.erro = err && err.message ? err.message : String(err);
+      }
     }
   }
   /* Base vazia e este navegador com dados: publica, para os outros abrirem. */
@@ -5334,7 +5416,11 @@ $('#logo').src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAOAAAAB4CAIAAABk
   renderTudo();
   trocarVista('painel');
   const st = situacaoDoSistema();
-  if (veioDaEquipe) {
+  if (equipe.erro && naEquipe && naEquipe.versao > 0) {
+    recado('A base da equipe tem dados mais novos e eu não consegui trazer',
+      equipe.erro + '. A tela está com o que estava gravado neste navegador — pode estar desatualizada. ' +
+      'Abra a aba Situação e use "Trazer a versão da equipe".', 'erro');
+  } else if (veioDaEquipe) {
     recado('Dados da equipe carregados',
       [st.estoque.ok ? n(st.estoque.itens) + ' itens de estoque' : null,
        st.movimentacao.ok ? n(st.movimentacao.lancamentos) + ' lançamentos de venda' : null,

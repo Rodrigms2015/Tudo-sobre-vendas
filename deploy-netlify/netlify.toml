@@ -1,8 +1,14 @@
 # Publicação da Central de Compras.
-# A pasta é publicada como está: a página é um arquivo único, sem build.
+#
+# `publicar/` é gerado por `npm run plataforma` e contém só a página e os
+# cabeçalhos. O resto da pasta — porta de entrada, base compartilhada,
+# node_modules — fica fora do que é servido como arquivo estático.
 [build]
-  publish = "."
+  publish = "publicar"
   command = ""
 
 [functions]
   directory = "netlify/functions"
+
+[build.environment]
+  NODE_VERSION = "20"

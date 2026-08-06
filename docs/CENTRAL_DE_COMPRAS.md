@@ -498,15 +498,52 @@ ficha diz isso. A contagem exata está na base municipal do Senatran.
 
 ---
 
+## 6b. A versão publicada com login
+
+O mesmo fonte gera duas coisas diferentes:
+
+| | Arquivo (`.html` aberto do disco, `public/compras.html`) | Publicada (`deploy-netlify/`) |
+|---|---|---|
+| Entrada | não tem | usuário e senha, cinco pessoas |
+| Onde ficam os dados | IndexedDB de quem abriu | base única da equipe |
+| Requisições de rede | **nenhuma** | só `/api/dados`, com sessão válida |
+| `connect-src` na CSP | `'none'` | `'self'` |
+
+A página decide sozinha em qual das duas está: fora de `http`/`https` — ou se o servidor não
+responder — a base da equipe simplesmente não liga, e tudo continua funcionando local. É por
+isso que o arquivo mandado por WhatsApp segue valendo sem internet.
+
+**Entrada.** Formulário de verdade, servido por uma edge function antes de qualquer byte da
+página sair. A caixinha cinza do navegador (autenticação básica) foi descartada: passa
+despercebida em celular. As senhas não existem no código — só o resumo SHA-256 de cada uma.
+O cookie de sessão é assinado com HMAC e vale 12 horas; a chave da assinatura vem dos
+resumos, então trocar uma senha derruba todas as sessões.
+
+**Base da equipe.** Guarda um pacote só — o mesmo do botão "Gerar página para enviar" —
+comprimido em gzip no navegador antes de subir: ~300 kB no lugar de ~3 MB. Grava sozinho
+depois de carregar um arquivo ou mudar uma quantidade, com 2,5 s de espera para não subir o
+pacote inteiro a cada tecla.
+
+**Concorrência.** Cada gravação incrementa uma versão. O navegador manda a versão que
+conhecia; se outra pessoa gravou no meio, a base recusa com 409 e a página diz quem foi, em
+vez de apagar o trabalho dela em silêncio. Ao abrir, se a base está numa versão mais nova do
+que a última que aquele navegador recebeu, ele traz a da base — o que foi feito localmente já
+subiu quando aconteceu.
+
+Detalhes de operação, cadastro de usuários e como publicar de novo: `deploy-netlify/LEIA-ME.md`.
+
+---
+
 ## 7. Privacidade e compartilhamento
 
-- **Nenhuma requisição de rede.** Sem `fetch`, sem `XHR`, sem `WebSocket`, sem CDN. O
-  arquivo é lido no navegador e a análise roda ali. Verificado sob a CSP de produção.
-- Os envios ficam em **IndexedDB no navegador de quem carregou**. Trocar de aparelho começa
-  do zero. Quem abre o link vê a tela vazia com o convite para carregar um arquivo — os
-  dados de ninguém aparecem para ninguém.
-- A CSP de `/compras.html` usa **hash sha256 do script**, não `'unsafe-inline'`. O hash é
-  recalculado e gravado em `public/_headers` pelo `npm run plataforma`.
+- **No arquivo aberto do disco, nenhuma requisição de rede.** Sem `fetch`, sem `XHR`, sem
+  `WebSocket`, sem CDN. O arquivo é lido no navegador e a análise roda ali.
+- **Na versão publicada**, o único destino é `/api/dados`, no mesmo domínio e só com sessão
+  válida. Nada vai para terceiros: sem rastreador, sem analytics, sem fonte externa.
+- Os envios ficam em **IndexedDB no navegador de quem carregou** — e, na versão publicada,
+  também na base da equipe, que é o ponto: os cinco abrem o mesmo conteúdo.
+- A CSP usa **hash sha256 do script**, não `'unsafe-inline'`. O hash é recalculado e gravado
+  em `public/_headers` e em `deploy-netlify/publicar/_headers` pelo `npm run plataforma`.
 - Para mostrar a ferramenta a alguém sem ter arquivo em mãos, o botão **"Ver com dados de
   exemplo"** gera uma carteira fictícia determinística. Nenhum dado real.
 - Para compartilhar resultado: **Copiar texto**, **Baixar CSV** ou **Imprimir / PDF**.
@@ -534,10 +571,14 @@ Detalhes que importam:
 
 ## 9. Ao mexer nesta página
 
-1. Edite **`plataforma/corpo.html`** — nunca `public/compras.html`, que é gerado.
-2. Rode `npm run plataforma`. Isso regrava a página **e o hash da CSP** em `public/_headers`.
+1. Edite **`plataforma/corpo.html`** — nunca `public/compras.html` nem
+   `deploy-netlify/publicar/`, que são gerados.
+2. Rode `npm run plataforma`. Isso regrava a página **e o hash da CSP** nos dois destinos:
+   `public/_headers` e `deploy-netlify/publicar/_headers`.
 3. Rode `npm run check`.
 4. Se mudou peso, limiar ou regra de família, atualize a tabela correspondente aqui.
+5. Se o que mudou vale para quem usa o link com senha, publique de novo — veja
+   `deploy-netlify/LEIA-ME.md`.
 
 O fragmento não traz `<!doctype>`, `<html>`, `<head>` nem `<body>`: o script de geração
 embrulha tudo isso. É o que permite publicar o mesmo fonte como página hospedada e como

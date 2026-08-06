@@ -9,7 +9,7 @@
  *   node scripts/gerar-plataforma.mjs
  */
 
-import { readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -73,3 +73,30 @@ const atualizado = jaTem
   : `${headers.trimEnd()}\n\n${bloco}\n`;
 await writeFile(caminhoHeaders, atualizado, 'utf8');
 console.log(`public/_headers atualizado — script-src ${hash}`);
+
+/*
+ * Cópia publicada com login (deploy-netlify/). Duas diferenças em relação à
+ * cópia de cima: `connect-src 'self'`, porque lá a página conversa com
+ * /api/dados para manter a base da equipe, e `form-action 'self'`, por causa
+ * do formulário da tela de entrada. O hash do script é o mesmo — a página é a
+ * mesma —, então sai daqui para não haver duas fontes da verdade.
+ */
+const publicar = join(raiz, 'deploy-netlify', 'publicar');
+await mkdir(publicar, { recursive: true });
+await writeFile(join(publicar, 'index.html'), documento, 'utf8');
+await writeFile(
+  join(publicar, '_headers'),
+  [
+    '# Gerado por scripts/gerar-plataforma.mjs. Nao edite a mao.',
+    '/*',
+    `  Content-Security-Policy: default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src ${hash}; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'`,
+    '  X-Content-Type-Options: nosniff',
+    '  Referrer-Policy: no-referrer',
+    '  X-Frame-Options: DENY',
+    '  X-Robots-Tag: noindex, nofollow',
+    '  Cache-Control: private, no-store',
+    '',
+  ].join('\n'),
+  'utf8',
+);
+console.log('deploy-netlify/publicar/ atualizado — index.html + _headers');

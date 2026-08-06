@@ -346,6 +346,30 @@
   }
   .placa .rodape { font-size: 12px; color: var(--tinta-3); line-height: 1.35; }
 
+  /* ── Comparação entre filiais ────────────────────────────────
+     A praça de casa é sempre a primeira linha e vem marcada: quem lê a
+     tabela precisa achar Ribeirão sem procurar. */
+  .aqui { background: rgba(239, 126, 50, .09); }
+  .aqui td:first-child { box-shadow: inset 3px 0 0 var(--laranja); font-weight: 700; }
+  .barra {
+    display: block; height: 8px; border-radius: 4px;
+    background: var(--borda); overflow: hidden; min-width: 90px;
+  }
+  .barra i { display: block; height: 100%; background: var(--marinho); }
+  .aqui .barra i { background: var(--laranja); }
+  .matriz td, .matriz th { font-variant-numeric: tabular-nums; }
+  .matriz td[data-alerta="sim"] { color: var(--critico); font-weight: 700; }
+  .grupo-filiais { display: flex; gap: 5px; flex-wrap: wrap; }
+  .selo-filial {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 2px 7px; border-radius: 5px; font-size: 11.5px; font-weight: 600;
+    border: 1px solid var(--borda-forte); background: var(--papel-2); white-space: nowrap;
+  }
+  .selo-filial b { font-variant-numeric: tabular-nums; }
+  .selo-filial[data-c="A"], .selo-filial[data-c="B"] {
+    border-color: var(--marinho); color: var(--marinho); background: rgba(11, 59, 125, .07);
+  }
+
   /* ── Etiquetas de estado ─────────────────────────────────────── */
   .etiqueta {
     display: inline-flex;
@@ -752,6 +776,7 @@
     <button class="aba" role="tab" data-vista="comprar" aria-selected="false" title="Itens que passam nos filtros da lista de compra agora">Comprar <span class="selo" id="seloComprar">0</span></button>
     <button class="aba" role="tab" data-vista="oportunidades" aria-selected="false" title="Itens com saldo alto e giro baixo — o que os vendedores têm para empurrar">Oportunidades <span class="selo" id="seloOport">0</span></button>
     <button class="aba" role="tab" data-vista="demanda" aria-selected="false" title="Itens zerados que tiveram venda comprovada — a compra que não pode esperar">Demanda <span class="selo" id="seloDemanda">0</span></button>
+    <button class="aba" role="tab" data-vista="rede" aria-selected="false" title="Comparação com as filiais irmãs: curva, quantidade e o que pedir de abastecimento">Rede <span class="selo" id="seloRede">0</span></button>
     <button class="aba" role="tab" data-vista="evolucao" aria-selected="false">Evolução</button>
     <button class="aba" role="tab" data-vista="dados" aria-selected="false" title="O que está carregado, o que está gravado e a qualidade do cadastro">Situação</button>
   </div>
@@ -1035,6 +1060,31 @@
         </table></div>
       </div>
     </div>
+  </section>
+
+  <!-- ── REDE ────────────────────────────────────────────────── -->
+  <section class="vista" id="vista-rede" hidden>
+    <div class="secao">
+      <div class="secao-topo">
+        <h2>Ribeirão Preto comparado com as filiais irmãs</h2>
+        <span class="nota">Carregue o estoque de cada filial. A praça é reconhecida pelo nome do arquivo.</span>
+      </div>
+      <div class="grade" id="cartoesRede"></div>
+      <div class="filtros" style="margin-top:12px">
+        <div class="campo" style="flex:1 1 260px">
+          <label for="fFilialAlvo">Se o nome do arquivo não disser a praça, escolha aqui</label>
+          <select id="fFilialAlvo"><option value="">Reconhecer pelo nome do arquivo</option></select>
+        </div>
+        <div class="campo" style="justify-content:flex-end">
+          <button class="bt" id="btCarregarFilial" type="button">Carregar estoque de outra filial</button>
+        </div>
+        <div class="campo" style="justify-content:flex-end">
+          <button class="bt bt-fantasma" id="btLimparRede" type="button" hidden>Tirar todas as filiais</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="conteudoRede"></div>
   </section>
 
   <!-- ── EVOLUÇÃO ────────────────────────────────────────────── -->
@@ -2684,6 +2734,7 @@ const guardarTabelaMarcas = (nome) => gravarVerificado(
 const guardarMovimentos = (nome) => gravarVerificado(
   { id: '__movimentos', nome, em: new Date().toISOString(), movimentos: estado.movimentos },
   (r) => (r.movimentos || []).length);
+const guardarRede = () => comLoja('readwrite', (l) => l.put({ id: '__rede', filiais: estado.rede }));
 const lerEnvios = () => comLoja('readonly', (l) => l.getAll());
 const removerEnvio = (id) => comLoja('readwrite', (l) => l.delete(id));
 const limparEnvios = () => comLoja('readwrite', (l) => l.clear());
@@ -2708,6 +2759,7 @@ const estado = {
   tabelaMarcas: null,
   nomeTabelaMarcas: null,
   formatoMovimentos: null,
+  rede: {},
   gravacao: { ok: null, em: null, erro: null },
   nomeMovimentos: null,
   emMovimentos: null,
@@ -3894,6 +3946,17 @@ async function carregarArquivo(file) {
 
     const itensLidos = normalizar(linhas);
 
+    /* Estoque de outra praça: o arquivo é igual, o destino é que muda. A
+       praça sai do nome do arquivo; quando não dá para reconhecer com
+       certeza, a página pergunta em vez de chutar. Sem resposta, o arquivo
+       segue o caminho de sempre e vira o estoque de casa. */
+    const ffDetectado = estado.redeEsperando || reconhecerFilial(nome);
+    estado.redeEsperando = null;
+    if (ffDetectado && ffDetectado !== AQUI) {
+      await aplicarFilialIrma(ffDetectado, itensLidos, nome, file);
+      return;
+    }
+
     const envio = {
       id: 'e' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
       nome,
@@ -3986,6 +4049,7 @@ function trocarVista(vista) {
   if (vista === 'evolucao') renderEvolucao();
   if (vista === 'dados') renderDados();
   if (vista === 'demanda') renderDemanda();
+  if (vista === 'rede') renderRede();
 }
 
 function sincronizarFiltros() {
@@ -4129,6 +4193,7 @@ function renderTudo() {
   const vista = ativa ? ativa.dataset.vista : 'painel';
   if (vista === 'evolucao') renderEvolucao();
   if (vista === 'dados') renderDados();
+  renderRede();
   renderDemanda();
   atualizarCarrinho();
 }
@@ -4279,6 +4344,7 @@ function pacoteDeDados() {
     tabelaMarcas: estado.tabelaMarcas,
     nomeTabelaMarcas: estado.nomeTabelaMarcas,
     quantidades: estado.quantidades,
+    rede: estado.rede,
     diasCobertura: estado.diasCobertura,
     resumo: {
       itens: e ? e.itens.length : 0,
@@ -4301,6 +4367,7 @@ async function aplicarPacote(pacote) {
   estado.tabelaMarcas = pacote.tabelaMarcas || null;
   estado.nomeTabelaMarcas = pacote.nomeTabelaMarcas || null;
   estado.quantidades = pacote.quantidades || {};
+  estado.rede = pacote.rede || {};
   if (pacote.diasCobertura) estado.diasCobertura = pacote.diasCobertura;
   estado.marcados.clear();
   try {
@@ -4309,6 +4376,7 @@ async function aplicarPacote(pacote) {
     if (estado.tabelaMarcas) await guardarTabelaMarcas(estado.nomeTabelaMarcas || 'pacote');
     await guardarMapaMarcas();
     await guardarQuantidades();
+    await guardarRede();
   } catch (err) {
     estado.gravacao = { ok: false, em: null, erro: err.message || String(err) };
   }
@@ -4356,6 +4424,476 @@ liga('#btApagar', 'click', async () => {
   estado.envios = []; estado.atualId = null; estado.marcados.clear();
   recalcular(); renderTudo(); trocarVista('painel');
 });
+
+/* ─── 23c. Rede — comparação com as filiais irmãs ────────────────────
+   O relatório de estoque é o mesmo em toda a rede, então o de qualquer
+   praça é lido pelo mesmo leitor. O que muda é o destino: em vez de virar
+   o estoque de casa, vira uma coluna de comparação.
+
+   Duas coisas ficam claras aqui, e só aqui:
+
+   1. A curva é classificação de venda **da própria filial**. Uma peça
+      curva A em Campinas é uma peça que gira em Campinas. Quando a mesma
+      peça é A em três praças e está zerada aqui, o fato é esse — a leitura
+      de por que ela não gira aqui é de quem negocia, não da página.
+
+   2. Saldo é decisão de estoque, não venda. A página nunca diz que a irmã
+      "vendeu" alguma coisa: ela diz quanto a irmã mantém em prateleira.
+
+   Guardamos por filial só o que a comparação usa — código base, curva,
+   saldo e descrição —, não o relatório inteiro. Cinco praças cabem em
+   ~200 kB, e é isso que sobe para a base da equipe. */
+
+const AQUI = '03';
+const ORDEM_CURVA = 'ABCDEF';
+const postoCurva = (c) => {
+  const i = ORDEM_CURVA.indexOf(String(c || '')[0]);
+  return i < 0 ? 9 : i;
+};
+
+const palavrasDe = (t) =>
+  semAcento(t).toUpperCase().replace(/[^A-Z0-9]+/g, ' ').trim().split(' ')
+    .filter((p) => p.length >= 3 && !/^\d+$/.test(p));
+
+/* Palavras que aparecem em nome de relatório e não ajudam a identificar praça. */
+const RUIDO_NOME = new Set(['ESTOQUE', 'RELATORIO', 'POSICAO', 'FILIAL', 'GERAL', 'ATUAL', 'XLS', 'DOS', 'DAS']);
+
+/**
+ * Descobre a praça pelo nome do arquivo — `ESTOQUE PRES. PRUD 0608.xls`
+ * vira Presidente Prudente. Uma palavra do arquivo casa com uma palavra da
+ * cidade quando uma é começo da outra, o que resolve as abreviações que o
+ * pessoal usa. Devolve `null` quando não dá para ter certeza: nesse caso a
+ * página pergunta em vez de chutar.
+ */
+function reconhecerFilial(nomeArquivo) {
+  const alvo = palavrasDe(nomeArquivo).filter((p) => !RUIDO_NOME.has(p));
+  if (!alvo.length) return null;
+  const casa = (a, b) => a === b || a.startsWith(b) || b.startsWith(a);
+
+  const notas = Object.entries(FILIAIS).map(([ff, [cidade]]) => {
+    const termos = palavrasDe(cidade);
+    const acertos = termos.filter((t) => alvo.some((a) => casa(a, t))).length;
+    return { ff, acertos, nota: termos.length ? acertos / termos.length : 0 };
+  }).filter((x) => x.acertos > 0).sort((a, b) => b.nota - a.nota || b.acertos - a.acertos);
+
+  if (!notas.length || notas[0].nota < 0.6) return null;
+  /* Empate é dúvida, e dúvida não vira palpite. */
+  if (notas[1] && notas[1].nota === notas[0].nota && notas[1].acertos === notas[0].acertos) return null;
+  return notas[0].ff;
+}
+
+/**
+ * Reduz o relatório de uma filial ao que a comparação usa. As variantes
+ * fiscais (`648661`, `648661[3]`) são a mesma peça: somam saldo e ficam com
+ * a melhor curva entre elas — a mesma regra que a aba Comprar usa.
+ */
+function pecasDaFilial(lista) {
+  const mapa = {};
+  for (const it of lista) {
+    const k = semSufixo(it.produto) || it.interno;
+    if (!k) continue;
+    const a = mapa[k] || (mapa[k] = { c: '', s: null, d: '', o: '' });
+    /* Saldo ausente não é saldo zero: só entra na soma o que veio no arquivo. */
+    if (it.saldo !== null && it.saldo !== undefined) a.s = (a.s === null ? 0 : a.s) + it.saldo;
+    if (it.curva && postoCurva(it.curva) < postoCurva(a.c)) a.c = it.curva;
+    if (!a.d && it.descricao) a.d = it.descricao;
+    if (!a.o && it.original) a.o = it.original;
+  }
+  return mapa;
+}
+
+/* Nome curto para caber no selo. "São Paulo" e "São José do Rio Preto"
+   truncados na primeira palavra viravam os dois "São" — daí abreviar tudo
+   menos a última palavra, que é o que distingue. */
+function nomeCurto(nome) {
+  if (nome.length <= 15) return nome;
+  const p = String(nome).split(/\s+/).filter((x) => !/^(de|do|da|dos|das)$/i.test(x));
+  const ultima = p.pop();
+  return p.map((x) => x.slice(0, 1).toUpperCase() + '.').join('') + ' ' + ultima;
+}
+
+const filiaisIrmas = () =>
+  Object.values(estado.rede || {}).filter((f) => f.ff !== AQUI)
+    .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+
+function resumoDaFilial(pecas) {
+  const vals = Object.values(pecas);
+  const comSaldo = vals.filter((a) => (a.s || 0) > 0);
+  const ab = vals.filter((a) => postoCurva(a.c) <= 1);
+  return {
+    pecas: vals.length,
+    comSaldo: comSaldo.length,
+    zeradas: vals.filter((a) => a.s === 0).length,
+    unidades: vals.reduce((t, a) => t + (a.s || 0), 0),
+    ab: ab.length,
+    abComSaldo: ab.filter((a) => (a.s || 0) > 0).length,
+  };
+}
+
+/**
+ * O cálculo inteiro da aba. Devolve `null` quando não há com o que comparar
+ * — a tela então mostra o convite para carregar, não uma tabela vazia.
+ */
+function analisarRede() {
+  const irmas = filiaisIrmas();
+  if (!irmas.length || !itens().length) return null;
+
+  const aqui = pecasDaFilial(itens());
+  const praças = [
+    { ff: AQUI, nome: nomeFilial(AQUI), uf: ufDaFilial(AQUI), pecas: aqui, casa: true, dataISO: (envioAtual() || {}).dataISO || null },
+    ...irmas.map((f) => ({ ...f, casa: false })),
+  ];
+
+  /* Ruptura por curva, praça a praça. É o quadro que responde "o buraco é
+     meu ou é de todo mundo?" — e às vezes a resposta é que é de todo mundo. */
+  const matriz = praças.map((p) => {
+    const linha = { ff: p.ff, nome: p.nome, casa: p.casa, curvas: {} };
+    for (const c of ORDEM_CURVA) {
+      const g = Object.values(p.pecas).filter((a) => String(a.c || '')[0] === c);
+      linha.curvas[c] = { total: g.length, zeradas: g.filter((a) => a.s === 0).length };
+    }
+    linha.resumo = resumoDaFilial(p.pecas);
+    return linha;
+  });
+
+  /* Universo de referência: peça classificada A ou B em pelo menos duas
+     praças irmãs. Duas, e não uma, porque uma praça sozinha pode ter uma
+     particularidade de cliente; duas já é padrão de estado. */
+  const universo = new Set();
+  const todosCodigos = new Set();
+  for (const p of praças) for (const k of Object.keys(p.pecas)) todosCodigos.add(k);
+  for (const k of todosCodigos) {
+    const q = irmas.filter((f) => f.pecas[k] && postoCurva(f.pecas[k].c) <= 1).length;
+    if (q >= 2) universo.add(k);
+  }
+
+  const paridade = praças.map((p) => {
+    const tem = [...universo].filter((k) => p.pecas[k] && (p.pecas[k].s || 0) > 0).length;
+    return { ff: p.ff, nome: p.nome, casa: p.casa, tem, taxa: universo.size ? tem / universo.size : 0 };
+  }).sort((a, b) => b.taxa - a.taxa);
+
+  /* A lista que vira pedido: peça que a rede mantém e que aqui está zerada
+     ou nem aparece no relatório. */
+  const falta = [];
+  for (const k of todosCodigos) {
+    const meu = aqui[k] || null;
+    if (meu && (meu.s || 0) > 0) continue;
+    const com = irmas.filter((f) => f.pecas[k] && (f.pecas[k].s || 0) > 0)
+      .map((f) => ({ ff: f.ff, nome: f.nome, c: f.pecas[k].c, s: f.pecas[k].s }))
+      .sort((a, b) => postoCurva(a.c) - postoCurva(b.c) || b.s - a.s);
+    if (!com.length) continue;
+
+    const ref = irmas.filter((f) => f.pecas[k]).map((f) => f.pecas[k]);
+    const abNaRede = ref.filter((a) => postoCurva(a.c) <= 1).length;
+    const melhorLa = Math.min(...ref.map((a) => postoCurva(a.c)));
+    const desc = (meu && meu.d) || (ref.find((a) => a.d) || {}).d || '';
+
+    falta.push({
+      codigo: k,
+      descricao: desc,
+      original: (meu && meu.o) || (ref.find((a) => a.o) || {}).o || '',
+      aqui: meu ? { curva: meu.c, saldo: meu.s } : null,
+      com,
+      praças: com.length,
+      unidades: com.reduce((t, x) => t + x.s, 0),
+      abNaRede,
+      melhorLa,
+      /* Força do argumento, e é só isso que a ordenação usa: em quantas
+         praças a peça é bem classificada, em quantas ela tem saldo, e o
+         quanto ela é melhor lá do que aqui. */
+      forca: abNaRede * 3 + com.length * 2 + (meu ? Math.max(0, postoCurva(meu.c) - melhorLa) : 3),
+    });
+  }
+  falta.sort((a, b) => b.forca - a.forca || b.unidades - a.unidades);
+
+  const semCadastro = falta.filter((f) => !f.aqui);
+  return {
+    praças, irmas, matriz, paridade,
+    universo: universo.size,
+    minhaParidade: paridade.find((p) => p.casa) || null,
+    lider: paridade[0],
+    falta,
+    faltaAB: falta.filter((f) => f.abNaRede >= 2),
+    semCadastro,
+    semCadastroAB: semCadastro.filter((f) => f.abNaRede >= 2),
+    unidadesParadas: falta.reduce((t, f) => t + f.unidades, 0),
+  };
+}
+
+/* ── Filtros da lista ─────────────────────────────────────────────── */
+const filtroRede = { min: 1, so: 'ab', busca: '' };
+
+function faltaFiltrada(R) {
+  const b = semAcento(filtroRede.busca).toUpperCase().trim();
+  return R.falta.filter((f) => {
+    if (f.praças < filtroRede.min) return false;
+    if (filtroRede.so === 'ab' && f.abNaRede < 2) return false;
+    if (filtroRede.so === 'novo' && f.aqui) return false;
+    if (b && !semAcento(f.descricao + ' ' + f.codigo + ' ' + f.original).toUpperCase().includes(b)) return false;
+    return true;
+  });
+}
+
+/* Lista de praças do seletor: as de SP primeiro, que é com quem a
+   comparação faz sentido no dia a dia. Ribeirão fica de fora — o estoque
+   de casa entra pelo caminho normal. */
+function montarSeletorDeFilial() {
+  const sel = $('#fFilialAlvo');
+  if (!sel || sel.dataset.pronto) return;
+  const opcoes = Object.entries(FILIAIS)
+    .filter(([ff]) => ff !== AQUI)
+    .sort((a, b) => (a[1][1] === 'SP' ? 0 : 1) - (b[1][1] === 'SP' ? 0 : 1) || a[1][0].localeCompare(b[1][0], 'pt-BR'));
+  sel.insertAdjacentHTML('beforeend', opcoes
+    .map(([ff, [cidade, uf]]) => '<option value="' + ff + '">' + esc(cidade) + ' — ' + esc(uf) + ' (filial ' + ff + ')</option>')
+    .join(''));
+  sel.dataset.pronto = '1';
+}
+
+function renderRede() {
+  const alvo = $('#conteudoRede');
+  const irmas = filiaisIrmas();
+  montarSeletorDeFilial();
+  $('#btLimparRede').hidden = !irmas.length;
+
+  /* Cartões das filiais carregadas. */
+  $('#cartoesRede').innerHTML = irmas.length
+    ? irmas.map((f) => {
+        const r = resumoDaFilial(f.pecas);
+        return '<div class="ficha">' +
+          '<div class="sobrancelha">Filial ' + esc(f.ff) + ' · ' + esc(f.uf || '') + '</div>' +
+          '<h3>' + esc(f.nome) + '</h3>' +
+          '<p>' + n(r.pecas) + ' peças · ' + n(r.comSaldo) + ' com saldo · ' + n(r.unidades) + ' unidades<br>' +
+          '<span style="color:var(--tinta-3);font-size:12.5px">' + esc(f.arquivo) + '</span></p>' +
+          '<div style="margin-top:auto;padding-top:9px">' +
+          '<button class="bt bt-mini bt-fantasma" data-tira="' + esc(f.ff) + '" type="button">Tirar da comparação</button></div></div>';
+      }).join('')
+    : '<div class="ficha"><div class="sobrancelha">Nenhuma filial carregada</div>' +
+      '<h3>Comece pelo estoque das praças vizinhas</h3>' +
+      '<p>Carregue o relatório de estoque de São Paulo, Campinas, São José do Rio Preto, Presidente Prudente — ' +
+      'o mesmo arquivo que você tira daqui, só que da outra filial. A praça é reconhecida pelo nome do arquivo.</p></div>';
+
+  $$('#cartoesRede [data-tira]').forEach((b) => b.addEventListener('click', async () => {
+    delete estado.rede[b.dataset.tira];
+    await guardarRede().catch(() => {});
+    equipeAgendarEnvio();
+    renderRede();
+    renderEstado();
+  }));
+
+  const R = analisarRede();
+  $('#seloRede').textContent = R ? n(R.faltaAB.length) : '0';
+  if (!R) {
+    alvo.innerHTML = irmas.length
+      ? '<div class="secao"><p style="color:var(--tinta-2)">Carregue o estoque de Ribeirão Preto para a comparação aparecer.</p></div>'
+      : '';
+    return;
+  }
+
+  const meu = R.minhaParidade;
+  const atras = R.lider && !R.lider.casa ? R.lider.tem - meu.tem : 0;
+
+  const placas = [
+    { tom: 'critico', valor: n(R.faltaAB.length), rot: 'Peças para pedir',
+      pe: 'Zeradas ou sem cadastro aqui, e classificadas A ou B em pelo menos duas praças irmãs.' },
+    { tom: 'atencao', valor: pct(meu.taxa), rot: 'Paridade com a rede',
+      pe: 'De ' + n(R.universo) + ' peças que giram no estado, Ribeirão tem ' + n(meu.tem) + ' com saldo.' +
+        (atras > 0 ? ' ' + esc(R.lider.nome) + ' tem ' + n(R.lider.tem) + ' — ' + n(atras) + ' a mais.' : '') },
+    { tom: 'parado', valor: n(R.unidadesParadas), rot: 'Unidades nas irmãs',
+      pe: 'Somadas nas praças que mantêm as peças que faltam aqui. É estoque que a rede já comprou.' },
+    { tom: 'neutro', valor: n(R.semCadastroAB.length), rot: 'Sem cadastro e girando',
+      pe: 'Curva A ou B na rede e sem nenhum registro no relatório daqui. ' +
+        'No total, ' + n(R.semCadastro.length) + ' peças em prateleira nas irmãs não aparecem no nosso cadastro.' },
+  ];
+
+  const linhasMatriz = R.matriz.map((l) => {
+    const cels = ORDEM_CURVA.split('').map((c) => {
+      const g = l.curvas[c];
+      if (!g.total) return '<td class="dir">—</td>';
+      const taxa = g.zeradas / g.total;
+      const pior = R.matriz.filter((x) => x.curvas[c].total).map((x) => x.curvas[c].zeradas / x.curvas[c].total);
+      const alerta = l.casa && taxa >= Math.max(...pior) - 0.001 && pior.length > 1;
+      return '<td class="dir" data-alerta="' + (alerta ? 'sim' : 'nao') + '" title="' +
+        n(g.zeradas) + ' de ' + n(g.total) + ' peças curva ' + c + ' estão zeradas">' + pct(taxa) + '</td>';
+    }).join('');
+    return '<tr class="' + (l.casa ? 'aqui' : '') + '"><td>' + esc(l.nome) + (l.casa ? ' (aqui)' : '') + '</td>' +
+      cels + '<td class="dir">' + n(l.resumo.pecas) + '</td><td class="dir">' + n(l.resumo.unidades) + '</td></tr>';
+  }).join('');
+
+  const linhasParidade = R.paridade.map((p) => {
+    const largura = R.lider.taxa ? (p.taxa / R.lider.taxa) * 100 : 0;
+    return '<tr class="' + (p.casa ? 'aqui' : '') + '"><td>' + esc(p.nome) + (p.casa ? ' (aqui)' : '') + '</td>' +
+      '<td style="width:45%"><span class="barra"><i style="width:' + largura.toFixed(1) + '%"></i></span></td>' +
+      '<td class="dir">' + n(p.tem) + '</td><td class="dir">' + pct(p.taxa) + '</td></tr>';
+  }).join('');
+
+  const lista = faltaFiltrada(R);
+  const linhasFalta = lista.slice(0, 300).map((f) => {
+    const selos = f.com.map((x) =>
+      '<span class="selo-filial" data-c="' + esc(x.c || '-') + '" title="' + esc(x.nome) + ' — curva ' + esc(x.c || 'sem curva') + ', ' + n(x.s) + ' unidades">' +
+      esc(nomeCurto(x.nome)) + ' <b>' + esc(x.c || '–') + '</b> · ' + n(x.s) + '</span>').join('');
+    return '<tr><td>' + esc(f.descricao || '(sem descrição)') +
+      '<br><span style="color:var(--tinta-3);font-size:12px">' + esc(f.codigo) +
+      (f.original ? ' · orig. ' + esc(f.original) : '') + '</span></td>' +
+      '<td>' + (f.aqui
+        ? '<span class="curva" data-c="' + esc(f.aqui.curva || 'F') + '">' + esc(f.aqui.curva || '–') + '</span> zerado'
+        : '<span style="color:var(--critico);font-weight:700" title="Este código não aparece no relatório de estoque de Ribeirão Preto">sem cadastro</span>') + '</td>' +
+      '<td class="dir">' + n(f.praças) + '</td>' +
+      '<td class="dir">' + n(f.unidades) + '</td>' +
+      '<td><div class="grupo-filiais">' + selos + '</div></td></tr>';
+  }).join('');
+
+  alvo.innerHTML =
+    '<div class="secao"><div class="placas">' +
+      placas.map((p) => '<div class="placa" data-tom="' + p.tom + '">' +
+        '<div class="valor">' + p.valor + '</div>' +
+        '<div style="font-size:12.5px;font-weight:700">' + esc(p.rot) + '</div>' +
+        '<div class="rodape">' + p.pe + '</div></div>').join('') +
+    '</div></div>' +
+
+    '<div class="secao"><div class="secao-topo">' +
+      '<h2>Paridade com o que gira no estado</h2>' +
+      '<span class="nota">' + n(R.universo) + ' peças classificadas A ou B em duas ou mais praças irmãs.</span></div>' +
+      '<div class="rolo"><table><thead><tr><th>Filial</th><th>Cobertura</th>' +
+      '<th class="dir">Peças com saldo</th><th class="dir">% do conjunto</th></tr></thead>' +
+      '<tbody>' + linhasParidade + '</tbody></table></div></div>' +
+
+    '<div class="secao"><div class="secao-topo">' +
+      '<h2>Ruptura por curva, praça a praça</h2>' +
+      '<span class="nota">Percentual das peças de cada curva que estão com saldo zero. Vermelho: aqui é a pior da comparação.</span></div>' +
+      '<div class="rolo"><table class="matriz"><thead><tr><th>Filial</th>' +
+      ORDEM_CURVA.split('').map((c) => '<th class="dir">Curva ' + c + '</th>').join('') +
+      '<th class="dir">Peças</th><th class="dir">Unidades</th></tr></thead>' +
+      '<tbody>' + linhasMatriz + '</tbody></table></div></div>' +
+
+    '<div class="secao"><div class="secao-topo">' +
+      '<h2>O que pedir de abastecimento</h2>' +
+      '<span class="nota">' + n(lista.length) + ' peças no filtro atual' + (lista.length > 300 ? ' — mostrando as 300 primeiras' : '') + '.</span></div>' +
+      '<div class="filtros">' +
+        '<div class="campo"><label for="fRedeSo">Recorte</label><select id="fRedeSo">' +
+          '<option value="ab">Só as que giram no estado (A ou B em 2+ praças)</option>' +
+          '<option value="todas">Todas as que faltam aqui</option>' +
+          '<option value="novo">Só as que nem estão cadastradas aqui</option>' +
+        '</select></div>' +
+        '<div class="campo"><label for="fRedeMin">Em quantas praças tem saldo</label><select id="fRedeMin">' +
+          [1, 2, 3, 4].map((v) => '<option value="' + v + '">' + v + ' ou mais</option>').join('') +
+        '</select></div>' +
+        '<div class="campo" style="flex:1 1 220px"><label for="fRedeBusca">Buscar</label>' +
+          '<input id="fRedeBusca" type="search" placeholder="descrição, código ou original" value="' + esc(filtroRede.busca) + '" /></div>' +
+      '</div>' +
+      '<div class="rolo" style="margin-top:12px"><table><thead><tr>' +
+        '<th>Peça</th><th>Aqui</th><th class="dir">Praças</th><th class="dir">Un. na rede</th><th>Onde tem</th>' +
+      '</tr></thead><tbody>' + (linhasFalta ||
+        '<tr><td colspan="5" style="padding:18px;color:var(--tinta-2)">Nenhuma peça neste recorte. Afrouxe o filtro acima.</td></tr>') +
+      '</tbody></table></div>' +
+      '<div style="margin-top:12px;display:flex;gap:9px;flex-wrap:wrap">' +
+        '<button class="bt" id="btPedidoRede" type="button">Gerar pedido de abastecimento</button>' +
+        '<button class="bt" id="btCsvRede" type="button">Baixar planilha completa</button>' +
+      '</div>' +
+    '</div>';
+
+  $('#fRedeSo').value = filtroRede.so;
+  $('#fRedeMin').value = String(filtroRede.min);
+  $('#fRedeSo').addEventListener('change', (e) => { filtroRede.so = e.target.value; renderRede(); });
+  $('#fRedeMin').addEventListener('change', (e) => { filtroRede.min = Number(e.target.value); renderRede(); });
+  $('#fRedeBusca').addEventListener('input', (e) => {
+    filtroRede.busca = e.target.value;
+    const foco = document.activeElement === e.target;
+    renderRede();
+    if (foco) { const novo = $('#fRedeBusca'); novo.focus(); novo.setSelectionRange(novo.value.length, novo.value.length); }
+  });
+  $('#btPedidoRede').addEventListener('click', () => {
+    abrirModal('Pedido de abastecimento — filial 03, Ribeirão Preto',
+      lista.length + ' peças no recorte atual.',
+      textoAbastecimento(R, lista), csvRede(R, lista), 'abastecimento-ribeirao-preto.csv');
+  });
+  $('#btCsvRede').addEventListener('click', () => {
+    baixar('comparacao-filiais-ribeirao-preto.csv', csvRede(R, R.falta), 'text/csv');
+    recado('Planilha baixada', n(R.falta.length) + ' peças que a rede mantém e que aqui estão zeradas ou sem cadastro.');
+  });
+}
+
+/** Guarda o estoque de uma praça irmã e avisa o que foi reconhecido. */
+async function aplicarFilialIrma(ff, itensLidos, nomeArquivo, file) {
+  const pecas = pecasDaFilial(itensLidos);
+  estado.rede[ff] = {
+    ff,
+    nome: nomeFilial(ff),
+    uf: ufDaFilial(ff),
+    arquivo: nomeArquivo,
+    dataISO: new Date((file && file.lastModified) || Date.now()).toISOString(),
+    pecas,
+  };
+  let erro = null;
+  try { await guardarRede(); } catch (err) { erro = err.message || String(err); }
+
+  const r = resumoDaFilial(pecas);
+  renderTudo();
+  trocarVista('rede');
+  equipeAgendarEnvio();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+
+  const quantas = filiaisIrmas().length;
+  if (erro) {
+    recado(nomeFilial(ff) + ' entrou, mas NÃO gravou',
+      n(r.pecas) + ' peças valem nesta tela, mas não consegui gravar neste navegador (' + erro + ').', 'erro');
+    return;
+  }
+  recado(nomeFilial(ff) + ' entrou na comparação',
+    n(r.pecas) + ' peças, ' + n(r.comSaldo) + ' com saldo, ' + n(r.unidades) + ' unidades. ' +
+    'Reconheci a praça pelo nome do arquivo. ' +
+    (quantas === 1
+      ? 'Carregue as outras praças para o quadro ficar completo.'
+      : n(quantas) + ' filiais irmãs na comparação.'));
+}
+
+function csvRede(R, lista) {
+  const irmas = R.irmas;
+  return paraCsv(
+    ['Descricao', 'Cod. Produto', 'Cod. Original', 'Situacao aqui', 'Curva aqui',
+      'Pracas com saldo', 'Unidades na rede', 'Pracas em que e A ou B']
+      .concat(irmas.flatMap((f) => ['Curva ' + f.nome, 'Saldo ' + f.nome])),
+    lista.map((f) => [
+      f.descricao, f.codigo, f.original,
+      f.aqui ? 'zerado' : 'sem cadastro',
+      f.aqui ? (f.aqui.curva || '') : '',
+      f.praças, f.unidades, f.abNaRede,
+    ].concat(irmas.flatMap((x) => {
+      const p = x.pecas[f.codigo];
+      return p ? [p.c || '', p.s === null ? '' : p.s] : ['', ''];
+    }))));
+}
+
+/* O texto que vai para a matriz. Sem adjetivo: número, origem do número e
+   o que se está pedindo. */
+function textoAbastecimento(R, lista) {
+  const meu = R.minhaParidade;
+  const dataIrmas = R.irmas.map((f) => f.nome).join(', ');
+  const linhas = [
+    'PEDIDO DE ABASTECIMENTO — FILIAL 03, RIBEIRÃO PRETO',
+    'Base: relatório de estoque desta filial e de ' + dataIrmas + '.',
+    '',
+    'SITUAÇÃO',
+    '- ' + n(R.universo) + ' peças são classificadas curva A ou B em duas ou mais das praças comparadas.',
+    '- Ribeirão Preto tem ' + n(meu.tem) + ' delas com saldo (' + pct(meu.taxa) + ').' +
+      (R.lider && !R.lider.casa ? ' ' + R.lider.nome + ' tem ' + n(R.lider.tem) + ' (' + pct(R.lider.taxa) + ').' : ''),
+    '- ' + n(R.falta.length) + ' peças que as irmãs mantêm em prateleira estão zeradas ou sem cadastro aqui.',
+    '- Dessas, ' + n(R.faltaAB.length) + ' são curva A ou B em pelo menos duas praças.',
+    '- As irmãs somam ' + n(R.unidadesParadas) + ' unidades dessas mesmas peças.',
+    '',
+    'PEDIDO',
+    n(lista.length) + ' peças, relacionadas abaixo por ordem de recorrência na rede.',
+    '',
+  ];
+  for (const f of lista.slice(0, 120)) {
+    linhas.push('- ' + (f.descricao || f.codigo) + ' | cód. ' + f.codigo +
+      (f.original ? ' | orig. ' + f.original : '') +
+      ' | aqui: ' + (f.aqui ? 'zerado (curva ' + (f.aqui.curva || 'sem') + ')' : 'sem cadastro') +
+      ' | na rede: ' + f.com.map((x) => x.nome + ' ' + (x.c || '–') + '/' + n(x.s)).join(', '));
+  }
+  if (lista.length > 120) linhas.push('', '(+ ' + n(lista.length - 120) + ' peças na planilha em anexo)');
+  linhas.push('', 'Curva é a classificação de venda de cada filial. Saldo é o que a filial mantém em prateleira.');
+  return linhas.join('\n');
+}
 
 /* ─── 23b. Base da equipe ────────────────────────────────────────────
    Na versão publicada no link com senha, os dados não ficam presos ao
@@ -4540,6 +5078,20 @@ function renderEquipe() {
     '<h3>' + esc(val) + '</h3><p>' + esc(txt) + '</p></div>').join('');
 }
 
+liga('#btCarregarFilial', 'click', () => {
+  estado.redeEsperando = $('#fFilialAlvo').value || null;
+  $('#arquivo').click();
+});
+
+liga('#btLimparRede', 'click', async () => {
+  if (!confirm('Tirar todas as filiais irmãs da comparação? O estoque de Ribeirão Preto não é afetado.')) return;
+  estado.rede = {};
+  await guardarRede().catch(() => {});
+  equipeAgendarEnvio();
+  renderTudo();
+  trocarVista('rede');
+});
+
 liga('#btEnviarEquipe', 'click', async () => {
   if (!itens().length && !estado.movimentos) {
     recado('Nada para enviar', 'Carregue o estoque antes de publicar para a equipe.', 'erro');
@@ -4584,6 +5136,8 @@ $('#logo').src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAOAAAAB4CAIAAABk
     const quantidades = guardados.find((e) => e.id === '__quantidades');
     const movs = guardados.find((e) => e.id === '__movimentos');
     const tab = guardados.find((e) => e.id === '__tabelaMarcas');
+    const rede = guardados.find((e) => e.id === '__rede');
+    if (rede) estado.rede = rede.filiais || {};
     const eq = guardados.find((e) => e.id === '__equipe');
     if (eq) equipe.versao = Number(eq.versao) || 0;
     if (tab) { estado.tabelaMarcas = tab.tabela || null; estado.nomeTabelaMarcas = tab.nome || null; }

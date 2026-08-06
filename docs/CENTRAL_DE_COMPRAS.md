@@ -330,6 +330,67 @@ nenhuma — a regra de não falar com servidor continua valendo até na hora de 
 
 ---
 
+## 3h. Rede — comparação com as filiais irmãs
+
+O relatório de estoque é o mesmo em toda a rede, então o de qualquer praça entra pelo mesmo
+leitor. O que muda é o destino: em vez de virar o estoque de casa, vira uma coluna de
+comparação. A praça sai do **nome do arquivo** — `ESTOQUE PRES. PRUD 0608.xls` vira
+Presidente Prudente, porque uma palavra do arquivo casa com uma palavra da cidade quando uma
+é começo da outra. Empate ou nota baixa não vira palpite: a página pergunta.
+
+Por filial guardamos só o que a comparação usa — código base, curva, saldo e descrição —, não
+o relatório inteiro. Cinco praças cabem em ~200 kB, e é isso que sobe para a base da equipe.
+
+### O que a curva significa aqui
+
+**A curva é a classificação de venda da própria filial.** Uma peça curva A em Campinas é uma
+peça que gira em Campinas. Quando a mesma peça é A em três praças e está zerada aqui, o fato
+é esse — a leitura de *por que* ela não gira aqui é de quem negocia, não da página.
+
+**Saldo é decisão de estoque, não venda.** A página nunca diz que a irmã "vendeu" alguma
+coisa: diz quanto a irmã mantém em prateleira. A distinção importa porque só a curva carrega
+informação de demanda; o saldo carrega informação de política de compra.
+
+### Índice de paridade
+
+O número que resume tudo. O universo de referência é o conjunto de peças **classificadas A ou
+B em pelo menos duas praças irmãs** — duas, e não uma, porque uma praça sozinha pode ter uma
+particularidade de cliente; duas já é padrão de estado. A paridade é a fração desse conjunto
+que a filial tem com saldo.
+
+Nos arquivos de 06/08/2026, com as quatro praças de SP carregadas:
+
+| Filial | Peças com saldo | Paridade |
+|---|---:|---:|
+| Campinas | 1.211 | 81% |
+| São José do Rio Preto | 1.209 | 81% |
+| Presidente Prudente | 1.148 | 77% |
+| **Ribeirão Preto** | **1.113** | **74%** |
+| São Paulo | 1.036 | 69% |
+
+Ribeirão não é a pior da comparação — e a página não finge que é. O que ela mostra é a
+distância para o topo: 98 peças a menos que Campinas, dentro de um conjunto de 1.496 que
+comprovadamente gira no estado.
+
+### A lista que vira pedido
+
+Peça que a rede mantém em prateleira e que aqui está **zerada ou sem registro no relatório**.
+A ordenação é por força do argumento, e só por isso: em quantas praças a peça é bem
+classificada (peso 3), em quantas ela tem saldo (peso 2), e o quanto ela é melhor lá do que
+aqui. Nada de valor, nada de margem — o pedido é de abastecimento, não de compra.
+
+Três recortes, porque a conversa muda conforme o interlocutor:
+
+- **Só as que giram no estado** (padrão) — A ou B em duas ou mais praças. 305 peças.
+- **Todas as que faltam aqui** — o quadro completo, 7.351 peças.
+- **Só as que nem estão cadastradas aqui** — 157 delas são A ou B na rede.
+
+O botão **Gerar pedido de abastecimento** monta o texto para a matriz: situação em cinco
+linhas de número, depois a relação peça a peça com a curva e o saldo de cada praça. Sem
+adjetivo — número, origem do número e o que se está pedindo.
+
+---
+
 ## 4. Origem provável do código — o que ela é e o que ela não é
 
 > **A origem é inferida pelo formato do código original, não por catálogo de aplicação.**

@@ -4882,9 +4882,9 @@ function renderRede() {
         (atras > 0 ? ' ' + esc(R.lider.nome) + ' tem ' + n(R.lider.tem) + ' — ' + n(atras) + ' a mais.' : '') },
     { tom: 'parado', valor: n(R.unidadesParadas), rot: 'Unidades nas irmãs',
       pe: 'Somadas nas praças que mantêm as peças que faltam aqui. É estoque que a rede já comprou.' },
-    { tom: 'neutro', valor: n(R.semCadastroAB.length), rot: 'Nem temos o código',
-      pe: 'Curva A ou B na rede e sem nenhuma linha no nosso relatório de estoque. ' +
-        'No total, ' + n(R.semCadastro.length) + ' peças que as irmãs mantêm não aparecem no nosso.' },
+    { tom: 'neutro', valor: n(R.semCadastroAB.length), rot: 'Conferir no sistema',
+      pe: 'Curva A ou B na rede e sem nenhuma linha no nosso relatório. ' +
+        'No total, ' + n(R.semCadastro.length) + ' peças que as irmãs mantêm não vieram no nosso arquivo.' },
   ];
 
   const linhasMatriz = R.matriz.map((l) => {
@@ -4925,8 +4925,8 @@ function renderRede() {
       (f.original ? ' · orig. ' + esc(f.original) : '') + '</span></td>' +
       '<td>' + (f.aqui
         ? '<span class="curva" data-c="' + esc(f.aqui.curva || 'F') + '">' + esc(f.aqui.curva || '–') + '</span> zerado'
-        : '<span style="color:var(--critico);font-weight:700">não temos</span>' +
-          '<br><span style="color:var(--tinta-3);font-size:12px">código não está no nosso relatório</span>') + '</td>' +
+        : '<span style="color:var(--critico);font-weight:700">não veio no relatório</span>' +
+          '<br><span style="color:var(--tinta-3);font-size:12px">conferir no sistema</span>') + '</td>' +
       '<td class="dir">' + n(f.praças) + '</td>' +
       '<td class="dir">' + n(f.unidades) + '</td>' +
       '<td><div class="grupo-filiais">' + selos + '</div></td></tr>';
@@ -4964,8 +4964,10 @@ function renderRede() {
       '<p style="margin:-4px 0 12px;font-size:13px;line-height:1.55;color:var(--tinta-2)">' +
         'A coluna <b>aqui</b> sai de <b>' + esc(fonteDeCasa.arquivo) + '</b>, de ' + esc(fonteDeCasa.data) + ' — ' +
         n(fonteDeCasa.pecas) + ' peças de ' + esc(nomeFilial(AQUI)) + '.<br>' +
-        '<b>zerado</b>: a peça está no nosso cadastro e o saldo é zero. ' +
-        '<b>não temos</b>: o código não aparece nesse relatório, então não há nem cadastro para comprar contra.' +
+        '<b>zerado</b>: o código veio no relatório, com saldo zero. ' +
+        '<b>não veio no relatório</b>: o código não está nesse arquivo — pode ser cadastro que não existe aqui, ' +
+        'ou cadastro que existe e ficou de fora da extração. A página não tem como distinguir os dois; ' +
+        'quem confere é o sistema.' +
       '</p>' +
       '<div class="filtros">' +
         '<div class="campo"><label for="fRedeSo">Recorte</label><select id="fRedeSo">' +
@@ -5109,7 +5111,7 @@ function csvRede(R, lista) {
       .concat(irmas.flatMap((f) => ['Curva ' + f.nome, 'Saldo ' + f.nome])),
     lista.map((f) => [
       f.descricao, f.codigo, f.original,
-      f.aqui ? 'zerado' : 'codigo nao existe no nosso estoque',
+      f.aqui ? 'zerado' : 'nao veio no relatorio - conferir no sistema',
       f.aqui ? (f.aqui.curva || '') : '',
       f.praças, f.unidades, f.abNaRede,
     ].concat(irmas.flatMap((x) => {
@@ -5142,7 +5144,7 @@ function textoAbastecimento(R, lista) {
   for (const f of lista.slice(0, 120)) {
     linhas.push('- ' + (f.descricao || f.codigo) + ' | cód. ' + f.codigo +
       (f.original ? ' | orig. ' + f.original : '') +
-      ' | aqui: ' + (f.aqui ? 'zerado (curva ' + (f.aqui.curva || 'sem') + ')' : 'codigo nao existe no nosso estoque') +
+      ' | aqui: ' + (f.aqui ? 'zerado (curva ' + (f.aqui.curva || 'sem') + ')' : 'nao veio no relatorio - conferir no sistema') +
       ' | na rede: ' + f.com.map((x) => x.nome + ' ' + (x.c || '–') + '/' + n(x.s)).join(', '));
   }
   if (lista.length > 120) linhas.push('', '(+ ' + n(lista.length - 120) + ' peças na planilha em anexo)');

@@ -1195,6 +1195,22 @@
       <div class="grade" id="qualidade"></div>
     </div>
 
+    <!-- Auditoria de um código. Existe porque afirmar "está agrupado" não vale
+         nada se quem usa não tem como conferir sozinho. -->
+    <div class="secao">
+      <div class="secao-topo">
+        <h2>Conferir um código</h2>
+        <span class="nota">Mostra todos os cadastros daquele código e o que a página fez com eles.</span>
+      </div>
+      <div class="filtros">
+        <div class="campo" style="flex:1 1 320px">
+          <label for="fConferir">Código do produto, código original ou descrição</label>
+          <input id="fConferir" type="search" placeholder="ex.: 315670, WK11001X, 9583171403" />
+        </div>
+      </div>
+      <div id="resultadoConferir" style="margin-top:12px"></div>
+    </div>
+
     <div class="secao">
       <div class="secao-topo"><h2>Como a prioridade é calculada</h2></div>
       <div class="cartao"><div class="cartao-corpo" id="explicaMotor"></div></div>
@@ -4154,7 +4170,7 @@ function trocarVista(vista) {
     v.hidden = !ativa;
   });
   if (vista === 'evolucao') renderEvolucao();
-  if (vista === 'dados') renderDados();
+  if (vista === 'dados') { renderDados(); renderConferir(); }
   if (vista === 'demanda') renderDemanda();
   if (vista === 'rede') renderRede();
 }
@@ -4304,6 +4320,75 @@ function renderEstado() {
   }).join('');
 
   renderEquipe();
+}
+
+/* ── Conferir um código ───────────────────────────────────────────────
+   Responde uma pergunta só, e responde com o que a página realmente fez:
+   quantos cadastros existem daquele código, quais foram somados como a mesma
+   peça, quais não foram, e por quê. Sem isso, "está agrupado" é palavra
+   minha contra a planilha de quem usa. */
+function renderConferir() {
+  const alvo = $('#resultadoConferir');
+  if (!alvo) return;
+  const busca = semAcento($('#fConferir') ? $('#fConferir').value : '').toUpperCase().trim();
+  if (busca.length < 2) {
+    alvo.innerHTML = '<p style="font-size:13px;color:var(--tinta-3);margin:0">' +
+      'Digite um código para ver todos os cadastros dele e como a página os tratou.</p>';
+    return;
+  }
+
+  const achados = itens().filter((i) =>
+    semAcento(i.produto + ' ' + (i.original || '') + ' ' + i.descricao + ' ' + (i.interno || '')).toUpperCase().includes(busca));
+
+  if (!achados.length) {
+    alvo.innerHTML = '<p style="font-size:13px;color:var(--critico);margin:0">' +
+      'Nenhum cadastro com <b>' + esc(busca) + '</b> no relatório carregado (' +
+      esc((envioAtual() || {}).nome || '—') + ').</p>';
+    return;
+  }
+
+  /* Um grupo por chave de variante fiscal. É a mesma chave que a aba Comprar
+     usa para somar saldo e pedir uma linha só. */
+  const grupos = new Map();
+  for (const i of achados.slice(0, 200)) {
+    const k = i.chaveDuplicata || ('avulso:' + (i.interno || i.produto));
+    if (!grupos.has(k)) grupos.set(k, []);
+    grupos.get(k).push(i);
+  }
+
+  const blocos = [...grupos.entries()].map(([k, lista]) => {
+    const chefe = lista.find((i) => i.ehRepresentante) || lista[0];
+    const soma = chefe.saldoConjunto !== undefined && chefe.repetidos > 1
+      ? chefe.saldoConjunto
+      : lista.reduce((s, i) => s + (i.saldo || 0), 0);
+    const linhas = lista.map((i) =>
+      '<tr><td><b>' + esc(i.produto) + '</b></td>' +
+      '<td>' + esc(i.interno || '—') + '</td>' +
+      '<td><span class="curva" data-c="' + esc(i.curva || 'F') + '">' + esc(i.curva || '–') + '</span></td>' +
+      '<td class="dir">' + (i.saldo === null ? '—' : n(i.saldo)) + '</td>' +
+      '<td>' + esc(i.descricao) + '</td></tr>').join('');
+
+    const cabecalho = lista.length > 1 || (chefe.repetidos || 1) > 1
+      ? '<b>' + n(chefe.repetidos || lista.length) + ' cadastros somados como a mesma peça</b> — saldo do conjunto: <b>' + n(soma) + '</b>. ' +
+        'Na lista de compra eles aparecem numa linha só, com esse saldo.'
+      : '<b>Cadastro único.</b> Saldo ' + (chefe.saldo === null ? 'não lido' : n(chefe.saldo)) + '.';
+
+    return '<div class="ficha" style="margin-bottom:12px">' +
+      '<div class="sobrancelha">' + esc(k.split('|')[0]) + '</div>' +
+      '<p style="margin:0 0 10px">' + cabecalho + '</p>' +
+      '<div class="rolo"><table><thead><tr><th>Cód. produto</th><th>Cód. interno</th><th>Curva</th>' +
+      '<th class="dir">Saldo</th><th>Descrição</th></tr></thead><tbody>' + linhas + '</tbody></table></div></div>';
+  }).join('');
+
+  const nota = grupos.size > 1
+    ? '<p style="font-size:13px;line-height:1.55;color:var(--tinta-2);margin:0 0 12px">' +
+      'A busca casou com <b>' + n(grupos.size) + ' peças diferentes</b>. Cadastros só são somados quando o código base ' +
+      '<b>e</b> a descrição batem — o mesmo código de fábrica às vezes pertence a duas peças distintas ' +
+      '(no seu arquivo, <code>79111</code> é junta de radiador <i>e</i> bolsa pneumática), e somar as duas ' +
+      'inventaria saldo que não existe.</p>'
+    : '';
+
+  alvo.innerHTML = nota + blocos;
 }
 
 function renderTudo() {
@@ -5400,6 +5485,8 @@ function renderEquipe() {
     '<div class="ficha"><div class="sobrancelha">' + esc(rot) + '</div>' +
     '<h3>' + esc(val) + '</h3><p>' + esc(txt) + '</p></div>').join('');
 }
+
+liga('#fConferir', 'input', () => renderConferir());
 
 liga('#btCarregarFilial', 'click', () => {
   estado.redeEsperando = $('#fFilialAlvo').value || null;

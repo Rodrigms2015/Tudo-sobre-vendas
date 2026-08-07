@@ -359,6 +359,94 @@
   }
   .placa .rodape { font-size: 12px; color: var(--tinta-3); line-height: 1.35; }
 
+  /* ── Fila de decisões ────────────────────────────────────────
+     A hierarquia é carregada por três coisas ao mesmo tempo — posição,
+     peso do número e a faixa de cor à esquerda — e nunca só pela cor.
+     Cada nível também tem rótulo textual, por isso a faixa pode ser
+     discreta sem custar leitura (CLAUDE.md §5). */
+  .decisao {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 0 18px;
+    align-items: start;
+    padding: 18px 20px 18px 18px;
+    background: var(--papel);
+    border: 1px solid var(--borda);
+    border-left: 5px solid var(--borda-forte);
+    border-radius: var(--raio);
+    box-shadow: var(--sombra);
+    margin-bottom: 12px;
+  }
+  .decisao[data-nivel="critico"] { border-left-color: var(--critico); }
+  .decisao[data-nivel="alta"]    { border-left-color: var(--laranja); }
+  .decisao[data-nivel="atencao"] { border-left-color: var(--atencao); }
+  .decisao[data-nivel="normal"]  { border-left-color: var(--marinho); }
+
+  .decisao .ordem {
+    font-size: 12px; font-weight: 700; line-height: 1.6;
+    color: var(--tinta-3); font-variant-numeric: tabular-nums;
+    min-width: 18px; padding-top: 2px;
+  }
+  .decisao .miolo { min-width: 0; }
+  .decisao .nivel {
+    display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: .1em;
+    text-transform: uppercase; padding: 2px 7px; border-radius: 4px; margin-bottom: 7px;
+    border: 1px solid currentColor;
+  }
+  .decisao[data-nivel="critico"] .nivel { color: var(--critico); }
+  .decisao[data-nivel="alta"]    .nivel { color: var(--laranja-texto); }
+  .decisao[data-nivel="atencao"] .nivel { color: var(--atencao-texto); }
+  .decisao[data-nivel="normal"]  .nivel { color: var(--marinho); }
+
+  .decisao h3 { margin: 0 0 2px; font-size: 17px; line-height: 1.25; }
+  .decisao .quanto { font-size: 13.5px; font-weight: 700; color: var(--tinta); }
+  .decisao .porque { margin: 5px 0 0; font-size: 13.5px; line-height: 1.5; color: var(--tinta-2); }
+  .decisao .amostra {
+    margin: 11px 0 0; padding: 0; list-style: none;
+    display: flex; flex-wrap: wrap; gap: 6px;
+  }
+  .decisao .amostra li {
+    font-size: 12px; padding: 3px 8px; border-radius: 5px;
+    background: var(--papel-2); border: 1px solid var(--borda);
+    color: var(--tinta-2); white-space: nowrap;
+  }
+  .decisao .amostra li b { color: var(--tinta); font-variant-numeric: tabular-nums; }
+  .decisao .ir { align-self: center; }
+  @media (max-width: 720px) {
+    .decisao { grid-template-columns: auto 1fr; gap: 0 12px; padding: 15px 15px 15px 13px; }
+    .decisao .ir { grid-column: 2; align-self: start; margin-top: 11px; }
+    .decisao h3 { font-size: 16px; }
+  }
+
+  /* No celular o cabeçalho ocupava quatro linhas de fichas antes de qualquer
+     conteúdo — metade da primeira tela. As fichas continuam lá, em duas
+     colunas e menores: o estado do sistema é importante, mas não mais
+     importante que a primeira decisão do dia. */
+  @media (max-width: 720px) {
+    .estado-fichas { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; width: 100%; }
+    .ficha-estado { padding: 7px 9px; gap: 7px; }
+    .ficha-estado .sinal { width: 17px; height: 17px; font-size: 11px; }
+    .ficha-estado .rot { font-size: 9px; letter-spacing: .06em; }
+    .ficha-estado .val { font-size: 12px; }
+    .topo-dir { width: 100%; gap: 8px; }
+    .topo-dir .bt { flex: 1 1 auto; }
+  }
+
+  .lacuna {
+    display: flex; gap: 9px; align-items: flex-start;
+    padding: 11px 14px; margin-top: 9px;
+    border: 1px dashed var(--borda-forte); border-radius: var(--raio);
+    background: var(--papel-2); font-size: 13px; line-height: 1.5; color: var(--tinta-2);
+  }
+  .lacuna .sinal { color: var(--tinta-3); font-weight: 700; }
+  .tudo-certo {
+    padding: 26px 20px; text-align: center;
+    border: 1px solid var(--borda); border-radius: var(--raio);
+    background: var(--papel); box-shadow: var(--sombra);
+  }
+  .tudo-certo b { display: block; font-size: 17px; margin-bottom: 5px; }
+  .tudo-certo span { font-size: 13.5px; color: var(--tinta-2); }
+
   /* ── Comparação entre filiais ────────────────────────────────
      A praça de casa é sempre a primeira linha e vem marcada: quem lê a
      tabela precisa achar Ribeirão sem procurar. */
@@ -785,7 +873,8 @@
 
 <nav class="abas" aria-label="Seções">
   <div class="abas-interno" role="tablist">
-    <button class="aba" role="tab" data-vista="painel" aria-selected="true">Painel</button>
+    <button class="aba" role="tab" data-vista="hoje" aria-selected="true" title="A fila de decisões do dia, em ordem de prejuízo">Hoje <span class="selo" id="seloHoje">0</span></button>
+    <button class="aba" role="tab" data-vista="painel" aria-selected="false">Painel</button>
     <button class="aba" role="tab" data-vista="comprar" aria-selected="false" title="Itens que passam nos filtros da lista de compra agora">Comprar <span class="selo" id="seloComprar">0</span></button>
     <button class="aba" role="tab" data-vista="oportunidades" aria-selected="false" title="Itens com saldo alto e giro baixo — o que os vendedores têm para empurrar">Oportunidades <span class="selo" id="seloOport">0</span></button>
     <button class="aba" role="tab" data-vista="demanda" aria-selected="false" title="Itens zerados que tiveram venda comprovada — a compra que não pode esperar">Demanda <span class="selo" id="seloDemanda">0</span></button>
@@ -814,6 +903,18 @@
         <button class="bt" id="btExemplo" type="button">Ver com dados de exemplo</button>
       </div>
       <input type="file" id="arquivo" accept=".xls,.xlsx,.csv,.txt,.pdf,.json" class="oculto" />
+    </div>
+  </section>
+
+  <!-- ── HOJE ────────────────────────────────────────────────── -->
+  <section class="vista" id="vista-hoje">
+    <div class="secao">
+      <div class="secao-topo">
+        <h2>O que precisa de decisão hoje</h2>
+        <span class="nota" id="notaHoje"></span>
+      </div>
+      <div id="filaHoje"></div>
+      <div id="lacunasHoje"></div>
     </div>
   </section>
 
@@ -2944,6 +3045,7 @@ function calcularConsumo(anterior, atual) {
 /* ─── 11. Recalcular ─────────────────────────────────────────────── */
 
 function recalcular() {
+  invalidarRede();
   const atual = envioAtual();
   if (!atual) { estado.analise = null; estado.consumo = null; return; }
   estado.resumoDemanda = resumirDemanda(estado.movimentos);
@@ -2996,6 +3098,160 @@ function recalcular() {
     it.qtdEscolhida = escolhida === undefined ? null : escolhida;
     it.qtd = it.qtdEscolhida === null ? it.sugestao.qtd : it.qtdEscolhida;
   }
+}
+
+/* ─── 11b. Plano de ação ─────────────────────────────────────────────
+   A aba Painel responde "como está". Esta responde "o que eu faço agora",
+   que é outra pergunta e é a que paga o salário de quem compra.
+
+   Regra de construção: um bloco só existe se ele termina numa ação. Bloco
+   que só informa foi para a aba Situação. E cada bloco carrega o número que
+   justifica a urgência dele — não um rótulo de urgência.
+
+   Nada aqui é estimado. Onde falta dado, o bloco diz que falta e some da
+   fila em vez de aparecer com número inventado. */
+
+/**
+ * Dias que o saldo ainda cobre, pela venda medida. `null` quando não há
+ * venda medida — e nesse caso o item não entra em nenhum bloco de prazo.
+ * Estoque sem venda medida não tem prazo: tem incerteza, que é outra coisa.
+ */
+function coberturaEmDias(item) {
+  const d = item.demandaUsada;
+  if (!d || !(d.porDia > 0)) return null;
+  const saldo = item.repetidos > 1 && item.ehRepresentante ? item.saldoConjunto : item.saldo;
+  if (saldo === null || saldo === undefined) return null;
+  return saldo / d.porDia;
+}
+
+const PRAZO_REPOSICAO = 15;
+
+/**
+ * Devolve a fila de decisões do dia, em ordem de prejuízo. Cada bloco traz
+ * a lista, o tamanho do estrago e o filtro que abre a lista completa.
+ */
+function planoDeAcao() {
+  const L = itens();
+  if (!L.length) return null;
+  const R = estado.resumoDemanda;
+  const temMedida = !!R && R.demanda && R.demanda.size > 0;
+
+  /* Só o representante de cada conjunto de variantes fiscais entra: o
+     conjunto já soma saldo e venda, e listar as três variantes seria
+     pedir a mesma peça três vezes. */
+  const base = L.filter((i) => i.ehRepresentante !== false);
+  const vendeu = (i) => i.demandaUsada && i.demandaUsada.unidades > 0;
+  const saldoDe = (i) => (i.repetidos > 1 && i.ehRepresentante ? i.saldoConjunto : i.saldo) || 0;
+
+  /* 1. Zerado e vendendo. O prejuízo é diário e já está acontecendo. */
+  const rupturaVendendo = base
+    .filter((i) => i.situacao === 'RUPTURA' && vendeu(i))
+    .sort((a, b) => b.demandaUsada.porDia - a.demandaUsada.porDia);
+
+  /* 2. Acaba antes do próximo pedido. */
+  const acabando = base
+    .filter((i) => {
+      const c = coberturaEmDias(i);
+      return c !== null && c > 0 && c <= PRAZO_REPOSICAO && vendeu(i);
+    })
+    .map((i) => ({ ...i, cobertura: coberturaEmDias(i) }))
+    .sort((a, b) => a.cobertura - b.cobertura);
+
+  /* 3. A rede tem parado o que falta aqui. Comprar antes de perguntar é
+     comprar duas vezes. Só entra quando a irmã classifica a peça como E ou
+     F: lá não gira, aqui vende. */
+  const transferir = [];
+  const irmas = filiaisIrmas();
+  if (irmas.length) {
+    for (const i of rupturaVendendo) {
+      const k = semSufixo(i.produto).toUpperCase();
+      const fontes = irmas
+        .map((f) => ({ nome: f.nome, p: f.pecas[k] || f.pecas[semSufixo(i.produto)] }))
+        .filter((x) => x.p && (x.p.s || 0) > 0 && postoCurva(x.p.c) >= 4)
+        .sort((a, b) => b.p.s - a.p.s);
+      if (fontes.length) transferir.push({ item: i, fontes, disponivel: fontes.reduce((s, x) => s + x.p.s, 0) });
+    }
+    transferir.sort((a, b) => b.item.demandaUsada.porDia - a.item.demandaUsada.porDia);
+  }
+
+  /* 4. O que não comprar. Aqui mora a armadilha mais fácil de cair: item
+     que não está no relatório de movimentação NÃO é item que não vendeu, é
+     item que não foi medido. Um relatório que cobre 33% do cadastro daria
+     2.129 "peças paradas" — inventadas. Por isso só entra o que o relatório
+     mediu de fato e mediu zero, e o bloco só existe quando a cobertura é
+     ampla o bastante para a leitura valer. */
+  const naoComprar = temMedida && R.abrangente !== false
+    ? base
+        .filter((i) => saldoDe(i) > 0 && R.demanda.has(i.interno) && !vendeu(i))
+        .sort((a, b) => saldoDe(b) - saldoDe(a))
+    : [];
+
+  const blocos = [];
+
+  if (rupturaVendendo.length) {
+    const porDia = rupturaVendendo.reduce((s, i) => s + i.demandaUsada.porDia, 0);
+    blocos.push({
+      nivel: 'critico', id: 'ruptura-vendendo',
+      titulo: 'Comprar hoje',
+      quanto: n(rupturaVendendo.length) + ' peças',
+      porque: 'Saldo zero e venda comprovada no período. São ' + n(Math.round(porDia * 10) / 10) +
+        ' unidades por dia que o balcão pede e não tem.',
+      lista: rupturaVendendo,
+      filtro: { situacao: 'RUPTURA', nota: 0, curva: '', classe: '', desvio: '', busca: '' },
+    });
+  }
+
+  if (acabando.length) {
+    const emUmaSemana = acabando.filter((i) => i.cobertura <= 7).length;
+    blocos.push({
+      nivel: 'alta', id: 'acabando',
+      titulo: 'Acaba antes do próximo pedido',
+      quanto: n(acabando.length) + ' peças',
+      porque: 'O saldo cobre menos de ' + PRAZO_REPOSICAO + ' dias no ritmo de venda medido' +
+        (emUmaSemana ? ' — ' + n(emUmaSemana) + ' delas acabam em uma semana' : '') + '.',
+      lista: acabando,
+      filtro: { situacao: 'RISCO', nota: 0, curva: '', classe: '', desvio: '', busca: '' },
+    });
+  }
+
+  if (transferir.length) {
+    blocos.push({
+      nivel: 'alta', id: 'transferir',
+      titulo: 'Pedir transferência antes de comprar',
+      quanto: n(transferir.length) + ' peças',
+      porque: 'Estão zeradas aqui e vendendo, e há ' + n(transferir.reduce((s, x) => s + x.disponivel, 0)) +
+        ' unidades em filiais irmãs que classificam essas peças como E ou F — lá não giram.',
+      lista: transferir,
+      vista: 'rede',
+    });
+  }
+
+  if (naoComprar.length) {
+    const unidades = naoComprar.reduce((s, i) => s + saldoDe(i), 0);
+    blocos.push({
+      nivel: 'atencao', id: 'nao-comprar',
+      titulo: 'Não recomprar',
+      quanto: n(naoComprar.length) + ' peças',
+      porque: n(unidades) + ' unidades em prateleira sem uma única saída em ' + n(R.dias) +
+        ' dias. Recompra aqui é dinheiro parado duas vezes.',
+      lista: naoComprar,
+      filtro: { situacao: 'EXCESSO', nota: 0, curva: '', classe: '', desvio: '', busca: '' },
+    });
+  }
+
+  return {
+    blocos,
+    temMedida,
+    lacunas: [
+      temMedida ? null : 'Sem relatório de movimentação, a fila usa só a curva ABC. Suba a movimentação para o prazo virar medida.',
+      temCusto() ? null : 'O relatório de estoque não traz custo, então nenhum valor em reais aparece — nem aqui nem em lugar nenhum.',
+      temMedida && R.abrangente === false
+        ? 'A movimentação cobre ' + pct(R.cobertura || 0) + ' do cadastro. Para os itens de fora, a página não conclui que não venderam — ' +
+          'por isso o bloco "não recomprar" fica fora da fila. Rode o relatório sem filtrar produto e ele aparece.'
+        : null,
+      irmas.length ? null : 'Sem o estoque das filiais irmãs, a página não sabe o que dá para transferir antes de comprar.',
+    ].filter(Boolean),
+  };
 }
 
 /* ─── 12. Filtros e ordenação ────────────────────────────────────── */
@@ -3063,6 +3319,74 @@ function barraHorizontal({ titulo, direita, fracao, cor }) {
 }
 
 /* ─── 14. Painel ─────────────────────────────────────────────────── */
+
+const ROTULO_NIVEL = { critico: 'Crítico', alta: 'Alta prioridade', atencao: 'Atenção', normal: 'Normal' };
+
+function renderHoje() {
+  const alvo = $('#filaHoje');
+  if (!alvo) return;
+  const plano = planoDeAcao();
+  if (!plano) { alvo.innerHTML = ''; $('#lacunasHoje').innerHTML = ''; $('#seloHoje').textContent = '0'; return; }
+
+  $('#seloHoje').textContent = n(plano.blocos.length);
+
+  const e = envioAtual();
+  const R = estado.resumoDemanda;
+  $('#notaHoje').textContent = [
+    e ? 'Estoque de ' + dataBr(e.dataISO) : null,
+    R ? 'venda medida de ' + dataBr(R.inicio) + ' a ' + dataBr(R.fim) : 'sem venda medida',
+    filiaisIrmas().length ? n(filiaisIrmas().length) + ' filiais irmãs' : null,
+  ].filter(Boolean).join(' · ');
+
+  if (!plano.blocos.length) {
+    alvo.innerHTML = '<div class="tudo-certo"><b>Nenhuma decisão pendente com os dados de hoje.</b>' +
+      '<span>Nenhum item zerado com venda comprovada, nenhum prestes a acabar. ' +
+      'Se isso parece bom demais, confira as lacunas abaixo — pode ser dado faltando, não estoque saudável.</span></div>';
+  } else {
+    alvo.innerHTML = plano.blocos.map((b, idx) => {
+      /* A amostra é a prova de que o bloco não é um número solto: mostra as
+         três peças que mais pesam, com o número que as colocou ali. */
+      const amostra = b.lista.slice(0, 3).map((x) => {
+        const i = x.item || x;
+        const marca = b.id === 'ruptura-vendendo'
+          ? '<b>' + n(Math.round(i.demandaUsada.porDia * 10) / 10) + '</b>/dia'
+          : b.id === 'acabando'
+          ? '<b>' + n(Math.round(x.cobertura)) + '</b> dias'
+          : b.id === 'transferir'
+          ? '<b>' + n(x.disponivel) + '</b> un em ' + esc(x.fontes[0].nome)
+          : '<b>' + n((i.repetidos > 1 && i.ehRepresentante ? i.saldoConjunto : i.saldo) || 0) + '</b> un paradas';
+        return '<li>' + esc((i.descricao || i.produto).slice(0, 26)) + ' · ' + marca + '</li>';
+      }).join('');
+
+      return '<div class="decisao" data-nivel="' + b.nivel + '">' +
+        '<div class="ordem">' + (idx + 1) + '</div>' +
+        '<div class="miolo">' +
+          '<span class="nivel">' + esc(ROTULO_NIVEL[b.nivel]) + '</span>' +
+          '<h3>' + esc(b.titulo) + ' — <span class="quanto">' + b.quanto + '</span></h3>' +
+          '<p class="porque">' + b.porque + '</p>' +
+          '<ul class="amostra">' + amostra + (b.lista.length > 3 ? '<li>+ ' + n(b.lista.length - 3) + '</li>' : '') + '</ul>' +
+        '</div>' +
+        '<div class="ir"><button class="bt bt-mini" data-bloco="' + b.id + '" type="button">Ver a lista</button></div>' +
+      '</div>';
+    }).join('');
+
+    $$('#filaHoje [data-bloco]').forEach((bt) => bt.addEventListener('click', () => {
+      const b = plano.blocos.find((x) => x.id === bt.dataset.bloco);
+      if (!b) return;
+      if (b.vista) { trocarVista(b.vista); }
+      else {
+        estado.filtros = { ...estado.filtros, ...b.filtro };
+        estado.limite = 150;
+        sincronizarFiltros();
+        trocarVista('comprar');
+      }
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }));
+  }
+
+  $('#lacunasHoje').innerHTML = plano.lacunas.map((l) =>
+    '<div class="lacuna"><span class="sinal" aria-hidden="true">!</span><span>' + esc(l) + '</span></div>').join('');
+}
 
 function renderPainel() {
   const L = itens();
@@ -4160,6 +4484,7 @@ function trocarVista(vista) {
     v.classList.toggle('ativa', ativa);
     v.hidden = !ativa;
   });
+  if (vista === 'hoje') renderHoje();
   if (vista === 'evolucao') renderEvolucao();
   if (vista === 'dados') { renderDados(); renderConferir(); }
   if (vista === 'demanda') renderDemanda();
@@ -4389,6 +4714,7 @@ function renderTudo() {
   renderEstado();
   if (!temDados) { $('#seloComprar').textContent = '0'; $('#seloOport').textContent = '0'; atualizarCarrinho(); return; }
   montarSelects();
+  renderHoje();
   renderPainel();
   renderComprar();
   renderOportunidades();
@@ -4572,6 +4898,7 @@ async function aplicarPacote(pacote) {
   estado.nomeTabelaMarcas = pacote.nomeTabelaMarcas || null;
   estado.quantidades = pacote.quantidades || {};
   estado.rede = pacote.rede || {};
+  invalidarRede();
   if (pacote.diasCobertura) estado.diasCobertura = pacote.diasCobertura;
   estado.marcados.clear();
   try {
@@ -4760,7 +5087,20 @@ function resumoDaFilial(pecas) {
  * O cálculo inteiro da aba. Devolve `null` quando não há com o que comparar
  * — a tela então mostra o convite para carregar, não uma tabela vazia.
  */
+/* A comparação varre 6 relatórios inteiros: 247 ms medidos com a base real.
+   Como `renderTudo` chama `renderRede`, isso rodava de novo a cada tecla no
+   campo de busca de outra aba. O resultado só muda quando o estoque de casa
+   é recalculado ou uma filial entra/sai — então é isso que invalida. */
+let cacheRede = null;
+const invalidarRede = () => { cacheRede = null; };
+
 function analisarRede() {
+  if (cacheRede) return cacheRede;
+  cacheRede = analisarRedeAgora();
+  return cacheRede;
+}
+
+function analisarRedeAgora() {
   const carregadas = filiaisIrmas();
   if (!carregadas.length || !itens().length) return null;
 
@@ -4948,6 +5288,7 @@ function renderRede() {
 
   $$('#cartoesRede [data-tira]').forEach((b) => b.addEventListener('click', async () => {
     delete estado.rede[b.dataset.tira];
+    invalidarRede();
     await guardarRede().catch(() => {});
     equipeAgendarEnvio();
     renderRede();
@@ -5165,6 +5506,7 @@ function perguntarFilial(nomeArquivo, itensLidos, semelhanca) {
 /** Guarda o estoque de uma praça irmã e avisa o que foi reconhecido. */
 async function aplicarFilialIrma(ff, itensLidos, nomeArquivo, file, comoVeio = 'nome') {
   const pecas = pecasDaFilial(itensLidos);
+  invalidarRede();
   estado.rede[ff] = {
     ff,
     nome: nomeFilial(ff),
@@ -5495,6 +5837,7 @@ liga('#btCarregarFilial', 'click', () => {
 liga('#btLimparRede', 'click', async () => {
   if (!confirm('Tirar todas as filiais irmãs da comparação? O estoque de Ribeirão Preto não é afetado.')) return;
   estado.rede = {};
+  invalidarRede();
   await guardarRede().catch(() => {});
   equipeAgendarEnvio();
   renderTudo();
@@ -5599,7 +5942,7 @@ $('#logo').src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAOAAAAB4CAIAAABk
     estado.gravacao = { ok: true, em: new Date().toISOString(), erro: null };
   }
   renderTudo();
-  trocarVista('painel');
+  trocarVista(itens().length ? 'hoje' : 'painel');
   const st = situacaoDoSistema();
   if (equipe.erro && naEquipe && naEquipe.versao > 0) {
     recado('A base da equipe tem dados mais novos e eu não consegui trazer',

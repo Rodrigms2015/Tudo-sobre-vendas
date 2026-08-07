@@ -74,6 +74,45 @@ na mesma linha.
 
 ---
 
+## 1b. A fila de decisões — aba Hoje
+
+O Painel responde *como está*. Essa é uma pergunta diferente de *o que eu faço agora*, e a
+segunda é a que paga o salário de quem compra. A aba **Hoje** é a fila de decisões, em ordem
+de prejuízo, e é a primeira tela que abre.
+
+**Regra de construção: um bloco só existe se termina numa ação.** Bloco que só informa foi
+para outra aba. E cada bloco carrega o número que justifica a urgência — não um rótulo de
+urgência.
+
+| Nível | Bloco | Entra quando | O número que justifica |
+|---|---|---|---|
+| Crítico | Comprar hoje | saldo zero **e** venda medida > 0 | unidades por dia que o balcão pede e não tem |
+| Alta | Acaba antes do próximo pedido | cobertura ≤ 15 dias pela venda medida | quantas acabam em uma semana |
+| Alta | Pedir transferência antes de comprar | zerado e vendendo aqui, com saldo numa irmã que classifica a peça como E ou F | unidades paradas lá |
+| Atenção | Não recomprar | saldo > 0, **medido** no relatório, com zero saída | unidades em prateleira sem uma única saída |
+
+### Cobertura em dias
+
+`saldo do conjunto ÷ venda medida por dia`. **`null` quando não há venda medida** — e nesse
+caso o item não entra em nenhum bloco de prazo. Estoque sem venda medida não tem prazo: tem
+incerteza, que é outra coisa e não se resolve fingindo um número.
+
+### A armadilha do bloco "não recomprar"
+
+Item que não está no relatório de movimentação **não é item que não vendeu — é item que não
+foi medido**. Com o relatório atual, que cobre 33% do cadastro, a leitura ingênua produzia
+**2.129 "peças paradas" inventadas**. Por isso o bloco exige duas coisas: que o relatório
+tenha medido aquele item (`resumo.demanda.has(interno)`) e que a cobertura geral passe de 50%.
+Abaixo disso o bloco some da fila e uma lacuna explica o que fazer para trazê-lo de volta.
+
+### Lacunas
+
+O rodapé da fila lista o que a página **não** consegue afirmar e por quê: sem custo no
+relatório não há valor em reais em lugar nenhum; sem movimentação não há prazo; sem o estoque
+das irmãs não há transferência. Lacuna declarada vale mais que número inventado.
+
+---
+
 ## 2. Como a prioridade é calculada
 
 Nota de 0 a 100, soma de cinco componentes. **Todo componente que pontua registra o motivo

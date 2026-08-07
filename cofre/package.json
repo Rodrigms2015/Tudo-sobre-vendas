@@ -1,0 +1,21 @@
+{
+  "name": "cofre",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Site privado de arquivos: envia de um computador, baixa em outro.",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "netlify dev",
+    "segredo": "node -e \"console.log(require('crypto').randomBytes(48).toString('base64url'))\"",
+    "test": "node --test \"test/*.test.mjs\""
+  },
+  "dependencies": {
+    "@netlify/blobs": "^8.1.0"
+  },
+  "devDependencies": {
+    "netlify-cli": "^17.38.0"
+  }
+}

@@ -1,0 +1,3 @@
+# Pasta local do Netlify CLI (`netlify dev`): funções empacotadas e blobs de teste.
+.netlify
+node_modules

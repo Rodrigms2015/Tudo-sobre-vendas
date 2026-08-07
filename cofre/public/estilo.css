@@ -1,0 +1,429 @@
+/* Cofre — folha de estilo única. Sem framework, sem fonte remota:
+   a CSP do site bloqueia qualquer requisição para fora. */
+
+:root {
+  --fundo: #0d0e10;
+  --superficie: #16181c;
+  --superficie-alta: #1e2126;
+  --borda: #2a2e35;
+  --texto: #eceef1;
+  --texto-fraco: #9aa1ab;
+  --destaque: #f5c518;
+  --destaque-texto: #1a1500;
+  --perigo: #ff6b6b;
+  --sucesso: #4ade80;
+  --raio: 12px;
+  --fonte: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+    sans-serif;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --fundo: #f4f5f7;
+    --superficie: #ffffff;
+    --superficie-alta: #eef0f3;
+    --borda: #d8dce2;
+    --texto: #16181c;
+    --texto-fraco: #5d6470;
+    --destaque: #d4a800;
+    --destaque-texto: #ffffff;
+    --perigo: #c92a2a;
+    --sucesso: #14803c;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* `hidden` é como as duas telas se alternam. Sem esta linha, qualquer regra de
+   `display` abaixo (a tela de entrada é um grid) ganha da folha do navegador e a
+   tela some do JavaScript mas continua desenhada por cima. */
+[hidden] {
+  display: none !important;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--fundo);
+  color: var(--texto);
+  font-family: var(--fonte);
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-text-size-adjust: 100%;
+}
+
+:focus-visible {
+  outline: 3px solid var(--destaque);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ---------- Entrada ---------- */
+
+.entrada {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.cartao-entrada {
+  width: 100%;
+  max-width: 380px;
+  background: var(--superficie);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+  padding: 32px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.marca {
+  margin: 0;
+  font-size: 1.5rem;
+  letter-spacing: -0.02em;
+}
+
+.sub {
+  margin: 0 0 12px;
+  color: var(--texto-fraco);
+  font-size: 0.92rem;
+}
+
+.rotulo {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--texto-fraco);
+}
+
+input[type='password'] {
+  width: 100%;
+  min-height: 48px;
+  padding: 0 14px;
+  background: var(--superficie-alta);
+  border: 1px solid var(--borda);
+  border-radius: 8px;
+  color: var(--texto);
+  font-family: inherit;
+  font-size: 1rem;
+}
+
+/* ---------- Botões ---------- */
+
+.botao {
+  min-height: 44px;
+  padding: 0 18px;
+  border-radius: 8px;
+  border: 1px solid var(--borda);
+  background: var(--superficie-alta);
+  color: var(--texto);
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.botao:hover:not(:disabled) {
+  border-color: var(--texto-fraco);
+}
+
+.botao:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.botao.primario {
+  margin-top: 8px;
+  background: var(--destaque);
+  color: var(--destaque-texto);
+  border-color: var(--destaque);
+}
+
+.botao.discreto {
+  min-height: 40px;
+  font-size: 0.88rem;
+  font-weight: 500;
+}
+
+.botao.risco {
+  color: var(--perigo);
+}
+
+@media (max-width: 640px) {
+  .botao {
+    min-height: 48px;
+  }
+}
+
+.aviso {
+  margin: 4px 0 0;
+  min-height: 1.3em;
+  font-size: 0.88rem;
+  color: var(--perigo);
+}
+
+/* ---------- Topo ---------- */
+
+.topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--borda);
+  background: var(--superficie);
+}
+
+.topo .marca {
+  font-size: 1.15rem;
+}
+
+.topo-acoes {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.resumo {
+  color: var(--texto-fraco);
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.conteudo {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 24px 20px 64px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* ---------- Área de envio ---------- */
+
+.soltar {
+  border: 2px dashed var(--borda);
+  border-radius: var(--raio);
+  padding: 40px 20px;
+  text-align: center;
+  cursor: pointer;
+  background: var(--superficie);
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.soltar:hover,
+.soltar.ativa {
+  border-color: var(--destaque);
+  background: var(--superficie-alta);
+}
+
+.soltar-titulo {
+  margin: 0 0 6px;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.soltar-sub {
+  margin: 0;
+  color: var(--texto-fraco);
+  font-size: 0.88rem;
+}
+
+/* ---------- Envios em andamento ---------- */
+
+.envios:empty {
+  display: none;
+}
+
+.envios {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.envio {
+  background: var(--superficie);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+  padding: 14px 16px;
+}
+
+.envio-linha {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.envio-nome {
+  font-weight: 600;
+  font-size: 0.92rem;
+  overflow-wrap: anywhere;
+}
+
+.envio-estado {
+  color: var(--texto-fraco);
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.envio.falhou .envio-estado {
+  color: var(--perigo);
+}
+
+.barra {
+  height: 6px;
+  background: var(--superficie-alta);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.barra > i {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: var(--destaque);
+  border-radius: 999px;
+  transition: width 0.2s;
+}
+
+.envio.falhou .barra > i {
+  background: var(--perigo);
+}
+
+/* ---------- Lista de guardados ---------- */
+
+.guardados-topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.guardados-topo h2 {
+  margin: 0;
+  font-size: 1rem;
+  letter-spacing: -0.01em;
+}
+
+.lista {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.arquivo {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--superficie);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+  padding: 12px 14px;
+}
+
+.arquivo-icone {
+  font-size: 1.4rem;
+  line-height: 1;
+  flex: none;
+}
+
+.arquivo-corpo {
+  flex: 1;
+  min-width: 0;
+}
+
+.arquivo-nome {
+  display: block;
+  font-weight: 600;
+  font-size: 0.93rem;
+  color: var(--texto);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.arquivo-nome:hover {
+  text-decoration: underline;
+}
+
+.arquivo-meta {
+  color: var(--texto-fraco);
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.arquivo-acoes {
+  display: flex;
+  gap: 8px;
+  flex: none;
+}
+
+@media (max-width: 560px) {
+  .arquivo {
+    flex-wrap: wrap;
+  }
+  .arquivo-corpo {
+    flex-basis: calc(100% - 50px);
+  }
+  .arquivo-acoes {
+    width: 100%;
+  }
+  .arquivo-acoes .botao {
+    flex: 1;
+  }
+}
+
+/* ---------- Estado vazio ---------- */
+
+.vazio {
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+  padding: 28px 20px;
+  text-align: center;
+  color: var(--texto-fraco);
+  font-size: 0.9rem;
+  background: var(--superficie);
+}
+
+/* ---------- Recado flutuante ---------- */
+
+.grito {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  max-width: min(90vw, 460px);
+  background: var(--superficie-alta);
+  border: 1px solid var(--borda);
+  border-radius: 10px;
+  padding: 12px 18px;
+  font-size: 0.9rem;
+  box-shadow: 0 8px 28px rgb(0 0 0 / 0.35);
+  z-index: 50;
+}
+
+.grito.ruim {
+  border-color: var(--perigo);
+  color: var(--perigo);
+}
+
+.grito.bom {
+  border-color: var(--sucesso);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+  }
+}

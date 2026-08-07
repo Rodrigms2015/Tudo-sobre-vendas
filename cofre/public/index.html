@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="color-scheme" content="dark light" />
+    <title>Cofre</title>
+    <link rel="stylesheet" href="/estilo.css" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23111'/%3E%3Cpath d='M11 14v-2.5a5 5 0 0 1 10 0V14' fill='none' stroke='%23f5c518' stroke-width='2.5'/%3E%3Crect x='8' y='14' width='16' height='11' rx='2' fill='%23f5c518'/%3E%3C/svg%3E"
+    />
+  </head>
+  <body>
+    <!-- Tela de entrada -->
+    <main id="tela-entrada" class="entrada" hidden>
+      <form id="forma-entrada" class="cartao-entrada" autocomplete="on">
+        <h1 class="marca"><span aria-hidden="true">🔒</span> Cofre</h1>
+        <p class="sub">Seus arquivos, entre os seus computadores.</p>
+
+        <label class="rotulo" for="senha">Senha</label>
+        <input
+          id="senha"
+          name="password"
+          type="password"
+          autocomplete="current-password"
+          required
+          autofocus
+        />
+
+        <button id="botao-entrar" class="botao primario" type="submit">Entrar</button>
+        <p id="aviso-entrada" class="aviso" role="alert" aria-live="assertive"></p>
+      </form>
+    </main>
+
+    <!-- Aplicação -->
+    <div id="tela-cofre" hidden>
+      <header class="topo">
+        <h1 class="marca"><span aria-hidden="true">🔒</span> Cofre</h1>
+        <div class="topo-acoes">
+          <span id="resumo" class="resumo"></span>
+          <button id="botao-sair" class="botao discreto" type="button">Sair</button>
+        </div>
+      </header>
+
+      <main class="conteudo">
+        <section
+          id="area-solta"
+          class="soltar"
+          aria-label="Área para enviar arquivos"
+          tabindex="0"
+          role="button"
+        >
+          <p class="soltar-titulo">Arraste arquivos aqui</p>
+          <p class="soltar-sub">ou clique para escolher — vários de uma vez, de qualquer tamanho</p>
+          <input id="entrada-arquivo" type="file" multiple hidden />
+        </section>
+
+        <section id="lista-envios" class="envios" aria-live="polite" aria-label="Envios em andamento"></section>
+
+        <section class="guardados">
+          <div class="guardados-topo">
+            <h2>Guardados</h2>
+            <button id="botao-atualizar" class="botao discreto" type="button">Atualizar</button>
+          </div>
+          <div id="lista-arquivos" class="lista"></div>
+        </section>
+      </main>
+    </div>
+
+    <div id="grito" class="grito" role="status" aria-live="polite" hidden></div>
+
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

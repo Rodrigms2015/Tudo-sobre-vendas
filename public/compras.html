@@ -2634,10 +2634,22 @@ function analisar(itens, mapaMarcas = {}, resumo = null, tabelaMarcas = null) {
   /* Um SKU zerado cujo irmão de mesmo código original tem saldo não é
      ruptura: o balcão atende. Essa distinção é o que separa uma lista
      impossível de uma lista que cabe num pedido. */
+  /* Equivalente: mesmo Cód. Original, marcas diferentes.
+     A chave era `original + descrição exata`, e isso estava errado por
+     construção: marcas diferentes DESCREVEM diferente. `LF3000` é "Filtro
+     oleo lubrif" e `WP12300` é "Filtro blindado ol" — mesmo código original
+     TJG115561, mesma peça no balcão. Exigindo descrição idêntica, o primeiro
+     virava ruptura com 26 unidades do segundo na prateleira.
+
+     O guarda vira a FAMÍLIA, não a descrição. O código original já é
+     identificador forte; a família só impede que um erro de cadastro junte
+     filtro com junta. Para variante fiscal a regra continua sendo descrição
+     exata — lá o risco é o oposto (o código `79111` é junta de radiador E
+     bolsa pneumática, e juntá-los inventaria saldo). */
   const porOriginal = new Map();
   for (const it of itens) {
     if (!it.original) continue;
-    const k = it.original.toUpperCase() + '|' + chave(it.descricao);
+    const k = it.original.toUpperCase() + '|' + (classificarFamilia(it.descricao).familia || '?');
     if (!porOriginal.has(k)) porOriginal.set(k, []);
     porOriginal.get(k).push(it);
   }
@@ -2684,7 +2696,7 @@ function analisar(itens, mapaMarcas = {}, resumo = null, tabelaMarcas = null) {
 
   const analisados = itens.map((item) => {
     /* Atende o balcão quem tem a peça: o irmão fiscal ou o equivalente. */
-    const kOriginal = item.original ? item.original.toUpperCase() + '|' + chave(item.descricao) : null;
+    const kOriginal = item.original ? item.original.toUpperCase() + '|' + (classificarFamilia(item.descricao).familia || '?') : null;
     const kFiscal = chaveFiscal(item, raizCodigo);
     const irmaosFiscais = (kFiscal ? porFiscal.get(kFiscal) || [] : []).filter((x) => x !== item);
     const equivalentes = (kOriginal ? porOriginal.get(kOriginal) || [] : []).filter((x) => x !== item && !irmaosFiscais.includes(x));

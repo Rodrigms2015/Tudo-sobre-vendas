@@ -4873,7 +4873,8 @@ function analisarRede() {
     minhaParidade: paridade.find((p) => p.casa) || null,
     lider: paridade[0],
     falta,
-    faltaAB: falta.filter((f) => f.abNaRede >= 2),
+    faltaAB: falta.filter((f) => f.aqui && f.abNaRede >= 2),
+    todasAsPracas: falta.filter((f) => f.aqui && f.praças === irmas.length && f.abNaRede >= 2),
     semCadastro,
     semCadastroAB: semCadastro.filter((f) => f.abNaRede >= 2),
     unidadesParadas: falta.reduce((t, f) => t + f.unidades, 0),
@@ -4883,12 +4884,18 @@ function analisarRede() {
 /* ── Filtros da lista ─────────────────────────────────────────────── */
 const filtroRede = { min: 1, so: 'ab', busca: '' };
 
+/* O recorte padrão mostra só o que está cadastrado aqui e zerado. Peça que
+   não veio no relatório é outro assunto — não dá para pedir compra de um
+   código que a filial talvez nem tenha —, e misturar as duas coisas na mesma
+   lista tira a firmeza de um pedido que é sólido. Elas continuam a um clique,
+   no recorte próprio, porque viraram trabalho de cadastro. */
 function faltaFiltrada(R) {
   const b = semAcento(filtroRede.busca).toUpperCase().trim();
   return R.falta.filter((f) => {
     if (f.praças < filtroRede.min) return false;
+    if (filtroRede.so === 'novo') { if (f.aqui) return false; }
+    else if (!f.aqui) return false;
     if (filtroRede.so === 'ab' && f.abNaRede < 2) return false;
-    if (filtroRede.so === 'novo' && f.aqui) return false;
     if (b && !semAcento(f.descricao + ' ' + f.codigo + ' ' + f.original).toUpperCase().includes(b)) return false;
     return true;
   });
@@ -4970,15 +4977,15 @@ function renderRede() {
 
   const placas = [
     { tom: 'critico', valor: n(R.faltaAB.length), rot: 'Peças para pedir',
-      pe: 'Zeradas ou sem cadastro aqui, e classificadas A ou B em pelo menos duas praças irmãs.' },
+      pe: 'Cadastradas aqui, com saldo zero, e classificadas A ou B em pelo menos duas praças irmãs.' },
     { tom: 'atencao', valor: pct(meu.taxa), rot: 'Paridade com a rede',
       pe: 'De ' + n(R.universo) + ' peças que giram no estado, Ribeirão tem ' + n(meu.tem) + ' com saldo.' +
         (atras > 0 ? ' ' + esc(R.lider.nome) + ' tem ' + n(R.lider.tem) + ' — ' + n(atras) + ' a mais.' : '') },
     { tom: 'parado', valor: n(R.unidadesParadas), rot: 'Unidades nas irmãs',
       pe: 'Somadas nas praças que mantêm as peças que faltam aqui. É estoque que a rede já comprou.' },
-    { tom: 'neutro', valor: n(R.semCadastroAB.length), rot: 'Conferir no sistema',
-      pe: 'Curva A ou B na rede e sem nenhuma linha no nosso relatório. ' +
-        'No total, ' + n(R.semCadastro.length) + ' peças que as irmãs mantêm não vieram no nosso arquivo.' },
+    { tom: 'neutro', valor: n(R.todasAsPracas.length), rot: 'Todas as praças têm',
+      pe: 'Zeradas aqui e com saldo em ' + n(R.irmas.length) + ' de ' + n(R.irmas.length) +
+        ' filiais irmãs ao mesmo tempo. Quando a rede inteira mantém, não é particularidade de ninguém.' },
   ];
 
   const linhasMatriz = R.matriz.map((l) => {
@@ -5058,16 +5065,17 @@ function renderRede() {
       '<p style="margin:-4px 0 12px;font-size:13px;line-height:1.55;color:var(--tinta-2)">' +
         'A coluna <b>aqui</b> sai de <b>' + esc(fonteDeCasa.arquivo) + '</b>, de ' + esc(fonteDeCasa.data) + ' — ' +
         n(fonteDeCasa.pecas) + ' peças de ' + esc(nomeFilial(AQUI)) + '.<br>' +
-        '<b>zerado</b>: o código veio no relatório, com saldo zero. ' +
-        '<b>não veio no relatório</b>: o código não está nesse arquivo — pode ser cadastro que não existe aqui, ' +
-        'ou cadastro que existe e ficou de fora da extração. A página não tem como distinguir os dois; ' +
-        'quem confere é o sistema.' +
+        (filtroRede.so === 'novo'
+          ? 'Estes códigos <b>não estão nesse arquivo</b> — pode ser cadastro que não existe aqui, ou cadastro ' +
+            'que existe e ficou de fora da extração. A página não distingue os dois; quem confere é o sistema. ' +
+            'Por isso eles ficam fora da lista de pedido.'
+          : 'Todas as peças abaixo estão cadastradas aqui e com <b>saldo zero</b>.') +
       '</p>' +
       '<div class="filtros">' +
         '<div class="campo"><label for="fRedeSo">Recorte</label><select id="fRedeSo">' +
-          '<option value="ab">Só as que giram no estado (A ou B em 2+ praças)</option>' +
-          '<option value="todas">Todas as que faltam aqui</option>' +
-          '<option value="novo">Só as que nem estão cadastradas aqui</option>' +
+          '<option value="ab">Zeradas aqui e girando no estado (A ou B em 2+ praças)</option>' +
+          '<option value="todas">Todas as zeradas aqui</option>' +
+          '<option value="novo">Códigos que não vieram no relatório (' + n(R.semCadastro.length) + ')</option>' +
         '</select></div>' +
         '<div class="campo"><label for="fRedeMin">Em quantas praças tem saldo</label><select id="fRedeMin">' +
           [1, 2, 3, 4].map((v) => '<option value="' + v + '">' + v + ' ou mais</option>').join('') +
@@ -5227,7 +5235,7 @@ function textoAbastecimento(R, lista) {
     '- ' + n(R.universo) + ' peças são classificadas curva A ou B em duas ou mais das praças comparadas.',
     '- Ribeirão Preto tem ' + n(meu.tem) + ' delas com saldo (' + pct(meu.taxa) + ').' +
       (R.lider && !R.lider.casa ? ' ' + R.lider.nome + ' tem ' + n(R.lider.tem) + ' (' + pct(R.lider.taxa) + ').' : ''),
-    '- ' + n(R.falta.length) + ' peças que as irmãs mantêm em prateleira estão zeradas ou sem cadastro aqui.',
+    '- ' + n(R.falta.filter((f) => f.aqui).length) + ' peças que as irmãs mantêm em prateleira estão zeradas aqui.',
     '- Dessas, ' + n(R.faltaAB.length) + ' são curva A ou B em pelo menos duas praças.',
     '- As irmãs somam ' + n(R.unidadesParadas) + ' unidades dessas mesmas peças.',
     '',

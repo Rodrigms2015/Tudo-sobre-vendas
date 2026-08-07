@@ -432,6 +432,60 @@
     .topo-dir .bt { flex: 1 1 auto; }
   }
 
+  /* Linha de decisão. Densa por escolha: o comprador precisa varrer muitas
+     por minuto. O porquê fica escondido até ser pedido — quem confia na
+     recomendação não deveria pagar leitura por isso. */
+  .peca {
+    border: 1px solid var(--borda); border-left: 4px solid var(--borda-forte);
+    border-radius: var(--raio); background: var(--papel);
+    margin-bottom: 7px; overflow: hidden;
+  }
+  .peca[data-nivel="critico"] { border-left-color: var(--critico); }
+  .peca[data-nivel="alta"]    { border-left-color: var(--laranja); }
+  .peca[data-nivel="atencao"] { border-left-color: var(--atencao); }
+  .peca[data-nivel="normal"]  { border-left-color: var(--borda-forte); }
+  .peca > .cab {
+    display: grid; grid-template-columns: 26px minmax(0,2.2fr) 128px 1fr 92px 34px;
+    gap: 12px; align-items: center; width: 100%;
+    padding: 11px 13px; background: none; border: 0; cursor: pointer;
+    text-align: left; font: inherit; color: inherit;
+  }
+  .peca > .cab:hover { background: var(--papel-2); }
+  .peca > .cab:focus-visible { outline: 3px solid var(--laranja); outline-offset: -3px; }
+  .peca .pos { font-size: 12px; font-weight: 700; color: var(--tinta-3); font-variant-numeric: tabular-nums; }
+  .peca .nome { min-width: 0; }
+  .peca .nome b { display: block; font-size: 14px; line-height: 1.3; }
+  .peca .nome span { font-size: 11.5px; color: var(--tinta-3); }
+  .peca .acao { font-size: 12px; font-weight: 700; }
+  .peca[data-nivel="critico"] .acao { color: var(--critico); }
+  .peca[data-nivel="alta"]    .acao { color: var(--laranja-texto); }
+  .peca[data-nivel="atencao"] .acao { color: var(--atencao-texto); }
+  .peca[data-nivel="normal"]  .acao { color: var(--tinta-2); }
+  .peca .num { font-size: 12.5px; color: var(--tinta-2); font-variant-numeric: tabular-nums; }
+  .peca .num b { color: var(--tinta); }
+  .peca .conf { font-size: 11px; text-align: right; }
+  .peca .seta { text-align: center; color: var(--tinta-3); font-size: 12px; }
+  .peca .porque {
+    padding: 0 13px 14px 51px; font-size: 13px; line-height: 1.6; color: var(--tinta-2);
+    border-top: 1px solid var(--borda);
+  }
+  .peca .porque ul { margin: 9px 0 0; padding-left: 17px; }
+  .peca .porque li { margin-bottom: 3px; }
+  .peca .porque .titulo {
+    font-size: 10.5px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase;
+    color: var(--tinta-3); margin-top: 12px;
+  }
+  .peca .cadastros { margin-top: 9px; font-size: 12.5px; }
+  .peca .cadastros code {
+    font-family: var(--mono); font-size: 11.5px; background: var(--papel-2);
+    border: 1px solid var(--borda); border-radius: 4px; padding: 1px 5px; margin-right: 5px;
+  }
+  @media (max-width: 900px) {
+    .peca > .cab { grid-template-columns: 24px 1fr 34px; row-gap: 7px; }
+    .peca .acao, .peca .num, .peca .conf { grid-column: 2; text-align: left; }
+    .peca .porque { padding-left: 13px; }
+  }
+
   .lacuna {
     display: flex; gap: 9px; align-items: flex-start;
     padding: 11px 14px; margin-top: 9px;
@@ -915,6 +969,33 @@
       </div>
       <div id="filaHoje"></div>
       <div id="lacunasHoje"></div>
+    </div>
+
+    <div class="secao">
+      <div class="secao-topo">
+        <h2>As decisões, uma a uma</h2>
+        <span class="nota" id="notaCarteira"></span>
+      </div>
+      <div class="filtros">
+        <div class="campo">
+          <label for="fDecisao">Decisão</label>
+          <select id="fDecisao"></select>
+        </div>
+        <div class="campo">
+          <label for="fQuantas">Mostrar</label>
+          <select id="fQuantas">
+            <option value="10">As 10 mais importantes</option>
+            <option value="20">As 20 mais importantes</option>
+            <option value="50">As 50 mais importantes</option>
+            <option value="200">As 200 mais importantes</option>
+          </select>
+        </div>
+        <div class="campo" style="flex:1 1 220px">
+          <label for="fBuscaDec">Buscar</label>
+          <input id="fBuscaDec" type="search" placeholder="descrição, código ou original" />
+        </div>
+      </div>
+      <div id="carteira" style="margin-top:12px"></div>
     </div>
   </section>
 
@@ -2741,6 +2822,315 @@ function analisar(itens, mapaMarcas = {}, resumo = null, tabelaMarcas = null) {
   return { itens: analisados, saudeGrupo };
 }
 
+/* ─── 6b. Camada de decisão ──────────────────────────────────────────
+   Reescrita do núcleo depois de auditar o que a versão anterior produzia com
+   o relatório real. Seis defeitos, todos medidos:
+
+   1. `situacaoDe` julgava o CADASTRO, não a PEÇA. Em 2.449 dos 2.804
+      conjuntos fiscais (87%) as variantes da mesma peça recebiam situações
+      diferentes entre si.
+   2. Excesso media unidades absolutas por curva. 403 itens com mais de um
+      ano de cobertura passavam como "saudáveis" — um deles com 36 anos.
+   3. Nota única somava estado com importância. 198 dos 806 itens de
+      prioridade alta (25%) não tinham uma única venda medida: pontuavam 30
+      por ESTAR zerados.
+   4. "Confiança" tinha 2 valores distintos em 9.382 itens (85% e 75%). Não
+      media confiança; media se o classificador de família acertou.
+   5. A escala de giro usava o percentil 95 do catálogo. Com demanda
+      intermitente — que é a regra em autopeça — 62% dos itens com venda
+      ficavam abaixo de 10% da escala.
+   6. Nada media qualidade do dado antes de recomendar em cima dele.
+
+   O que muda: a decisão passa a ser tomada na PEÇA consolidada, e a nota
+   única morre. No lugar dela, três medidas que nunca se somam porque
+   respondem perguntas diferentes:
+
+     COBERTURA  quanto tempo o saldo aguenta      (estado, em dias)
+     IMPACTO    quanto dói faltar                 (importância)
+     CONFIANÇA  quanto sabemos                    (qualidade do dado)
+
+   E uma DECISÃO, que sai de uma árvore explícita — não de uma soma
+   ponderada. Árvore se audita linha a linha; soma ponderada, não. */
+
+/* Dias entre o pedido e a peça na prateleira. Vira parâmetro quando o
+   sistema souber prazo por fornecedor; até lá é declarado, não escondido. */
+const LEAD_TIME_DIAS = 15;
+
+const CONFIANCA = {
+  ALTA:        { n: 4, rotulo: 'Alta',              cor: 'saudavel' },
+  UTILIZAVEL:  { n: 3, rotulo: 'Utilizável',        cor: 'saudavel' },
+  EM_FORMACAO: { n: 2, rotulo: 'Em formação',       cor: 'atencao'  },
+  BAIXA:       { n: 1, rotulo: 'Baixa',             cor: 'atencao'  },
+  SEM_BASE:    { n: 0, rotulo: 'Sem base',          cor: 'critico'  },
+};
+
+/**
+ * Confiança de verdade: quanto o dado disponível sustenta uma decisão de
+ * compra. Não é "quantos componentes da fórmula puderam ser aplicados" —
+ * essa era a medida antiga, e ela dava o mesmo valor para um item com 47
+ * pedidos observados e outro com 1.
+ *
+ * Três eixos, e vale o mais fraco: sem observação nenhuma, período longo não
+ * salva; com muitas observações, período curto ainda limita.
+ */
+function confiancaDaPeca(peca, resumo) {
+  const motivos = [];
+  if (!resumo) {
+    motivos.push('Nenhum relatório de movimentação carregado — a avaliação usa só a curva ABC do cadastro.');
+    return { ...CONFIANCA.SEM_BASE, motivos };
+  }
+  if (!peca.medido) {
+    motivos.push('Esta peça não aparece no relatório de movimentação (' + pct(resumo.cobertura || 0) +
+      ' do cadastro foi medido). Ausência aqui não é venda zero: é venda não medida.');
+    return { ...CONFIANCA.SEM_BASE, motivos };
+  }
+
+  const pedidos = peca.pedidos;
+  const dias = resumo.dias || 0;
+  const meses = peca.mesesComVenda || 0;
+
+  let porObservacao = pedidos >= 24 ? 4 : pedidos >= 10 ? 3 : pedidos >= 4 ? 2 : pedidos >= 1 ? 1 : 0;
+  let porPeriodo = dias >= 330 ? 4 : dias >= 180 ? 3 : dias >= 90 ? 2 : dias >= 30 ? 1 : 0;
+  /* Venda concentrada num mês só não descreve um padrão, descreve um evento. */
+  let porRegularidade = meses >= 6 ? 4 : meses >= 3 ? 3 : meses >= 2 ? 2 : 1;
+
+  const n = Math.min(porObservacao, porPeriodo, porRegularidade);
+  motivos.push(n === porObservacao
+    ? pedidos + ' pedido' + (pedidos === 1 ? '' : 's') + ' observado' + (pedidos === 1 ? '' : 's') + ' no período'
+    : n === porPeriodo
+    ? 'Período medido de ' + n2(dias) + ' dias'
+    : 'Venda em ' + meses + ' mês' + (meses === 1 ? '' : 'es') + ' distinto' + (meses === 1 ? '' : 's'));
+
+  const nivel = [CONFIANCA.SEM_BASE, CONFIANCA.BAIXA, CONFIANCA.EM_FORMACAO, CONFIANCA.UTILIZAVEL, CONFIANCA.ALTA][n];
+  return { ...nivel, motivos };
+}
+
+const n2 = (v) => new Intl.NumberFormat('pt-BR').format(Math.round(v));
+
+const DECISOES = {
+  COMPRAR_AGORA:     { rotulo: 'Comprar agora',        nivel: 'critico', ordem: 1 },
+  COMPRAR_SEMANA:    { rotulo: 'Comprar esta semana',  nivel: 'alta',    ordem: 2 },
+  FALSA_RUPTURA:     { rotulo: 'Falsa ruptura',        nivel: 'normal',  ordem: 4 },
+  MONITORAR:         { rotulo: 'Monitorar',            nivel: 'atencao', ordem: 5 },
+  DADO_INSUFICIENTE: { rotulo: 'Dado insuficiente',    nivel: 'atencao', ordem: 6 },
+  NAO_COMPRAR:       { rotulo: 'Não comprar',          nivel: 'normal',  ordem: 7 },
+  CAPITAL_PARADO:    { rotulo: 'Capital parado',       nivel: 'atencao', ordem: 8 },
+};
+
+/**
+ * Consolida os cadastros na PEÇA. É aqui que a decisão passa a ser tomada:
+ * um cadastro zerado ao lado de outro com 55 unidades da mesma peça não é
+ * ruptura, é cadastro.
+ *
+ * O que é observado, o que é derivado e o que falta fica separado no objeto,
+ * porque a interface precisa dizer qual é qual.
+ */
+function consolidarPecas(lista, resumo) {
+  const porChave = new Map();
+  for (const i of lista) {
+    const k = i.chaveDuplicata || ('avulso:' + (i.interno || i.produto));
+    if (!porChave.has(k)) porChave.set(k, []);
+    porChave.get(k).push(i);
+  }
+
+  const pecas = [];
+  for (const [chaveP, cadastros] of porChave) {
+    const chefe = cadastros.find((x) => x.ehRepresentante) || cadastros[0];
+
+    /* OBSERVADO — sai direto do relatório, sem transformação. */
+    const saldos = cadastros.map((x) => x.saldo).filter((s) => s !== null && s !== undefined);
+    const saldo = saldos.length ? saldos.reduce((a, b) => a + b, 0) : null;
+    const medido = !!resumo && cadastros.some((x) => resumo.demanda.has(x.interno));
+    const dem = cadastros.map((x) => x.demanda).filter(Boolean);
+    const unidades = dem.reduce((a, d) => a + d.unidades, 0);
+    const pedidos = dem.reduce((a, d) => a + d.pedidos, 0);
+    const porDia = dem.reduce((a, d) => a + d.porDia, 0);
+    const fora = dem.reduce((a, d) => a + (d.fora || 0), 0);
+    const mesesComVenda = dem.length ? Math.max(...dem.map((d) => d.mesesComVenda || 0)) : 0;
+    const diasSemVender = dem.length ? Math.min(...dem.map((d) => d.diasSemVender ?? 1e9)) : null;
+
+    /* DERIVADO — conta feita em cima do observado, e a conta está exposta. */
+    const cobertura = medido && porDia > 0 && saldo !== null ? saldo / porDia : null;
+
+    const peca = {
+      chave: chaveP,
+      cadastros,
+      chefe,
+      descricao: chefe.descricao,
+      produto: semSufixo(chefe.produto),
+      original: chefe.original,
+      curva: cadastros.map((x) => x.curva).filter(Boolean).sort()[0] || '',
+      classe: chefe.classe,
+      familia: chefe.familia,
+      marca: chefe.marca,
+      saldo,
+      medido,
+      unidades,
+      pedidos,
+      porDia,
+      fora,
+      mesesComVenda,
+      diasSemVender: diasSemVender === 1e9 ? null : diasSemVender,
+      cobertura,
+      /* Cadastros zerados enquanto a peça tem saldo: o motivo mais comum de
+         compra desnecessária, e agora ele é nomeado. */
+      cadastrosZerados: cadastros.filter((x) => x.saldo === 0).length,
+      equivalenteComSaldo: chefe.irmaos ? 0 : 0,
+    };
+    peca.confianca = confiancaDaPeca(peca, resumo);
+    pecas.push(peca);
+  }
+  return pecas;
+}
+
+/**
+ * Impacto: quanto dói faltar. Sai de venda medida quando existe, e da curva
+ * quando não existe — e diz qual dos dois usou.
+ *
+ * Escala logarítmica de propósito. Demanda de autopeça é intermitente: a
+ * mediana do catálogo vende 0,028 un/dia e o topo vende 11. Numa escala
+ * linear pelo percentil 95, 62% dos itens com venda ficavam esmagados abaixo
+ * de 10% — ou seja, a escala não separava nada justamente onde está a massa.
+ */
+function impactoDaPeca(peca) {
+  if (peca.medido && peca.porDia > 0) {
+    /* log10 de unidades/ano, normalizado entre 1 e 4.000 un/ano. */
+    const porAno = peca.porDia * 365;
+    const volume = Math.max(0, Math.min(1, Math.log10(Math.max(1, porAno)) / Math.log10(4000)));
+    const frequencia = Math.max(0, Math.min(1, Math.log10(Math.max(1, peca.pedidos)) / Math.log10(60)));
+    const essencial = PESO_CLASSE[peca.classe] ?? 0.5;
+    const bruto = 0.45 * volume + 0.35 * frequencia + 0.20 * essencial;
+    return {
+      valor: Math.round(bruto * 100),
+      base: 'venda medida',
+      texto: n2(peca.unidades) + ' un em ' + n2(peca.pedidos) + ' pedido' + (peca.pedidos === 1 ? '' : 's'),
+    };
+  }
+  if (peca.curva && PESO_CURVA[peca.curva] !== undefined) {
+    const essencial = PESO_CLASSE[peca.classe] ?? 0.5;
+    return {
+      valor: Math.round((0.75 * PESO_CURVA[peca.curva] + 0.25 * essencial) * 100),
+      base: 'curva ABC',
+      texto: 'Curva ' + peca.curva + ' — sem venda medida para esta peça',
+    };
+  }
+  return { valor: null, base: 'nada', texto: 'Sem curva e sem venda medida' };
+}
+
+/**
+ * A árvore de decisão. Cada folha devolve o porquê e o que mudaria a
+ * recomendação — as duas coisas que separam uma ferramenta auditável de uma
+ * caixa-preta que finge inteligência.
+ */
+function decidirPeca(peca, impacto, resumo) {
+  const porques = [];
+  const mudaria = [];
+  const D = (d) => ({ decisao: d, porques, mudaria });
+
+  if (peca.saldo === null) {
+    porques.push('O saldo não foi lido no relatório.');
+    mudaria.push('Um relatório com o saldo legível para esta peça.');
+    return D('DADO_INSUFICIENTE');
+  }
+
+  /* Falsa ruptura vem antes de tudo: é o erro mais caro e o mais silencioso. */
+  if (peca.cadastrosZerados > 0 && peca.saldo > 0) {
+    porques.push(peca.cadastrosZerados + ' de ' + peca.cadastros.length + ' cadastros desta peça estão zerados, ' +
+      'mas a peça tem ' + n2(peca.saldo) + ' unidades somando os cadastros.');
+    porques.push('Uma lista por cadastro pediria compra aqui. Uma lista por peça, não.');
+    mudaria.push('Consolidar os cadastros no ERP eliminaria a ambiguidade na origem.');
+    return D('FALSA_RUPTURA');
+  }
+
+  if (!peca.medido) {
+    if (peca.saldo === 0) {
+      porques.push('Saldo zero em todos os cadastros da peça.');
+      porques.push('Sem venda medida, não dá para dizer se faz falta: a peça não entrou no recorte do relatório de movimentação.');
+      mudaria.push('Rodar a movimentação sem filtrar produto colocaria esta peça na base medida.');
+      return D('DADO_INSUFICIENTE');
+    }
+    porques.push('Peça com ' + n2(peca.saldo) + ' unidades e sem medição de venda no relatório carregado.');
+    mudaria.push('Rodar a movimentação sem filtrar produto diria se este saldo gira ou está parado.');
+    return D('MONITORAR');
+  }
+
+  /* Daqui para baixo há venda medida para a peça. */
+  if (peca.porDia === 0) {
+    porques.push('A peça foi medida e não teve uma única saída em ' + n2(resumo.dias) + ' dias.');
+    if (peca.saldo > 0) {
+      porques.push(n2(peca.saldo) + ' unidades em prateleira sem giro no período.');
+      mudaria.push('Sazonalidade: ' + n2(resumo.dias) + ' dias podem não cobrir a estação desta peça.');
+      return D('CAPITAL_PARADO');
+    }
+    porques.push('Saldo zero, e sem procura registrada no período.');
+    return D('NAO_COMPRAR');
+  }
+
+  const cob = peca.cobertura;
+
+  if (peca.saldo === 0) {
+    porques.push('Saldo zero somando todos os cadastros da peça.');
+    porques.push('Venda comprovada: ' + n2(peca.unidades) + ' un em ' + n2(peca.pedidos) +
+      ' pedidos, ' + (peca.porDia * 30).toFixed(1) + ' un por mês no ritmo medido.');
+    if (peca.diasSemVender !== null) porques.push('Última saída há ' + n2(peca.diasSemVender) + ' dias.');
+    if (peca.confianca.n <= 1) {
+      mudaria.push('A confiança é ' + peca.confianca.rotulo.toLowerCase() + ': ' + peca.confianca.motivos[0] + '.');
+      return D('COMPRAR_SEMANA');
+    }
+    return D('COMPRAR_AGORA');
+  }
+
+  if (cob !== null && cob <= LEAD_TIME_DIAS) {
+    porques.push('O saldo de ' + n2(peca.saldo) + ' unidades cobre ' + Math.round(cob) +
+      ' dias no ritmo medido de ' + peca.porDia.toFixed(2) + ' un/dia.');
+    porques.push('O prazo de reposição considerado é de ' + LEAD_TIME_DIAS + ' dias.');
+    mudaria.push('Prazo real do fornecedor: o sistema usa ' + LEAD_TIME_DIAS + ' dias porque o relatório não traz lead time.');
+    return D(cob <= 5 ? 'COMPRAR_AGORA' : 'COMPRAR_SEMANA');
+  }
+
+  if (cob !== null && cob > 365) {
+    porques.push('O saldo cobre ' + (cob / 365).toFixed(1) + ' anos no ritmo medido.');
+    porques.push(n2(peca.saldo) + ' unidades para uma venda de ' + (peca.porDia * 365).toFixed(0) + ' por ano.');
+    mudaria.push('Compra em lote mínimo alto pode justificar parte disso — o relatório não traz lote de compra.');
+    return D('CAPITAL_PARADO');
+  }
+
+  if (cob !== null && cob > 180) {
+    porques.push('O saldo cobre ' + Math.round(cob) + ' dias. Não falta, e não vai faltar tão cedo.');
+    return D('NAO_COMPRAR');
+  }
+
+  porques.push('Cobertura de ' + Math.round(cob) + ' dias no ritmo medido — dentro da faixa saudável.');
+  return D('MONITORAR');
+}
+
+/** Monta a carteira de decisões. É o que as telas consomem. */
+function carteiraDeDecisoes() {
+  const L = itens();
+  if (!L.length) return null;
+  const resumo = estado.resumoDemanda;
+  const pecas = consolidarPecas(L, resumo);
+
+  for (const p of pecas) {
+    p.impacto = impactoDaPeca(p);
+    const d = decidirPeca(p, p.impacto, resumo);
+    p.decisao = d.decisao;
+    p.porques = d.porques;
+    p.mudaria = d.mudaria;
+  }
+
+  /* A ordem da fila: decisão primeiro, impacto depois, urgência para
+     desempatar. Nunca uma soma dos três. */
+  pecas.sort((a, b) =>
+    DECISOES[a.decisao].ordem - DECISOES[b.decisao].ordem ||
+    (b.impacto.valor ?? -1) - (a.impacto.valor ?? -1) ||
+    (a.cobertura ?? 1e9) - (b.cobertura ?? 1e9));
+
+  const porDecisao = {};
+  for (const k of Object.keys(DECISOES)) porDecisao[k] = pecas.filter((p) => p.decisao === k);
+  return { pecas, porDecisao, resumo };
+}
+
 /* ─── 7. Quantidade sugerida ─────────────────────────────────────────
    Sem dois envios não existe consumo medido. Nesse caso a sugestão é
    declaradamente uma referência por classe, e diz isso na cara. */
@@ -3046,6 +3436,7 @@ function calcularConsumo(anterior, atual) {
 
 function recalcular() {
   invalidarRede();
+  invalidarCarteira();
   const atual = envioAtual();
   if (!atual) { estado.analise = null; estado.consumo = null; return; }
   estado.resumoDemanda = resumirDemanda(estado.movimentos);
@@ -3322,6 +3713,88 @@ function barraHorizontal({ titulo, direita, fracao, cor }) {
 
 const ROTULO_NIVEL = { critico: 'Crítico', alta: 'Alta prioridade', atencao: 'Atenção', normal: 'Normal' };
 
+const filtroDecisao = { decisao: 'COMPRAR_AGORA', quantas: 10, busca: '' };
+let cacheCarteira = null;
+const invalidarCarteira = () => { cacheCarteira = null; };
+const carteira = () => (cacheCarteira || (cacheCarteira = carteiraDeDecisoes()));
+
+/* A fila de trabalho. Top 10 por padrão, e não porque 10 seja um número
+   bonito: é o que cabe numa decisão de manhã antes do telefone tocar. */
+function renderCarteira() {
+  const alvo = $('#carteira');
+  if (!alvo) return;
+  const C = carteira();
+  if (!C) { alvo.innerHTML = ''; return; }
+
+  const sel = $('#fDecisao');
+  if (sel && !sel.dataset.pronto) {
+    sel.innerHTML = Object.entries(DECISOES)
+      .sort((a, b) => a[1].ordem - b[1].ordem)
+      .map(([k, v]) => '<option value="' + k + '">' + esc(v.rotulo) + ' (' + n(C.porDecisao[k].length) + ')</option>')
+      .join('') + '<option value="TODAS">Todas as peças (' + n(C.pecas.length) + ')</option>';
+    sel.dataset.pronto = '1';
+    sel.value = filtroDecisao.decisao;
+  }
+
+  const b = semAcento(filtroDecisao.busca).toUpperCase().trim();
+  const universo = filtroDecisao.decisao === 'TODAS' ? C.pecas : C.porDecisao[filtroDecisao.decisao] || [];
+  const lista = universo.filter((p) => !b ||
+    semAcento(p.descricao + ' ' + p.produto + ' ' + (p.original || '')).toUpperCase().includes(b));
+
+  $('#notaCarteira').textContent = n(C.pecas.length) + ' peças consolidadas de ' + n(itens().length) +
+    ' cadastros · ' + n(lista.length) + ' no recorte atual';
+
+  if (!lista.length) {
+    alvo.innerHTML = '<p style="font-size:13px;color:var(--tinta-2);margin:0">Nenhuma peça neste recorte.</p>';
+    return;
+  }
+
+  alvo.innerHTML = lista.slice(0, filtroDecisao.quantas).map((p, idx) => {
+    const D = DECISOES[p.decisao];
+    const cob = p.cobertura === null ? '—'
+      : p.cobertura > 365 ? (p.cobertura / 365).toFixed(1) + ' anos'
+      : Math.round(p.cobertura) + ' dias';
+    return '<div class="peca" data-nivel="' + D.nivel + '">' +
+      '<button class="cab" type="button" aria-expanded="false">' +
+        '<span class="pos">' + (idx + 1) + '</span>' +
+        '<span class="nome"><b>' + esc(p.descricao || p.produto) + '</b>' +
+          '<span>' + esc(p.produto) + (p.cadastros.length > 1 ? ' · ' + p.cadastros.length + ' cadastros' : '') +
+          (p.curva ? ' · curva ' + esc(p.curva) : '') + '</span></span>' +
+        '<span class="acao">' + esc(D.rotulo) + '</span>' +
+        '<span class="num">saldo <b>' + (p.saldo === null ? '—' : n(p.saldo)) + '</b>' +
+          ' · cobre <b>' + cob + '</b>' +
+          (p.impacto.valor !== null ? ' · impacto <b>' + p.impacto.valor + '</b>' : '') + '</span>' +
+        '<span class="conf"><span class="etiqueta" data-tom="' + esc(p.confianca.cor) + '">' +
+          esc(p.confianca.rotulo) + '</span></span>' +
+        '<span class="seta" aria-hidden="true">▾</span>' +
+      '</button>' +
+      '<div class="porque oculto">' +
+        '<div class="titulo">Por que esta recomendação</div>' +
+        '<ul>' + p.porques.map((x) => '<li>' + esc(x) + '</li>').join('') + '</ul>' +
+        '<div class="titulo">Impacto e confiança</div>' +
+        '<ul><li>Impacto ' + (p.impacto.valor === null ? 'não calculado' : p.impacto.valor + '/100') +
+          ', por ' + esc(p.impacto.base) + ' — ' + esc(p.impacto.texto) + '</li>' +
+        '<li>Confiança <b>' + esc(p.confianca.rotulo) + '</b> — ' + esc(p.confianca.motivos[0] || '') + '</li></ul>' +
+        (p.mudaria.length
+          ? '<div class="titulo">O que mudaria esta recomendação</div><ul>' +
+            p.mudaria.map((x) => '<li>' + esc(x) + '</li>').join('') + '</ul>'
+          : '') +
+        '<div class="cadastros"><div class="titulo">Cadastros somados nesta peça</div>' +
+          p.cadastros.map((c) => '<code>' + esc(c.produto) + '</code>saldo ' +
+            (c.saldo === null ? '—' : n(c.saldo)) + (c.curva ? ' · curva ' + esc(c.curva) : '')).join('<br>') +
+        '</div>' +
+      '</div></div>';
+  }).join('');
+
+  $$('#carteira .cab').forEach((bt) => bt.addEventListener('click', () => {
+    const corpo = bt.nextElementSibling;
+    const aberto = !corpo.classList.contains('oculto');
+    corpo.classList.toggle('oculto', aberto);
+    bt.setAttribute('aria-expanded', String(!aberto));
+    bt.querySelector('.seta').textContent = aberto ? '▾' : '▴';
+  }));
+}
+
 function renderHoje() {
   const alvo = $('#filaHoje');
   if (!alvo) return;
@@ -3386,6 +3859,8 @@ function renderHoje() {
 
   $('#lacunasHoje').innerHTML = plano.lacunas.map((l) =>
     '<div class="lacuna"><span class="sinal" aria-hidden="true">!</span><span>' + esc(l) + '</span></div>').join('');
+
+  renderCarteira();
 }
 
 function renderPainel() {
@@ -5828,6 +6303,9 @@ function renderEquipe() {
 }
 
 liga('#fConferir', 'input', () => renderConferir());
+liga('#fDecisao', 'change', (e) => { filtroDecisao.decisao = e.target.value; renderCarteira(); });
+liga('#fQuantas', 'change', (e) => { filtroDecisao.quantas = Number(e.target.value); renderCarteira(); });
+liga('#fBuscaDec', 'input', (e) => { filtroDecisao.busca = e.target.value; renderCarteira(); });
 
 liga('#btCarregarFilial', 'click', () => {
   estado.redeEsperando = $('#fFilialAlvo').value || null;

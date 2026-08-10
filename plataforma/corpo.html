@@ -982,8 +982,9 @@
           <select id="fProdRecorte">
             <option value="ruptura">Em ruptura real (grupo inteiro zerado)</option>
             <option value="cobertas">Linhas zeradas cobertas por outro cadastro</option>
+            <option value="irmaos">Mesma peça cadastrada em dois grupos</option>
             <option value="duplicados">Peças com mais de um cadastro</option>
-            <option value="colisao">Mesmo código base em fornecedores diferentes</option>
+            <option value="colisao">Mesmo código base em produtos diferentes</option>
             <option value="semid">Sem identidade (código placeholder)</option>
             <option value="todas">Todas as peças</option>
           </select>
@@ -3825,7 +3826,10 @@ function renderProdutos() {
     return;
   }
   const R = P.resumo, Q = P.qualidade;
-  $('#seloProdutos').textContent = n(R.gruposEmRupturaReal);
+  /* A ruptura que vira compra é a que sobra depois de tirar a peça que está
+     zerada aqui e cheia no grupo irmão. Comprar essas seria comprar em dobro. */
+  const rupturaParaComprar = R.gruposEmRupturaReal - R.gruposCobertosPorGrupoIrmao;
+  $('#seloProdutos').textContent = n(rupturaParaComprar);
   const e = envioAtual();
   $('#notaProdutos').textContent = e ? e.nome + ' · ' + dataBr(e.dataISO) : '';
 
@@ -3838,15 +3842,22 @@ function renderProdutos() {
       rodape: 'Número bruto. Não é ruptura: é linha zerada.', tom: 'atencao' }),
     placa({ rotulo: 'Zeradas mas cobertas', valor: n(R.linhasZeradasCobertasPorOutroCadastro),
       rodape: 'Linhas com saldo zero cuja peça tem estoque em outro cadastro. Comprar aqui seria comprar em dobro.', tom: 'saudavel' }),
-    placa({ rotulo: 'Ruptura real', valor: n(R.gruposEmRupturaReal),
-      rodape: 'Peças com o grupo inteiro zerado. É a falta que o cliente sente.', tom: 'critico' }),
+    placa({ rotulo: 'Ruptura real', valor: n(rupturaParaComprar),
+      rodape: R.gruposCobertosPorGrupoIrmao
+        ? 'Peças com o grupo inteiro zerado. Já ' + (R.gruposCobertosPorGrupoIrmao === 1
+            ? 'sem 1 que tem saldo no grupo irmão — essa é cadastro duplicado, não falta.'
+            : 'sem ' + n(R.gruposCobertosPorGrupoIrmao) + ' que têm saldo no grupo irmão — essas são cadastro duplicado, não falta.')
+        : 'Peças com o grupo inteiro zerado. É a falta que o cliente sente.', tom: 'critico' }),
   ].join('');
 
   /* Recortes. Cada um responde a uma pergunta que alguém faz de verdade. */
-  const colisao = new Set(Q.colisoesDeCodigoBase.flatMap((c) => c.grupos.map((g) => g.duplicateKey)));
+  const colisao = new Set(Q.colisoesDeCodigoBase
+    .filter((c) => !c.mesmaDenominacao)
+    .flatMap((c) => c.grupos.map((g) => g.duplicateKey)));
   const recortes = {
-    ruptura: (g) => g.rupturaReal === true,
+    ruptura: (g) => g.rupturaReal === true && !g.cobertoPorGrupoIrmao,
     cobertas: (g) => g.zeradoCobertoPorOutroCadastro,
+    irmaos: (g) => g.gruposIrmaos.some((i) => i.mesmaDenominacao),
     duplicados: (g) => g.quantidadeCadastros > 1,
     colisao: (g) => colisao.has(g.duplicateKey),
     semid: (g) => g.semIdentidade,
@@ -3865,15 +3876,20 @@ function renderProdutos() {
 
   alvo.innerHTML = lista.length
     ? lista.slice(0, filtroProdutos.quantas).map((g) => {
-        const nivel = g.rupturaReal === true ? 'critico'
+        const nivel = g.cobertoPorGrupoIrmao ? 'atencao'
+          : g.rupturaReal === true ? 'critico'
           : g.zeradoCobertoPorOutroCadastro ? 'atencao'
           : g.semIdentidade ? 'atencao' : 'normal';
         const estado = g.estoqueGrupo === null ? 'saldo ilegível'
+          : g.cobertoPorGrupoIrmao ? 'coberta por outro grupo'
           : g.rupturaReal ? 'ruptura real'
           : g.zeradoCobertoPorOutroCadastro ? 'coberta por outro cadastro'
           : 'com estoque';
         const motivo = g.estoqueGrupo === null
           ? 'Nenhum cadastro desta peça teve o saldo lido. Sem saldo não há conclusão — e lacuna não vira compra.'
+          : g.cobertoPorGrupoIrmao
+          ? 'Esta peça está zerada aqui, mas o mesmo código de fábrica com a mesma descrição tem ' +
+            n(g.estoqueEmGrupoIrmao) + ' unidades em outro grupo de produto. Não é falta: é o mesmo item cadastrado duas vezes.'
           : g.rupturaReal
           ? 'Os ' + n(g.quantidadeCadastros) + ' cadastro' + (g.quantidadeCadastros > 1 ? 's' : '') +
             ' desta peça somam ' + n(g.estoqueGrupo) + '. O grupo inteiro está sem saldo.'
@@ -3881,12 +3897,20 @@ function renderProdutos() {
           ? 'Embora ' + n(g.cadastrosZerados) + ' de ' + n(g.quantidadeCadastros) +
             ' cadastros estejam zerados, outro cadastro do mesmo grupo tem ' + n(g.estoqueGrupo) + ' unidades.'
           : 'Peça com ' + n(g.estoqueGrupo) + ' unidades.';
+        const irmaos = g.gruposIrmaos.length
+          ? '<div class="cadastros"><div class="titulo">Mesmo código de fábrica em outro grupo de produto</div>' +
+            '<ul>' + g.gruposIrmaos.map((i) => '<li><code>' + esc(i.duplicateKey) + '</code> — ' +
+              esc(i.denominacao || '(sem descrição)') + ' · estoque ' +
+              (i.estoqueGrupo === null ? '—' : n(i.estoqueGrupo)) + ' · ' +
+              (i.mesmaDenominacao ? 'mesma descrição: provável cadastro duplicado' : 'descrição diferente: outra peça, o código só coincide') +
+              '</li>').join('') + '</ul></div>'
+          : '';
 
         return '<div class="peca" data-nivel="' + nivel + '">' +
           '<button class="cab" type="button" aria-expanded="false">' +
             '<span class="pos">' + (g.quantidadeCadastros > 1 ? g.quantidadeCadastros + '×' : '·') + '</span>' +
             '<span class="nome"><b>' + esc(g.denominacao || '(sem descrição)') + '</b>' +
-              '<span>' + esc(g.codigoFabricaBase) + ' · fornecedor ' + esc(g.fornecedorNormalizado) + '</span></span>' +
+              '<span>' + esc(g.codigoFabricaBase) + ' · grupo ' + esc(g.grupoProdutoNormalizado) + '</span></span>' +
             '<span class="acao">' + esc(estado) + '</span>' +
             '<span class="num">estoque da peça <b>' + (g.estoqueGrupo === null ? '—' : n(g.estoqueGrupo)) + '</b>' +
               ' · ' + n(g.cadastrosZerados) + ' de ' + n(g.quantidadeCadastros) + ' zerados</span>' +
@@ -3905,7 +3929,7 @@ function renderProdutos() {
                 '<td>' + esc(c.codigoFabricaBase) + '</td>' +
                 '<td class="dir">' + (c.estoqueIndividual === null ? '—' : n(c.estoqueIndividual)) + '</td>' +
                 '<td>' + esc(c.curva || '—') + '</td></tr>').join('') +
-              '</tbody></table></div></div>' +
+              '</tbody></table></div></div>' + irmaos +
           '</div></div>';
       }).join('')
     : '<p style="font-size:13px;color:var(--tinta-2);margin:0">Nenhuma peça neste recorte.</p>';
@@ -3933,8 +3957,10 @@ function renderProdutos() {
       'Código placeholder tipo N/E. Ficam isoladas em vez de juntar peças diferentes.'),
     linhaQ('Maior grupo', Q.maiorGrupo ? esc(Q.maiorGrupo.duplicateKey) + ' (' + Q.maiorGrupo.cadastros + ')' : '—',
       'Grupo grande demais costuma ser sinal de código repetido no ERP.'),
-    linhaQ('Colisões de código base entre fornecedores', n(Q.colisoesDeCodigoBase.length),
-      'Mesmo código em fornecedores diferentes. Legítimo, mas registrado para conferência.'),
+    linhaQ('Mesma peça em dois grupos de produto', n(Q.provavelMesmoProdutoEmDoisGrupos),
+      'Mesmo código de fábrica e mesma descrição em grupos diferentes. Provável cadastro duplicado — vale corrigir no Opus.'),
+    linhaQ('Código base igual em produtos diferentes', n(Q.colisoesEntreProdutosDiferentes),
+      'Mesmo código, descrições diferentes. É o grupo de produto impedindo que peças distintas virem uma só.'),
   ].join('');
 }
 

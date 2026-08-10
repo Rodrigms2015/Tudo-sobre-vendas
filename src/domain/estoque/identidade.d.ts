@@ -13,15 +13,26 @@ export interface RegistroCanonico {
   codigoFabricaOriginal: string;
   codigoFabricaBase: string;
   codigoFabrica: string;
-  fornecedorOriginal: string;
-  fornecedor: unknown;
-  fornecedorNormalizado: string;
+  /** Coluna `Grupo` do relatório: código interno de produto do Opus. Não é marca. */
+  grupoProdutoOriginal: string;
+  grupoProduto: unknown;
+  grupoProdutoNormalizado: string;
   codigoOriginal: string;
   denominacao: string;
   curva: string;
   localizacao: string;
   /** `null` quando o saldo não pôde ser lido. Nunca zero por omissão. */
   estoqueIndividual: number | null;
+}
+
+/** Um grupo de produto vizinho que compartilha o mesmo código de fábrica. */
+export interface GrupoIrmao {
+  duplicateKey: string;
+  grupoProdutoNormalizado: string;
+  denominacao: string;
+  estoqueGrupo: number | null;
+  /** Descrição idêntica: forte indício de ser a mesma peça cadastrada duas vezes. */
+  mesmaDenominacao: boolean;
 }
 
 /**
@@ -32,7 +43,7 @@ export interface RegistroCanonico {
 export interface GrupoCadastral {
   duplicateKey: string;
   semIdentidade: boolean;
-  fornecedorNormalizado: string;
+  grupoProdutoNormalizado: string;
   codigoFabricaBase: string;
   denominacao: string;
   cadastros: RegistroCanonico[];
@@ -43,17 +54,23 @@ export interface GrupoCadastral {
   estoqueGrupo: number | null;
   rupturaReal: boolean | null;
   zeradoCobertoPorOutroCadastro: boolean;
+  gruposIrmaos: GrupoIrmao[];
+  /** Soma do saldo dos irmãos com a mesma descrição. `null` se não há nenhum. */
+  estoqueEmGrupoIrmao: number | null;
+  /** Ruptura no papel com saldo do outro lado: não é compra, é cadastro duplicado. */
+  cobertoPorGrupoIrmao: boolean;
 }
 
 export interface ColisaoDeCodigo {
   codigoFabricaBase: string;
+  mesmaDenominacao: boolean;
   grupos: Array<{ duplicateKey: string; denominacao: string; estoqueGrupo: number | null }>;
 }
 
 export interface QualidadeDaImportacao {
   linhasLidas: number;
   codigosVazios: number;
-  fornecedoresVazios: number;
+  gruposDeProdutoVazios: number;
   saldosIlegiveis: number;
   codigosAlteradosPelaNormalizacao: number;
   codigosSemAlteracao: number;
@@ -62,6 +79,8 @@ export interface QualidadeDaImportacao {
   gruposSemIdentidade: number;
   maiorGrupo: { duplicateKey: string; cadastros: number } | null;
   colisoesDeCodigoBase: ColisaoDeCodigo[];
+  provavelMesmoProdutoEmDoisGrupos: number;
+  colisoesEntreProdutosDiferentes: number;
 }
 
 export interface ResumoEstoque {
@@ -71,12 +90,13 @@ export interface ResumoEstoque {
   linhasComSaldoZero: number;
   linhasZeradasCobertasPorOutroCadastro: number;
   gruposEmRupturaReal: number;
+  gruposCobertosPorGrupoIrmao: number;
   unidadesEmEstoque: number;
 }
 
 export function normalizarCodigoFabrica(codigo: unknown): string;
-export function normalizarFornecedor(valor: unknown): string;
-export function montarChaveDuplicidade(registro: { fornecedor?: unknown; codigoFabrica?: unknown }): string | null;
+export function normalizarGrupoProduto(valor: unknown): string;
+export function montarChaveDuplicidade(registro: { grupoProduto?: unknown; codigoFabrica?: unknown }): string | null;
 export function paraNumeroBr(valor: unknown): number | null;
 export function registroCanonico(bruto: Record<string, unknown>): RegistroCanonico;
 export function agruparCadastros(registros: RegistroCanonico[]): GrupoCadastral[];

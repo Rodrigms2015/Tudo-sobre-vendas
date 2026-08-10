@@ -14,7 +14,7 @@ import {
   agruparCadastros,
   montarChaveDuplicidade,
   normalizarCodigoFabrica,
-  normalizarFornecedor,
+  normalizarGrupoProduto,
   paraNumeroBr,
   qualidadeDaImportacao,
   registroCanonico,
@@ -66,24 +66,24 @@ describe('o sufixo entre colchetes é a única coisa que o código perde', () =>
   });
 });
 
-describe('a chave de duplicidade separa fornecedores', () => {
-  it('junta o mesmo código base do mesmo fornecedor', () => {
-    expect(montarChaveDuplicidade({ fornecedor: '000084', codigoFabrica: '8PK1420' }))
-      .toBe(montarChaveDuplicidade({ fornecedor: '000084', codigoFabrica: '8PK1420[5]' }));
+describe('a chave de duplicidade separa grupos de produto', () => {
+  it('junta o mesmo código base do mesmo grupo de produto', () => {
+    expect(montarChaveDuplicidade({ grupoProduto: '000084', codigoFabrica: '8PK1420' }))
+      .toBe(montarChaveDuplicidade({ grupoProduto: '000084', codigoFabrica: '8PK1420[5]' }));
   });
 
-  it('NÃO junta o mesmo código base de fornecedores diferentes', () => {
-    expect(montarChaveDuplicidade({ fornecedor: '000084', codigoFabrica: '8PK1420' }))
-      .not.toBe(montarChaveDuplicidade({ fornecedor: '000271', codigoFabrica: '8PK1420' }));
+  it('NÃO junta o mesmo código base de grupos de produto diferentes', () => {
+    expect(montarChaveDuplicidade({ grupoProduto: '000084', codigoFabrica: '8PK1420' }))
+      .not.toBe(montarChaveDuplicidade({ grupoProduto: '000271', codigoFabrica: '8PK1420' }));
   });
 
   it('recusa a chave quando falta identidade, em vez de juntar os incompletos', () => {
-    expect(montarChaveDuplicidade({ fornecedor: '', codigoFabrica: '8PK1420' })).toBeNull();
-    expect(montarChaveDuplicidade({ fornecedor: '000084', codigoFabrica: '' })).toBeNull();
+    expect(montarChaveDuplicidade({ grupoProduto: '', codigoFabrica: '8PK1420' })).toBeNull();
+    expect(montarChaveDuplicidade({ grupoProduto: '000084', codigoFabrica: '' })).toBeNull();
   });
 
-  it('trata 84 e 000084 como o mesmo fornecedor', () => {
-    expect(normalizarFornecedor('84')).toBe(normalizarFornecedor('000084'));
+  it('trata 84 e 000084 como o mesmo grupo de produto', () => {
+    expect(normalizarGrupoProduto('84')).toBe(normalizarGrupoProduto('000084'));
   });
 });
 
@@ -162,10 +162,10 @@ describe('CASO 2 — grupo inteiro zerado é ruptura de verdade', () => {
   });
 });
 
-describe('CASO 3 — fornecedores diferentes não se misturam', () => {
+describe('CASO 3 — grupos de produto diferentes não se misturam', () => {
   const grupos = agruparCadastros([
-    reg('1', '8PK1420', '000084', '0'),
-    reg('2', '8PK1420', '000271', '10'),
+    reg('1', '79111', '000212', '0', 'Bolsa pneumatica su'),
+    reg('2', '79111[3]', '004785', '10', 'Junta radiador oleo'),
   ]);
 
   it('mantém dois grupos separados', () => {
@@ -173,9 +173,15 @@ describe('CASO 3 — fornecedores diferentes não se misturam', () => {
   });
 
   it('o grupo zerado continua em ruptura, sem herdar o saldo do outro', () => {
-    const zerado = grupos.find((g) => g.duplicateKey.startsWith('000084'));
+    const zerado = grupos.find((g) => g.duplicateKey.startsWith('000212'));
     expect(zerado?.estoqueGrupo).toBe(0);
     expect(zerado?.rupturaReal).toBe(true);
+  });
+
+  it('não considera coberta uma peça cujo irmão tem outra descrição', () => {
+    const zerado = grupos.find((g) => g.duplicateKey.startsWith('000212'));
+    expect(zerado?.cobertoPorGrupoIrmao).toBe(false);
+    expect(zerado?.estoqueEmGrupoIrmao).toBeNull();
   });
 });
 
@@ -185,7 +191,7 @@ describe('CASO 4 — HD é parte do código, não sufixo', () => {
     reg('2', '8PK1420HD', '000084', '20'),
   ]);
 
-  it('mantém dois grupos, mesmo com o mesmo fornecedor', () => {
+  it('mantém dois grupos, mesmo dentro do mesmo grupo de produto', () => {
     expect(grupos).toHaveLength(2);
   });
 
@@ -256,8 +262,59 @@ describe('linha não é peça — as grandezas ficam separadas', () => {
   });
 });
 
+describe('a mesma peça cadastrada em dois grupos de produto', () => {
+  /* Caso medido no arquivo real: o filtro P777639 existe nos grupos 004808
+     (5 unidades) e 004594 (zerado). Antes, o segundo entrava na lista de
+     compra — mandava comprar filtro que estava na prateleira. */
+  const grupos = agruparCadastros([
+    reg('4504000070', 'P777639', '004808', '5', 'Filtro ar secundari'),
+    reg('4504000212', 'P777639', '004594', '0', 'Filtro ar secundari'),
+  ]);
+  const zerado = grupos.find((g) => g.duplicateKey.startsWith('004594'));
+
+  it('continua sendo duas peças — o motor não junta famílias por conta própria', () => {
+    expect(grupos).toHaveLength(2);
+  });
+
+  it('mostra o grupo irmão em vez de esconder a ligação', () => {
+    expect(zerado?.gruposIrmaos).toHaveLength(1);
+    expect(zerado?.gruposIrmaos[0].duplicateKey).toBe('004808|P777639');
+    expect(zerado?.gruposIrmaos[0].mesmaDenominacao).toBe(true);
+    expect(zerado?.estoqueEmGrupoIrmao).toBe(5);
+  });
+
+  it('marca a peça como coberta pelo irmão, para sair da lista de compra', () => {
+    expect(zerado?.rupturaReal).toBe(true);
+    expect(zerado?.cobertoPorGrupoIrmao).toBe(true);
+  });
+
+  it('não marca cobertura quando o irmão também está zerado', () => {
+    const ambos = agruparCadastros([
+      reg('1', 'P777639', '004808', '0', 'Filtro ar secundari'),
+      reg('2', 'P777639', '004594', '0', 'Filtro ar secundari'),
+    ]);
+    expect(ambos.every((g) => g.cobertoPorGrupoIrmao === false)).toBe(true);
+  });
+
+  it('conta as peças cobertas por grupo irmão no resumo', () => {
+    const registros = [
+      reg('4504000070', 'P777639', '004808', '5', 'Filtro ar secundari'),
+      reg('4504000212', 'P777639', '004594', '0', 'Filtro ar secundari'),
+    ];
+    const resumo = resumirEstoque(registros, agruparCadastros(registros));
+    expect(resumo.gruposEmRupturaReal).toBe(1);
+    expect(resumo.gruposCobertosPorGrupoIrmao).toBe(1);
+  });
+
+  it('não inventa irmão para quem tem código base único', () => {
+    const g = agruparCadastros([reg('1', 'ZK900', '000001', '0')]);
+    expect(g[0].gruposIrmaos).toHaveLength(0);
+    expect(g[0].cobertoPorGrupoIrmao).toBe(false);
+  });
+});
+
 describe('qualidade da importação não esconde nada', () => {
-  it('registra colisão do mesmo código base entre fornecedores diferentes', () => {
+  it('registra colisão do mesmo código base entre grupos de produto diferentes', () => {
     const registros = [
       reg('1', '79111', '000212', '6', 'Bolsa pneumatica'),
       reg('2', '79111[3]', '004785', '5', 'Junta radiador oleo'),
@@ -266,6 +323,19 @@ describe('qualidade da importação não esconde nada', () => {
     expect(q.colisoesDeCodigoBase).toHaveLength(1);
     expect(q.colisoesDeCodigoBase[0].codigoFabricaBase).toBe('79111');
     expect(q.colisoesDeCodigoBase[0].grupos).toHaveLength(2);
+    expect(q.colisoesDeCodigoBase[0].mesmaDenominacao).toBe(false);
+    expect(q.colisoesEntreProdutosDiferentes).toBe(1);
+    expect(q.provavelMesmoProdutoEmDoisGrupos).toBe(0);
+  });
+
+  it('separa colisão de verdade de peça cadastrada em dois grupos', () => {
+    const registros = [
+      reg('4504000070', 'P777639', '004808', '5', 'Filtro ar secundari'),
+      reg('4504000212', 'P777639', '004594', '0', 'Filtro ar secundari'),
+    ];
+    const q = qualidadeDaImportacao(registros, agruparCadastros(registros));
+    expect(q.provavelMesmoProdutoEmDoisGrupos).toBe(1);
+    expect(q.colisoesEntreProdutosDiferentes).toBe(0);
   });
 
   it('conta quantos códigos a normalização alterou e quantos ficaram iguais', () => {
@@ -301,7 +371,10 @@ describe('desempenho: agrupar é O(n), não O(n²)', () => {
   it('agrupa 100.000 linhas em menos de um segundo', () => {
     const registros = [];
     for (let i = 0; i < 100000; i++) {
-      registros.push(reg(String(i), 'COD' + (i % 25000) + (i % 4 ? '[' + (i % 4) + ']' : ''), '00000' + (i % 9), '1'));
+      const peca = i % 25000;
+      /* O grupo de produto acompanha a peça, como no arquivo real: o mesmo
+         código de fábrica não fica espalhado por nove famílias. */
+      registros.push(reg(String(i), 'COD' + peca + (i % 4 ? '[' + (i % 4) + ']' : ''), '00000' + (peca % 9), '1'));
     }
     const t0 = Date.now();
     const grupos = agruparCadastros(registros);
@@ -323,7 +396,7 @@ describe('placeholder não é identidade', () => {
     expect(grupos.every((g) => g.semIdentidade)).toBe(true);
   });
 
-  it('continua juntando código legítimo do mesmo fornecedor', () => {
+  it('continua juntando código legítimo do mesmo grupo de produto', () => {
     const grupos = agruparCadastros([
       reg('1', '8PK1420', '000084', '0'),
       reg('2', '8PK1420[5]', '000084', '27'),

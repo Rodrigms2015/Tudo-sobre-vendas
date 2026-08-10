@@ -10,32 +10,42 @@
  * injeção — a página é um arquivo só, sem build.
  *
  * ────────────────────────────────────────────────────────────────────────
- * O QUE O RELATÓRIO REALMENTE TEM
+ * O QUE A COLUNA `Grupo` É — E O QUE ELA NÃO É
  *
  * O briefing pediu `duplicateKey = fabricante + código base`. O relatório
  * exportado **não traz coluna de fabricante** — ela existe só na tela do ERP.
- * As dez colunas são: interno, (vazia), produto, original, grupo, descrição,
- * curva, localização, saldo, (vazia).
+ * As colunas são: interno, produto, original, grupo, descrição, curva,
+ * localização, saldo.
  *
- * O que faz o papel do fabricante é o **grupo** (6 dígitos, 181 valores
- * distintos no arquivo real). A evidência é forense, não suposição:
+ * `Grupo` (6 dígitos, 180 valores distintos no arquivo real) **não é o
+ * fabricante**. É código interno de produto do Opus — um agrupamento
+ * mercadológico. A evidência é medida, não suposta:
  *
- *   1. Ele separa exatamente o caso do briefing:
- *        000084|8PK1420    → 2 cadastros, saldo 27
- *        000271|8PK1420HD  → 4 cadastros, saldo  2
- *   2. Dentro de um grupo `(grupo, códigoBase)`, os campos independentes
- *      concordam quase perfeitamente — Cód. Original diverge em 1,0%,
- *      localização em 0,1%, descrição em 0,1% dos 2.700 grupos com mais de
- *      um cadastro. Três campos que ninguém alinhou de propósito.
- *   3. Sem ele, 12 códigos base colidiriam entre peças diferentes — entre
- *      elas `79111`, que é bolsa pneumática num grupo e junta de radiador
- *      em outro.
- *   4. Não é derivado do código interno (só 37,8% coincidem), então carrega
- *      informação própria.
+ *   1. Ele é o prefixo do próprio código interno em 51,5% das linhas
+ *      (`1190000003` está no grupo `000119`), e nas linhas restantes o
+ *      prefixo continua constante dentro do grupo (`7850…` → `004783`).
+ *      Um código de fabricante não moraria dentro do código do produto.
+ *   2. Os grupos reúnem famílias, não marcas: `000616` é junta (tampa de
+ *      válvula, cabeçote, coletor), `004841` é injeção (injetor, bomba de
+ *      alta, bico). 33 dos 180 grupos têm uma única descrição.
  *
- * Chamamos de `fornecedor` porque é o papel que ele exerce na chave. Se o
- * ERP passar a exportar o nome do fabricante, ele entra como campo extra e
- * a chave não muda de forma.
+ * Ele continua na chave, mas pelo motivo certo: é um **guarda de família**,
+ * não um discriminador de marca. Sem ele, 6 códigos base colidiriam entre
+ * peças de famílias diferentes — entre elas `79111`, que é bolsa pneumática
+ * num grupo e junta de radiador em outro. O custo desse guarda foi medido no
+ * arquivo real e é de uma única peça: 5.556 peças contra 5.545 sem ele,
+ * 505 rupturas contra 504.
+ *
+ * Como o guarda separa família e não marca, ele erra num sentido conhecido:
+ * a MESMA peça cadastrada em dois grupos vira duas peças. São 5 casos em
+ * 5.545 códigos base. Em vez de fingir que não existem — ou de juntar tudo
+ * e ressuscitar as colisões —, o motor liga os grupos irmãos
+ * (`gruposIrmaos`) e marca `cobertoPorGrupoIrmao` quando o mesmo código base
+ * com a mesma descrição tem saldo do outro lado. Nada é somado às escondidas;
+ * a peça aparece com a ligação visível.
+ *
+ * O que o motor NUNCA faz: inventar marca. Não há coluna de fabricante no
+ * arquivo, então não há campo de fabricante aqui.
  */
 
 /* Um sufixo de recadastro, e só ele: colchetes no FIM do código.
@@ -55,6 +65,11 @@ const SEM_CODIGO = new Set(['', '.', '-', '--', '---', 'N/E', 'N/A', 'S/N']);
 
 const ehPlaceholder = (texto) => SEM_CODIGO.has(String(texto).trim().toUpperCase());
 
+/** Descrição comparável: o relatório corta em 19 caracteres, então só
+    normalizamos caixa e espaço — nada de fuzzy. */
+const denominacaoComparavel = (texto) =>
+  String(texto === null || texto === undefined ? '' : texto).trim().replace(/\s+/g, ' ').toUpperCase();
+
 /**
  * Remove EXCLUSIVAMENTE um sufixo `[n]` no fim do código de fábrica.
  *
@@ -73,15 +88,15 @@ export function normalizarCodigoFabrica(codigo) {
 }
 
 /**
- * Normaliza o identificador de fornecedor (a coluna `grupo` do relatório).
- * Só corta espaço e caixa: nada de remover zeros, que aqui são
- * significativos — `000084` e `84` são o mesmo grupo no ERP, então
+ * Normaliza o grupo de produto (a coluna `Grupo` do relatório — código
+ * interno do Opus). Só corta espaço e caixa: nada de remover zeros, que aqui
+ * são de formatação — `84` e `000084` são o mesmo grupo no ERP, então
  * normalizamos para a forma com zeros.
  *
  * @param {unknown} valor
  * @returns {string}
  */
-export function normalizarFornecedor(valor) {
+export function normalizarGrupoProduto(valor) {
   if (valor === null || valor === undefined) return '';
   const texto = String(valor).trim().toUpperCase();
   if (!texto) return '';
@@ -92,20 +107,21 @@ export function normalizarFornecedor(valor) {
 /**
  * A chave de duplicidade cadastral. Conservadora de propósito: juntar duas
  * peças diferentes contamina toda métrica seguinte, enquanto deixar duas
- * separadas apenas perde uma consolidação.
+ * separadas apenas perde uma consolidação — e essa perda fica visível em
+ * `gruposIrmaos`.
  *
  * Devolve `null` quando falta qualquer uma das partes — sem identidade não
  * há grupo, e um grupo com chave vazia juntaria tudo o que está incompleto.
  *
- * @param {{fornecedor?: unknown, codigoFabrica?: unknown}} registro
+ * @param {{grupoProduto?: unknown, codigoFabrica?: unknown}} registro
  * @returns {string|null}
  */
 export function montarChaveDuplicidade(registro) {
-  const fornecedor = normalizarFornecedor(registro && registro.fornecedor);
+  const grupo = normalizarGrupoProduto(registro && registro.grupoProduto);
   const base = normalizarCodigoFabrica(registro && registro.codigoFabrica);
-  if (!fornecedor || !base) return null;
+  if (!grupo || !base) return null;
   if (ehPlaceholder(base)) return null;
-  return fornecedor + '|' + base.toUpperCase();
+  return grupo + '|' + base.toUpperCase();
 }
 
 /**
@@ -153,7 +169,8 @@ export function paraNumeroBr(valor) {
 }
 
 /**
- * Agrupa os registros pela chave de duplicidade. O(n): um Map, uma passada.
+ * Agrupa os registros pela chave de duplicidade. O(n): dois Maps, duas
+ * passadas — nenhuma varredura aninhada.
  *
  * Registro sem chave vira grupo de um — não é descartado (perder linha é
  * pior que não consolidar) e fica marcado com `semIdentidade`.
@@ -178,6 +195,57 @@ export function agruparCadastros(registros) {
   for (const r of avulsos) {
     grupos.push(montarGrupo('sem-identidade:' + (r.codigoInterno || r.codigoFabricaOriginal || ''), [r], true));
   }
+  return vincularGruposIrmaos(grupos);
+}
+
+/**
+ * Liga grupos que compartilham o código base mas caíram em grupos de produto
+ * diferentes. Não junta nada — só torna a ligação visível, porque um deles
+ * pode ser outra peça (o `79111` é bolsa pneumática de um lado e junta de
+ * radiador do outro).
+ *
+ * `cobertoPorGrupoIrmao` só fica verdadeiro quando a descrição é a mesma:
+ * mesmo código de fábrica e mesma denominação em dois grupos é o mesmo
+ * produto cadastrado duas vezes, e nesse caso declarar ruptura seria mandar
+ * comprar o que está na prateleira.
+ *
+ * @param {Array<object>} grupos
+ * @returns {Array<object>} os mesmos grupos, com os vínculos preenchidos
+ */
+function vincularGruposIrmaos(grupos) {
+  const porBase = new Map();
+  for (const g of grupos) {
+    if (g.semIdentidade) continue;
+    const b = g.codigoFabricaBase.toUpperCase();
+    let lista = porBase.get(b);
+    if (!lista) { lista = []; porBase.set(b, lista); }
+    lista.push(g);
+  }
+
+  for (const g of grupos) {
+    if (g.semIdentidade) continue;
+    const irmaos = porBase.get(g.codigoFabricaBase.toUpperCase());
+    if (!irmaos || irmaos.length < 2) continue;
+
+    const minhaDenominacao = denominacaoComparavel(g.denominacao);
+    let estoqueIrmaoIgual = null;
+    for (const outro of irmaos) {
+      if (outro === g) continue;
+      const mesma = denominacaoComparavel(outro.denominacao) === minhaDenominacao;
+      g.gruposIrmaos.push({
+        duplicateKey: outro.duplicateKey,
+        grupoProdutoNormalizado: outro.grupoProdutoNormalizado,
+        denominacao: outro.denominacao,
+        estoqueGrupo: outro.estoqueGrupo,
+        mesmaDenominacao: mesma,
+      });
+      if (mesma && outro.estoqueGrupo !== null) {
+        estoqueIrmaoIgual = (estoqueIrmaoIgual === null ? 0 : estoqueIrmaoIgual) + outro.estoqueGrupo;
+      }
+    }
+    g.estoqueEmGrupoIrmao = estoqueIrmaoIgual;
+    g.cobertoPorGrupoIrmao = g.rupturaReal === true && estoqueIrmaoIgual !== null && estoqueIrmaoIgual > 0;
+  }
   return grupos;
 }
 
@@ -201,7 +269,7 @@ function montarGrupo(chave, cadastros, semIdentidade) {
   return {
     duplicateKey: chave,
     semIdentidade,
-    fornecedorNormalizado: normalizarFornecedor(principal.fornecedor),
+    grupoProdutoNormalizado: normalizarGrupoProduto(principal.grupoProduto),
     codigoFabricaBase: normalizarCodigoFabrica(principal.codigoFabrica),
     denominacao: principal.denominacao || '',
     cadastros,
@@ -215,6 +283,10 @@ function montarGrupo(chave, cadastros, semIdentidade) {
     rupturaReal: estoqueGrupo === null ? null : estoqueGrupo <= 0,
     /* O que a versão anterior chamava de ruptura e não era. */
     zeradoCobertoPorOutroCadastro: estoqueGrupo !== null && estoqueGrupo > 0 && zerados > 0,
+    /* Preenchidos por `vincularGruposIrmaos`. */
+    gruposIrmaos: [],
+    estoqueEmGrupoIrmao: null,
+    cobertoPorGrupoIrmao: false,
   };
 }
 
@@ -233,9 +305,9 @@ export function registroCanonico(bruto) {
     codigoFabricaOriginal,
     codigoFabricaBase: normalizarCodigoFabrica(codigoFabricaOriginal),
     codigoFabrica: codigoFabricaOriginal,
-    fornecedorOriginal: bruto.grupo === null || bruto.grupo === undefined ? '' : String(bruto.grupo).trim(),
-    fornecedor: bruto.grupo,
-    fornecedorNormalizado: normalizarFornecedor(bruto.grupo),
+    grupoProdutoOriginal: bruto.grupo === null || bruto.grupo === undefined ? '' : String(bruto.grupo).trim(),
+    grupoProduto: bruto.grupo,
+    grupoProdutoNormalizado: normalizarGrupoProduto(bruto.grupo),
     codigoOriginal: bruto.original === null || bruto.original === undefined ? '' : String(bruto.original).trim(),
     denominacao: bruto.descricao === null || bruto.descricao === undefined ? '' : String(bruto.descricao).trim(),
     curva: bruto.curva === null || bruto.curva === undefined ? '' : String(bruto.curva).trim().toUpperCase(),
@@ -253,12 +325,14 @@ export function registroCanonico(bruto) {
  */
 export function qualidadeDaImportacao(registros, grupos) {
   const semCodigo = registros.filter((r) => !r.codigoFabricaOriginal).length;
-  const semFornecedor = registros.filter((r) => !r.fornecedorNormalizado).length;
+  const semGrupo = registros.filter((r) => !r.grupoProdutoNormalizado).length;
   const saldoIlegivel = registros.filter((r) => r.estoqueIndividual === null).length;
   const normalizados = registros.filter((r) => r.codigoFabricaBase !== r.codigoFabricaOriginal).length;
 
-  /* Mesmo código base em fornecedores diferentes: legítimo (marcas
-     distintas), mas registrado para conferência humana. */
+  /* Mesmo código base em grupos de produto diferentes. Duas leituras
+     possíveis, e o motor não escolhe por você: descrição igual é a mesma
+     peça cadastrada duas vezes; descrição diferente é o guarda de família
+     fazendo o trabalho dele. */
   const porBase = new Map();
   for (const g of grupos) {
     if (g.semIdentidade) continue;
@@ -270,6 +344,7 @@ export function qualidadeDaImportacao(registros, grupos) {
     .filter(([, gs]) => gs.length > 1)
     .map(([base, gs]) => ({
       codigoFabricaBase: base,
+      mesmaDenominacao: new Set(gs.map((g) => denominacaoComparavel(g.denominacao))).size === 1,
       grupos: gs.map((g) => ({
         duplicateKey: g.duplicateKey,
         denominacao: g.denominacao,
@@ -282,7 +357,7 @@ export function qualidadeDaImportacao(registros, grupos) {
   return {
     linhasLidas: registros.length,
     codigosVazios: semCodigo,
-    fornecedoresVazios: semFornecedor,
+    gruposDeProdutoVazios: semGrupo,
     saldosIlegiveis: saldoIlegivel,
     codigosAlteradosPelaNormalizacao: normalizados,
     codigosSemAlteracao: registros.length - normalizados,
@@ -291,6 +366,8 @@ export function qualidadeDaImportacao(registros, grupos) {
     gruposSemIdentidade: grupos.filter((g) => g.semIdentidade).length,
     maiorGrupo: maior ? { duplicateKey: maior.duplicateKey, cadastros: maior.quantidadeCadastros } : null,
     colisoesDeCodigoBase: colisoes,
+    provavelMesmoProdutoEmDoisGrupos: colisoes.filter((c) => c.mesmaDenominacao).length,
+    colisoesEntreProdutosDiferentes: colisoes.filter((c) => !c.mesmaDenominacao).length,
   };
 }
 
@@ -306,6 +383,9 @@ export function resumirEstoque(registros, grupos) {
     linhasComSaldoZero: linhasZeradas,
     linhasZeradasCobertasPorOutroCadastro: cobertas.reduce((s, g) => s + g.cadastrosZerados, 0),
     gruposEmRupturaReal: gruposComRuptura.length,
+    /* Ruptura no papel, prateleira cheia do outro lado. Sai da lista de
+       compra e entra na lista de cadastro duplicado. */
+    gruposCobertosPorGrupoIrmao: grupos.filter((g) => g.cobertoPorGrupoIrmao).length,
     unidadesEmEstoque: grupos.reduce((s, g) => s + (g.estoqueGrupo || 0), 0),
   };
 }

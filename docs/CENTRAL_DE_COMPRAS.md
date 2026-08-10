@@ -72,6 +72,41 @@ para 1.126.
 Juntar os dois conceitos seria o erro oposto: o pedido sairia misturando Fleetguard e Mann
 na mesma linha.
 
+### A coluna `Grupo` não é o fabricante
+
+A chave de identidade do motor (`src/domain/estoque/identidade.js`) é
+`Grupo + código de fábrica sem o sufixo [n]`. Vale registrar o que essa primeira metade é,
+porque durante um tempo o código a chamou de "fornecedor" e isso estava errado.
+
+`Grupo` é **código interno de produto do Opus** — um agrupamento mercadológico, não uma marca.
+O relatório exportado não traz coluna de fabricante em lugar nenhum; ela existe só na tela do
+ERP. Duas medições fecham a questão:
+
+- O grupo é o prefixo do próprio código interno em **51,5% das linhas** (`1190000003` está no
+  grupo `000119`), e nas demais o prefixo continua constante dentro do grupo (`7850…` →
+  `004783`). Código de fabricante não moraria dentro do código do produto.
+- Os 180 grupos reúnem famílias, não marcas: `000616` é junta (tampa de válvula, cabeçote,
+  coletor), `004841` é injeção (injetor, bomba de alta, bico). 33 deles têm uma única descrição.
+
+Ele continua na chave, mas pelo motivo certo: é um **guarda de família**. Sem ele, 6 códigos
+base colidiriam entre peças diferentes — `79111` é bolsa pneumática num grupo e junta de
+radiador em outro. O custo desse guarda foi medido: 5.556 peças contra 5.545 sem ele, 505
+rupturas contra 504.
+
+### Quando o guarda erra: grupos irmãos
+
+Como o guarda separa família e não marca, ele erra num sentido conhecido — a **mesma peça
+cadastrada em dois grupos** vira duas peças. São 5 códigos base em 5.545 no arquivo real.
+
+O motor não junta por conta própria (juntar ressuscitaria as colisões acima) e também não
+finge que o caso não existe. Ele liga os grupos que compartilham o código base
+(`gruposIrmaos`) e, quando a **descrição também é a mesma**, marca `cobertoPorGrupoIrmao`: a
+peça sai da ruptura e passa a aparecer como cadastro duplicado, com a ligação visível no card.
+Descrição diferente não cobre nada — ali o código só coincide.
+
+O recorte **"Mesma peça cadastrada em dois grupos"**, na aba Produtos, é a lista para corrigir
+no Opus.
+
 ---
 
 ## 1b. A fila de decisões — aba Hoje

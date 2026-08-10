@@ -18,7 +18,26 @@ const raiz = join(dirname(fileURLToPath(import.meta.url)), '..');
 const origem = join(raiz, 'plataforma', 'corpo.html');
 const destino = join(raiz, 'public', 'compras.html');
 
-const corpo = await readFile(origem, 'utf8');
+let corpo = await readFile(origem, 'utf8');
+
+/*
+ * Injeta o motor de identidade. Ele mora em src/domain/estoque/identidade.js
+ * porque lá ele é testado pelo vitest; a página é um arquivo só, sem build,
+ * então o módulo entra inline. Existe UMA fonte da verdade — se alguém editar
+ * a cópia inline, o próximo `npm run plataforma` sobrescreve.
+ */
+const motor = await readFile(join(raiz, 'src', 'domain', 'estoque', 'identidade.js'), 'utf8');
+const ABRE_MOTOR = '/* INICIO MOTOR IDENTIDADE */';
+const FECHA_MOTOR = '/* FIM MOTOR IDENTIDADE */';
+if (!corpo.includes(ABRE_MOTOR) || !corpo.includes(FECHA_MOTOR)) {
+  throw new Error('plataforma/corpo.html precisa dos marcadores do motor de identidade.');
+}
+const motorInline = motor.replace(/^export /gm, '');
+corpo =
+  corpo.slice(0, corpo.indexOf(ABRE_MOTOR) + ABRE_MOTOR.length) +
+  '\n' + motorInline + '\n' +
+  corpo.slice(corpo.indexOf(FECHA_MOTOR));
+console.log(`motor de identidade injetado — ${(motorInline.length / 1024).toFixed(0)} kB`);
 
 const casouTitulo = corpo.match(/<title>([\s\S]*?)<\/title>/i);
 if (!casouTitulo) throw new Error('plataforma/corpo.html precisa declarar um <title>.');

@@ -927,7 +927,8 @@
 
 <nav class="abas" aria-label="Seções">
   <div class="abas-interno" role="tablist">
-    <button class="aba" role="tab" data-vista="hoje" aria-selected="true" title="A fila de decisões do dia, em ordem de prejuízo">Hoje <span class="selo" id="seloHoje">0</span></button>
+    <button class="aba" role="tab" data-vista="produtos" aria-selected="true" title="A peça consolidada: cadastros somados, ruptura no grupo, auditoria linha a linha">Produtos <span class="selo" id="seloProdutos">0</span></button>
+    <button class="aba" role="tab" data-vista="hoje" aria-selected="false" title="A fila de decisões do dia, em ordem de prejuízo">Hoje <span class="selo" id="seloHoje">0</span></button>
     <button class="aba" role="tab" data-vista="painel" aria-selected="false">Painel</button>
     <button class="aba" role="tab" data-vista="comprar" aria-selected="false" title="Itens que passam nos filtros da lista de compra agora">Comprar <span class="selo" id="seloComprar">0</span></button>
     <button class="aba" role="tab" data-vista="oportunidades" aria-selected="false" title="Itens com saldo alto e giro baixo — o que os vendedores têm para empurrar">Oportunidades <span class="selo" id="seloOport">0</span></button>
@@ -957,6 +958,58 @@
         <button class="bt" id="btExemplo" type="button">Ver com dados de exemplo</button>
       </div>
       <input type="file" id="arquivo" accept=".xls,.xlsx,.csv,.txt,.pdf,.json" class="oculto" />
+    </div>
+  </section>
+
+  <!-- ── PRODUTOS ────────────────────────────────────────────── -->
+  <section class="vista" id="vista-produtos">
+    <div class="secao">
+      <div class="secao-topo">
+        <h2>Linha cadastral não é peça</h2>
+        <span class="nota" id="notaProdutos"></span>
+      </div>
+      <div class="placas" id="placasProdutos"></div>
+    </div>
+
+    <div class="secao">
+      <div class="secao-topo">
+        <h2>Peças</h2>
+        <span class="nota" id="notaListaProdutos"></span>
+      </div>
+      <div class="filtros">
+        <div class="campo">
+          <label for="fProdRecorte">Recorte</label>
+          <select id="fProdRecorte">
+            <option value="ruptura">Em ruptura real (grupo inteiro zerado)</option>
+            <option value="cobertas">Linhas zeradas cobertas por outro cadastro</option>
+            <option value="duplicados">Peças com mais de um cadastro</option>
+            <option value="colisao">Mesmo código base em fornecedores diferentes</option>
+            <option value="semid">Sem identidade (código placeholder)</option>
+            <option value="todas">Todas as peças</option>
+          </select>
+        </div>
+        <div class="campo">
+          <label for="fProdQuantas">Mostrar</label>
+          <select id="fProdQuantas">
+            <option value="50">50</option>
+            <option value="150">150</option>
+            <option value="500">500</option>
+          </select>
+        </div>
+        <div class="campo" style="flex:1 1 240px">
+          <label for="fProdBusca">Buscar</label>
+          <input id="fProdBusca" type="search" placeholder="código de fábrica, descrição ou código interno" />
+        </div>
+      </div>
+      <div id="listaProdutos" style="margin-top:12px"></div>
+    </div>
+
+    <div class="secao">
+      <div class="secao-topo">
+        <h2>Qualidade da importação</h2>
+        <span class="nota">Antes de confiar na recomendação, é preciso confiar no relatório.</span>
+      </div>
+      <div class="rolo"><table><tbody id="qualidadeImport"></tbody></table></div>
     </div>
   </section>
 
@@ -1446,6 +1499,14 @@
 </dialog>
 
 <script type="module">
+/* ═══ MOTOR DE IDENTIDADE — INJETADO ═══════════════════════════════════
+   Este bloco é gerado a partir de src/domain/estoque/identidade.js por
+   scripts/gerar-plataforma.mjs. NÃO EDITE AQUI: edite o módulo, que é
+   testado por identidade.test.ts. Fonte única da verdade.
+   ═══════════════════════════════════════════════════════════════════ */
+/* INICIO MOTOR IDENTIDADE */
+/* FIM MOTOR IDENTIDADE */
+
 /* ═══════════════════════════════════════════════════════════════════
    CENTRAL DE COMPRAS — Filial Ribeirão Preto
    Tudo roda no navegador. Nenhuma requisição de rede é feita em
@@ -3449,6 +3510,7 @@ function calcularConsumo(anterior, atual) {
 function recalcular() {
   invalidarRede();
   invalidarCarteira();
+  invalidarProdutos();
   const atual = envioAtual();
   if (!atual) { estado.analise = null; estado.consumo = null; return; }
   estado.resumoDemanda = resumirDemanda(estado.movimentos);
@@ -3722,6 +3784,159 @@ function barraHorizontal({ titulo, direita, fracao, cor }) {
 }
 
 /* ─── 14. Painel ─────────────────────────────────────────────────── */
+
+/* ─── Produtos consolidados — a tela do motor novo ────────────────────
+   Aqui a unidade é a PEÇA, nunca a linha do relatório. Cada peça abre e
+   mostra os cadastros que a formam, o saldo somado e a frase que explica a
+   decisão de ruptura. É a auditoria visível: nenhum número aparece sem o
+   caminho que levou até ele. */
+const filtroProdutos = { recorte: 'ruptura', quantas: 50, busca: '' };
+let cacheProdutos = null;
+const invalidarProdutos = () => { cacheProdutos = null; };
+
+function produtos() {
+  if (cacheProdutos) return cacheProdutos;
+  const envio = envioAtual();
+  if (!envio || !envio.itens.length) return null;
+
+  /* O motor injetado espera os nomes do relatório, não os do estado antigo. */
+  const registros = envio.itens.map((i) => registroCanonico({
+    interno: i.interno, produto: i.produto, original: i.original, grupo: i.grupo,
+    descricao: i.descricao, curva: i.curva, localizacao: i.localizacao ?? '', saldo: i.saldo,
+  }));
+  const grupos = agruparCadastros(registros);
+  cacheProdutos = {
+    registros,
+    grupos,
+    resumo: resumirEstoque(registros, grupos),
+    qualidade: qualidadeDaImportacao(registros, grupos),
+  };
+  return cacheProdutos;
+}
+
+function renderProdutos() {
+  const P = produtos();
+  const alvo = $('#listaProdutos');
+  if (!alvo) return;
+  if (!P) {
+    $('#placasProdutos').innerHTML = '';
+    alvo.innerHTML = '';
+    $('#seloProdutos').textContent = '0';
+    return;
+  }
+  const R = P.resumo, Q = P.qualidade;
+  $('#seloProdutos').textContent = n(R.gruposEmRupturaReal);
+  const e = envioAtual();
+  $('#notaProdutos').textContent = e ? e.nome + ' · ' + dataBr(e.dataISO) : '';
+
+  $('#placasProdutos').innerHTML = [
+    placa({ rotulo: 'Linhas cadastrais', valor: n(R.linhasCadastrais),
+      rodape: 'O que o relatório trouxe. Uma peça pode ocupar várias linhas.', tom: 'neutro' }),
+    placa({ rotulo: 'Peças consolidadas', valor: n(R.gruposConsolidados),
+      rodape: n(R.cadastrosDuplicados) + ' cadastros a mais que peças — são recadastros do mesmo item.', tom: 'marca' }),
+    placa({ rotulo: 'Linhas com saldo zero', valor: n(R.linhasComSaldoZero),
+      rodape: 'Número bruto. Não é ruptura: é linha zerada.', tom: 'atencao' }),
+    placa({ rotulo: 'Zeradas mas cobertas', valor: n(R.linhasZeradasCobertasPorOutroCadastro),
+      rodape: 'Linhas com saldo zero cuja peça tem estoque em outro cadastro. Comprar aqui seria comprar em dobro.', tom: 'saudavel' }),
+    placa({ rotulo: 'Ruptura real', valor: n(R.gruposEmRupturaReal),
+      rodape: 'Peças com o grupo inteiro zerado. É a falta que o cliente sente.', tom: 'critico' }),
+  ].join('');
+
+  /* Recortes. Cada um responde a uma pergunta que alguém faz de verdade. */
+  const colisao = new Set(Q.colisoesDeCodigoBase.flatMap((c) => c.grupos.map((g) => g.duplicateKey)));
+  const recortes = {
+    ruptura: (g) => g.rupturaReal === true,
+    cobertas: (g) => g.zeradoCobertoPorOutroCadastro,
+    duplicados: (g) => g.quantidadeCadastros > 1,
+    colisao: (g) => colisao.has(g.duplicateKey),
+    semid: (g) => g.semIdentidade,
+    todas: () => true,
+  };
+  const b = semAcento(filtroProdutos.busca).toUpperCase().trim();
+  const lista = P.grupos
+    .filter(recortes[filtroProdutos.recorte] || recortes.todas)
+    .filter((g) => !b || semAcento(
+      g.codigoFabricaBase + ' ' + g.denominacao + ' ' + g.codigosInternosDoGrupo.join(' ') + ' ' +
+      g.codigosFabricaOriginaisDoGrupo.join(' ')).toUpperCase().includes(b))
+    .sort((x, y) => (y.quantidadeCadastros - x.quantidadeCadastros) || ((y.estoqueGrupo || 0) - (x.estoqueGrupo || 0)));
+
+  $('#notaListaProdutos').textContent = n(lista.length) + ' peças no recorte' +
+    (lista.length > filtroProdutos.quantas ? ' — mostrando ' + n(filtroProdutos.quantas) : '');
+
+  alvo.innerHTML = lista.length
+    ? lista.slice(0, filtroProdutos.quantas).map((g) => {
+        const nivel = g.rupturaReal === true ? 'critico'
+          : g.zeradoCobertoPorOutroCadastro ? 'atencao'
+          : g.semIdentidade ? 'atencao' : 'normal';
+        const estado = g.estoqueGrupo === null ? 'saldo ilegível'
+          : g.rupturaReal ? 'ruptura real'
+          : g.zeradoCobertoPorOutroCadastro ? 'coberta por outro cadastro'
+          : 'com estoque';
+        const motivo = g.estoqueGrupo === null
+          ? 'Nenhum cadastro desta peça teve o saldo lido. Sem saldo não há conclusão — e lacuna não vira compra.'
+          : g.rupturaReal
+          ? 'Os ' + n(g.quantidadeCadastros) + ' cadastro' + (g.quantidadeCadastros > 1 ? 's' : '') +
+            ' desta peça somam ' + n(g.estoqueGrupo) + '. O grupo inteiro está sem saldo.'
+          : g.zeradoCobertoPorOutroCadastro
+          ? 'Embora ' + n(g.cadastrosZerados) + ' de ' + n(g.quantidadeCadastros) +
+            ' cadastros estejam zerados, outro cadastro do mesmo grupo tem ' + n(g.estoqueGrupo) + ' unidades.'
+          : 'Peça com ' + n(g.estoqueGrupo) + ' unidades.';
+
+        return '<div class="peca" data-nivel="' + nivel + '">' +
+          '<button class="cab" type="button" aria-expanded="false">' +
+            '<span class="pos">' + (g.quantidadeCadastros > 1 ? g.quantidadeCadastros + '×' : '·') + '</span>' +
+            '<span class="nome"><b>' + esc(g.denominacao || '(sem descrição)') + '</b>' +
+              '<span>' + esc(g.codigoFabricaBase) + ' · fornecedor ' + esc(g.fornecedorNormalizado) + '</span></span>' +
+            '<span class="acao">' + esc(estado) + '</span>' +
+            '<span class="num">estoque da peça <b>' + (g.estoqueGrupo === null ? '—' : n(g.estoqueGrupo)) + '</b>' +
+              ' · ' + n(g.cadastrosZerados) + ' de ' + n(g.quantidadeCadastros) + ' zerados</span>' +
+            '<span class="conf"></span><span class="seta" aria-hidden="true">▾</span>' +
+          '</button>' +
+          '<div class="porque oculto">' +
+            '<div class="titulo">Como o sistema chegou a este resultado</div>' +
+            '<ul><li>' + esc(motivo) + '</li>' +
+            '<li>Chave de identidade: <code>' + esc(g.duplicateKey) + '</code>' +
+              (g.semIdentidade ? ' — código sem identidade utilizável, a peça fica sozinha de propósito' : '') + '</li></ul>' +
+            '<div class="cadastros"><div class="titulo">Cadastros deste grupo</div>' +
+              '<div class="rolo"><table><thead><tr><th>Cód. interno</th><th>Cód. de fábrica</th>' +
+              '<th>Base</th><th class="dir">Estoque</th><th>Curva</th></tr></thead><tbody>' +
+              g.cadastros.map((c) => '<tr><td><code>' + esc(c.codigoInterno) + '</code></td>' +
+                '<td>' + esc(c.codigoFabricaOriginal) + '</td>' +
+                '<td>' + esc(c.codigoFabricaBase) + '</td>' +
+                '<td class="dir">' + (c.estoqueIndividual === null ? '—' : n(c.estoqueIndividual)) + '</td>' +
+                '<td>' + esc(c.curva || '—') + '</td></tr>').join('') +
+              '</tbody></table></div></div>' +
+          '</div></div>';
+      }).join('')
+    : '<p style="font-size:13px;color:var(--tinta-2);margin:0">Nenhuma peça neste recorte.</p>';
+
+  $$('#listaProdutos .cab').forEach((bt) => bt.addEventListener('click', () => {
+    const corpo = bt.nextElementSibling;
+    const aberto = !corpo.classList.contains('oculto');
+    corpo.classList.toggle('oculto', aberto);
+    bt.setAttribute('aria-expanded', String(!aberto));
+    bt.querySelector('.seta').textContent = aberto ? '▾' : '▴';
+  }));
+
+  const linhaQ = (rot, val, obs) => '<tr><td style="width:44%">' + esc(rot) + '</td>' +
+    '<td class="dir" style="width:16%;font-variant-numeric:tabular-nums"><b>' + val + '</b></td>' +
+    '<td style="color:var(--tinta-3);font-size:12.5px">' + obs + '</td></tr>';
+  $('#qualidadeImport').innerHTML = [
+    linhaQ('Linhas lidas', n(Q.linhasLidas), 'Tudo o que o arquivo trouxe.'),
+    linhaQ('Códigos alterados pela normalização', n(Q.codigosAlteradosPelaNormalizacao),
+      'Tinham sufixo [n] no fim. Uma remoção só, nada mais.'),
+    linhaQ('Códigos sem alteração', n(Q.codigosSemAlteracao), 'Ficaram exatamente como vieram.'),
+    linhaQ('Saldos ilegíveis', n(Q.saldosIlegiveis), 'Viram lacuna, nunca zero.'),
+    linhaQ('Códigos vazios', n(Q.codigosVazios), 'Sem código não há identidade.'),
+    linhaQ('Peças com mais de um cadastro', n(Q.gruposComMaisDeUmCadastro), 'Onde a consolidação faz diferença.'),
+    linhaQ('Peças sem identidade utilizável', n(Q.gruposSemIdentidade),
+      'Código placeholder tipo N/E. Ficam isoladas em vez de juntar peças diferentes.'),
+    linhaQ('Maior grupo', Q.maiorGrupo ? esc(Q.maiorGrupo.duplicateKey) + ' (' + Q.maiorGrupo.cadastros + ')' : '—',
+      'Grupo grande demais costuma ser sinal de código repetido no ERP.'),
+    linhaQ('Colisões de código base entre fornecedores', n(Q.colisoesDeCodigoBase.length),
+      'Mesmo código em fornecedores diferentes. Legítimo, mas registrado para conferência.'),
+  ].join('');
+}
 
 const ROTULO_NIVEL = { critico: 'Crítico', alta: 'Alta prioridade', atencao: 'Atenção', normal: 'Normal' };
 
@@ -4971,6 +5186,7 @@ function trocarVista(vista) {
     v.classList.toggle('ativa', ativa);
     v.hidden = !ativa;
   });
+  if (vista === 'produtos') renderProdutos();
   if (vista === 'hoje') renderHoje();
   if (vista === 'evolucao') renderEvolucao();
   if (vista === 'dados') { renderDados(); renderConferir(); }
@@ -5201,6 +5417,7 @@ function renderTudo() {
   renderEstado();
   if (!temDados) { $('#seloComprar').textContent = '0'; $('#seloOport').textContent = '0'; atualizarCarrinho(); return; }
   montarSelects();
+  renderProdutos();
   renderHoje();
   renderPainel();
   renderComprar();
@@ -6314,6 +6531,9 @@ function renderEquipe() {
     '<h3>' + esc(val) + '</h3><p>' + esc(txt) + '</p></div>').join('');
 }
 
+liga('#fProdRecorte', 'change', (e) => { filtroProdutos.recorte = e.target.value; renderProdutos(); });
+liga('#fProdQuantas', 'change', (e) => { filtroProdutos.quantas = Number(e.target.value); renderProdutos(); });
+liga('#fProdBusca', 'input', (e) => { filtroProdutos.busca = e.target.value; renderProdutos(); });
 liga('#fConferir', 'input', () => renderConferir());
 liga('#fDecisao', 'change', (e) => { filtroDecisao.decisao = e.target.value; renderCarteira(); });
 liga('#fQuantas', 'change', (e) => { filtroDecisao.quantas = Number(e.target.value); renderCarteira(); });
@@ -6432,7 +6652,7 @@ $('#logo').src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAOAAAAB4CAIAAABk
     estado.gravacao = { ok: true, em: new Date().toISOString(), erro: null };
   }
   renderTudo();
-  trocarVista(itens().length ? 'hoje' : 'painel');
+  trocarVista(itens().length ? 'produtos' : 'painel');
   const st = situacaoDoSistema();
   if (equipe.erro && naEquipe && naEquipe.versao > 0) {
     recado('A base da equipe tem dados mais novos e eu não consegui trazer',

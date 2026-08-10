@@ -936,7 +936,8 @@
 
 <nav class="abas" aria-label="Seções">
   <div class="abas-interno" role="tablist">
-    <button class="aba" role="tab" data-vista="hoje" aria-selected="true" title="A fila de decisões do dia, em ordem de prejuízo">Hoje <span class="selo" id="seloHoje">0</span></button>
+    <button class="aba" role="tab" data-vista="produtos" aria-selected="true" title="A peça consolidada: cadastros somados, ruptura no grupo, auditoria linha a linha">Produtos <span class="selo" id="seloProdutos">0</span></button>
+    <button class="aba" role="tab" data-vista="hoje" aria-selected="false" title="A fila de decisões do dia, em ordem de prejuízo">Hoje <span class="selo" id="seloHoje">0</span></button>
     <button class="aba" role="tab" data-vista="painel" aria-selected="false">Painel</button>
     <button class="aba" role="tab" data-vista="comprar" aria-selected="false" title="Itens que passam nos filtros da lista de compra agora">Comprar <span class="selo" id="seloComprar">0</span></button>
     <button class="aba" role="tab" data-vista="oportunidades" aria-selected="false" title="Itens com saldo alto e giro baixo — o que os vendedores têm para empurrar">Oportunidades <span class="selo" id="seloOport">0</span></button>
@@ -966,6 +967,58 @@
         <button class="bt" id="btExemplo" type="button">Ver com dados de exemplo</button>
       </div>
       <input type="file" id="arquivo" accept=".xls,.xlsx,.csv,.txt,.pdf,.json" class="oculto" />
+    </div>
+  </section>
+
+  <!-- ── PRODUTOS ────────────────────────────────────────────── -->
+  <section class="vista" id="vista-produtos">
+    <div class="secao">
+      <div class="secao-topo">
+        <h2>Linha cadastral não é peça</h2>
+        <span class="nota" id="notaProdutos"></span>
+      </div>
+      <div class="placas" id="placasProdutos"></div>
+    </div>
+
+    <div class="secao">
+      <div class="secao-topo">
+        <h2>Peças</h2>
+        <span class="nota" id="notaListaProdutos"></span>
+      </div>
+      <div class="filtros">
+        <div class="campo">
+          <label for="fProdRecorte">Recorte</label>
+          <select id="fProdRecorte">
+            <option value="ruptura">Em ruptura real (grupo inteiro zerado)</option>
+            <option value="cobertas">Linhas zeradas cobertas por outro cadastro</option>
+            <option value="duplicados">Peças com mais de um cadastro</option>
+            <option value="colisao">Mesmo código base em fornecedores diferentes</option>
+            <option value="semid">Sem identidade (código placeholder)</option>
+            <option value="todas">Todas as peças</option>
+          </select>
+        </div>
+        <div class="campo">
+          <label for="fProdQuantas">Mostrar</label>
+          <select id="fProdQuantas">
+            <option value="50">50</option>
+            <option value="150">150</option>
+            <option value="500">500</option>
+          </select>
+        </div>
+        <div class="campo" style="flex:1 1 240px">
+          <label for="fProdBusca">Buscar</label>
+          <input id="fProdBusca" type="search" placeholder="código de fábrica, descrição ou código interno" />
+        </div>
+      </div>
+      <div id="listaProdutos" style="margin-top:12px"></div>
+    </div>
+
+    <div class="secao">
+      <div class="secao-topo">
+        <h2>Qualidade da importação</h2>
+        <span class="nota">Antes de confiar na recomendação, é preciso confiar no relatório.</span>
+      </div>
+      <div class="rolo"><table><tbody id="qualidadeImport"></tbody></table></div>
     </div>
   </section>
 
@@ -1455,6 +1508,326 @@
 </dialog>
 
 <script type="module">
+/* ═══ MOTOR DE IDENTIDADE — INJETADO ═══════════════════════════════════
+   Este bloco é gerado a partir de src/domain/estoque/identidade.js por
+   scripts/gerar-plataforma.mjs. NÃO EDITE AQUI: edite o módulo, que é
+   testado por identidade.test.ts. Fonte única da verdade.
+   ═══════════════════════════════════════════════════════════════════ */
+/* INICIO MOTOR IDENTIDADE */
+/**
+ * Identidade da peça e consolidação de cadastros — a base de tudo.
+ *
+ * FONTE ÚNICA DA VERDADE. Este arquivo é testado por
+ * `identidade.test.ts` e **injetado** em `plataforma/corpo.html` por
+ * `scripts/gerar-plataforma.mjs`. Não existe segunda cópia destas regras em
+ * lugar nenhum: se você duplicar, o próximo bug volta.
+ *
+ * É JavaScript puro, sem tipos e sem import, exatamente por causa dessa
+ * injeção — a página é um arquivo só, sem build.
+ *
+ * ────────────────────────────────────────────────────────────────────────
+ * O QUE O RELATÓRIO REALMENTE TEM
+ *
+ * O briefing pediu `duplicateKey = fabricante + código base`. O relatório
+ * exportado **não traz coluna de fabricante** — ela existe só na tela do ERP.
+ * As dez colunas são: interno, (vazia), produto, original, grupo, descrição,
+ * curva, localização, saldo, (vazia).
+ *
+ * O que faz o papel do fabricante é o **grupo** (6 dígitos, 181 valores
+ * distintos no arquivo real). A evidência é forense, não suposição:
+ *
+ *   1. Ele separa exatamente o caso do briefing:
+ *        000084|8PK1420    → 2 cadastros, saldo 27
+ *        000271|8PK1420HD  → 4 cadastros, saldo  2
+ *   2. Dentro de um grupo `(grupo, códigoBase)`, os campos independentes
+ *      concordam quase perfeitamente — Cód. Original diverge em 1,0%,
+ *      localização em 0,1%, descrição em 0,1% dos 2.700 grupos com mais de
+ *      um cadastro. Três campos que ninguém alinhou de propósito.
+ *   3. Sem ele, 12 códigos base colidiriam entre peças diferentes — entre
+ *      elas `79111`, que é bolsa pneumática num grupo e junta de radiador
+ *      em outro.
+ *   4. Não é derivado do código interno (só 37,8% coincidem), então carrega
+ *      informação própria.
+ *
+ * Chamamos de `fornecedor` porque é o papel que ele exerce na chave. Se o
+ * ERP passar a exportar o nome do fabricante, ele entra como campo extra e
+ * a chave não muda de forma.
+ */
+
+/* Um sufixo de recadastro, e só ele: colchetes no FIM do código.
+   `ABC[2]XYZ` não é sufixo. `A[1]B` não é sufixo. Uma única remoção. */
+const SUFIXO_FINAL = /\[[^\]]*\]$/;
+
+/* Marcadores de "não informado" que o ERP grava no lugar do código. Sem esta
+   lista, `N/E` vira uma identidade válida e junta peças que não têm nada a
+   ver: no arquivo real, `000992|N/E` reunia 15 cadastros — bucha de coluna,
+   bomba d'água e parafuso no mesmo "produto". Placeholder não é identidade;
+   quem não tem código fica sozinho e marcado.
+
+   A lista é curta de propósito: só entram marcadores inequívocos. `X`, `0` e
+   `SEM` ficaram de fora porque podem ser código legítimo, e classificar um
+   código real como placeholder isola uma peça que deveria consolidar. */
+const SEM_CODIGO = new Set(['', '.', '-', '--', '---', 'N/E', 'N/A', 'S/N']);
+
+const ehPlaceholder = (texto) => SEM_CODIGO.has(String(texto).trim().toUpperCase());
+
+/**
+ * Remove EXCLUSIVAMENTE um sufixo `[n]` no fim do código de fábrica.
+ *
+ * Não corta `HD`. Não corta números. Não faz fuzzy, contains nem
+ * startsWith. Devolve string sempre — zeros à esquerda são preservados
+ * porque código de produto não é número.
+ *
+ * @param {unknown} codigo
+ * @returns {string}
+ */
+function normalizarCodigoFabrica(codigo) {
+  if (codigo === null || codigo === undefined) return '';
+  const texto = String(codigo).trim();
+  if (!texto) return '';
+  return texto.replace(SUFIXO_FINAL, '').trim();
+}
+
+/**
+ * Normaliza o identificador de fornecedor (a coluna `grupo` do relatório).
+ * Só corta espaço e caixa: nada de remover zeros, que aqui são
+ * significativos — `000084` e `84` são o mesmo grupo no ERP, então
+ * normalizamos para a forma com zeros.
+ *
+ * @param {unknown} valor
+ * @returns {string}
+ */
+function normalizarFornecedor(valor) {
+  if (valor === null || valor === undefined) return '';
+  const texto = String(valor).trim().toUpperCase();
+  if (!texto) return '';
+  /* Só padroniza o comprimento quando é puramente numérico. */
+  return /^\d+$/.test(texto) ? texto.padStart(6, '0') : texto;
+}
+
+/**
+ * A chave de duplicidade cadastral. Conservadora de propósito: juntar duas
+ * peças diferentes contamina toda métrica seguinte, enquanto deixar duas
+ * separadas apenas perde uma consolidação.
+ *
+ * Devolve `null` quando falta qualquer uma das partes — sem identidade não
+ * há grupo, e um grupo com chave vazia juntaria tudo o que está incompleto.
+ *
+ * @param {{fornecedor?: unknown, codigoFabrica?: unknown}} registro
+ * @returns {string|null}
+ */
+function montarChaveDuplicidade(registro) {
+  const fornecedor = normalizarFornecedor(registro && registro.fornecedor);
+  const base = normalizarCodigoFabrica(registro && registro.codigoFabrica);
+  if (!fornecedor || !base) return null;
+  if (ehPlaceholder(base)) return null;
+  return fornecedor + '|' + base.toUpperCase();
+}
+
+/**
+ * Converte número no formato brasileiro do relatório.
+ *
+ * O ponto é separador de MILHAR: `1.718` é mil setecentos e dezoito. Um
+ * `Number()` ingênuo lê 1,718 e perde 1.717 unidades num único campo — o
+ * disco de tacógrafo do arquivo real.
+ *
+ * Devolve `null` para ausente ou ilegível. **Nunca zero**: zero é um saldo
+ * comercial legítimo e confundir os dois corrompe todo o resto.
+ *
+ * @param {unknown} valor
+ * @returns {number|null}
+ */
+function paraNumeroBr(valor) {
+  if (typeof valor === 'number') return Number.isFinite(valor) ? valor : null;
+  if (valor === null || valor === undefined) return null;
+
+  let texto = String(valor).trim();
+  if (!texto) return null;
+
+  const negativo = /^\(.*\)$/.test(texto) || texto.startsWith('-');
+  texto = texto.replace(/^[-(]|\)$/g, '').trim();
+  if (!texto) return null;
+
+  /* Só dígitos e separadores; qualquer outra coisa é campo não numérico. */
+  if (!/^[\d.,]+$/.test(texto)) return null;
+
+  const temVirgula = texto.includes(',');
+  if (temVirgula) {
+    /* Vírgula é decimal: os pontos que sobram são milhar. */
+    texto = texto.replace(/\./g, '').replace(',', '.');
+  } else if (texto.includes('.')) {
+    /* Sem vírgula, o ponto é milhar — mas só quando agrupa de três em três.
+       `1.718` vira 1718; `1.7` não é grupo de milhar e fica como decimal. */
+    const partes = texto.split('.');
+    const milhar = partes.slice(1).every((p) => p.length === 3) && partes[0].length <= 3 && partes[0].length >= 1;
+    texto = milhar ? partes.join('') : texto;
+  }
+
+  const n = Number(texto);
+  if (!Number.isFinite(n)) return null;
+  return negativo ? -n : n;
+}
+
+/**
+ * Agrupa os registros pela chave de duplicidade. O(n): um Map, uma passada.
+ *
+ * Registro sem chave vira grupo de um — não é descartado (perder linha é
+ * pior que não consolidar) e fica marcado com `semIdentidade`.
+ *
+ * @param {Array<object>} registros
+ * @returns {Array<object>} grupos
+ */
+function agruparCadastros(registros) {
+  const porChave = new Map();
+  const avulsos = [];
+
+  for (const r of registros) {
+    const chave = montarChaveDuplicidade(r);
+    if (!chave) { avulsos.push(r); continue; }
+    let g = porChave.get(chave);
+    if (!g) { g = []; porChave.set(chave, g); }
+    g.push(r);
+  }
+
+  const grupos = [];
+  for (const [chave, cadastros] of porChave) grupos.push(montarGrupo(chave, cadastros, false));
+  for (const r of avulsos) {
+    grupos.push(montarGrupo('sem-identidade:' + (r.codigoInterno || r.codigoFabricaOriginal || ''), [r], true));
+  }
+  return grupos;
+}
+
+/**
+ * Invariantes do grupo, e elas são o contrato do motor:
+ *
+ *   estoqueGrupo    = soma dos saldos lidos (null se nenhum foi lido)
+ *   rupturaReal     = estoqueGrupo !== null && estoqueGrupo <= 0
+ *   quantidadeCadastros = cadastros.length
+ *
+ * Nunca conte cadastro zerado como ruptura. Três linhas zeradas ao lado de
+ * uma com saldo são um grupo com estoque, não três rupturas.
+ */
+function montarGrupo(chave, cadastros, semIdentidade) {
+  const lidos = cadastros.map((c) => c.estoqueIndividual).filter((s) => s !== null && s !== undefined);
+  const estoqueGrupo = lidos.length ? lidos.reduce((a, b) => a + b, 0) : null;
+  const zerados = cadastros.filter((c) => c.estoqueIndividual === 0).length;
+  const principal = cadastros.slice().sort((a, b) =>
+    (b.estoqueIndividual ?? -1) - (a.estoqueIndividual ?? -1))[0];
+
+  return {
+    duplicateKey: chave,
+    semIdentidade,
+    fornecedorNormalizado: normalizarFornecedor(principal.fornecedor),
+    codigoFabricaBase: normalizarCodigoFabrica(principal.codigoFabrica),
+    denominacao: principal.denominacao || '',
+    cadastros,
+    quantidadeCadastros: cadastros.length,
+    cadastrosZerados: zerados,
+    codigosInternosDoGrupo: cadastros.map((c) => c.codigoInterno),
+    codigosFabricaOriginaisDoGrupo: cadastros.map((c) => c.codigoFabricaOriginal),
+    estoqueGrupo,
+    /* Ruptura só existe quando o saldo foi lido. Saldo ilegível é lacuna,
+       não zero — e lacuna não vira recomendação de compra. */
+    rupturaReal: estoqueGrupo === null ? null : estoqueGrupo <= 0,
+    /* O que a versão anterior chamava de ruptura e não era. */
+    zeradoCobertoPorOutroCadastro: estoqueGrupo !== null && estoqueGrupo > 0 && zerados > 0,
+  };
+}
+
+/**
+ * Transforma uma linha crua do relatório na representação canônica. O
+ * original nunca é destruído: fica ao lado do normalizado.
+ *
+ * @param {object} bruto
+ * @returns {object}
+ */
+function registroCanonico(bruto) {
+  const codigoFabricaOriginal = bruto.produto === null || bruto.produto === undefined ? '' : String(bruto.produto).trim();
+  return {
+    registroOriginal: bruto,
+    codigoInterno: bruto.interno === null || bruto.interno === undefined ? '' : String(bruto.interno).trim(),
+    codigoFabricaOriginal,
+    codigoFabricaBase: normalizarCodigoFabrica(codigoFabricaOriginal),
+    codigoFabrica: codigoFabricaOriginal,
+    fornecedorOriginal: bruto.grupo === null || bruto.grupo === undefined ? '' : String(bruto.grupo).trim(),
+    fornecedor: bruto.grupo,
+    fornecedorNormalizado: normalizarFornecedor(bruto.grupo),
+    codigoOriginal: bruto.original === null || bruto.original === undefined ? '' : String(bruto.original).trim(),
+    denominacao: bruto.descricao === null || bruto.descricao === undefined ? '' : String(bruto.descricao).trim(),
+    curva: bruto.curva === null || bruto.curva === undefined ? '' : String(bruto.curva).trim().toUpperCase(),
+    localizacao: bruto.localizacao === null || bruto.localizacao === undefined ? '' : String(bruto.localizacao).trim(),
+    estoqueIndividual: paraNumeroBr(bruto.saldo),
+  };
+}
+
+/**
+ * Métricas de qualidade da importação. Não escondem nada: se houve colisão
+ * suspeita, ela aparece.
+ *
+ * @param {Array<object>} registros
+ * @param {Array<object>} grupos
+ */
+function qualidadeDaImportacao(registros, grupos) {
+  const semCodigo = registros.filter((r) => !r.codigoFabricaOriginal).length;
+  const semFornecedor = registros.filter((r) => !r.fornecedorNormalizado).length;
+  const saldoIlegivel = registros.filter((r) => r.estoqueIndividual === null).length;
+  const normalizados = registros.filter((r) => r.codigoFabricaBase !== r.codigoFabricaOriginal).length;
+
+  /* Mesmo código base em fornecedores diferentes: legítimo (marcas
+     distintas), mas registrado para conferência humana. */
+  const porBase = new Map();
+  for (const g of grupos) {
+    if (g.semIdentidade) continue;
+    const b = g.codigoFabricaBase.toUpperCase();
+    if (!porBase.has(b)) porBase.set(b, []);
+    porBase.get(b).push(g);
+  }
+  const colisoes = [...porBase.entries()]
+    .filter(([, gs]) => gs.length > 1)
+    .map(([base, gs]) => ({
+      codigoFabricaBase: base,
+      grupos: gs.map((g) => ({
+        duplicateKey: g.duplicateKey,
+        denominacao: g.denominacao,
+        estoqueGrupo: g.estoqueGrupo,
+      })),
+    }));
+
+  const maior = grupos.reduce((m, g) => (g.quantidadeCadastros > (m ? m.quantidadeCadastros : 0) ? g : m), null);
+
+  return {
+    linhasLidas: registros.length,
+    codigosVazios: semCodigo,
+    fornecedoresVazios: semFornecedor,
+    saldosIlegiveis: saldoIlegivel,
+    codigosAlteradosPelaNormalizacao: normalizados,
+    codigosSemAlteracao: registros.length - normalizados,
+    gruposCriados: grupos.length,
+    gruposComMaisDeUmCadastro: grupos.filter((g) => g.quantidadeCadastros > 1).length,
+    gruposSemIdentidade: grupos.filter((g) => g.semIdentidade).length,
+    maiorGrupo: maior ? { duplicateKey: maior.duplicateKey, cadastros: maior.quantidadeCadastros } : null,
+    colisoesDeCodigoBase: colisoes,
+  };
+}
+
+/** Resumo do estoque, com as grandezas separadas — nunca misturadas. */
+function resumirEstoque(registros, grupos) {
+  const linhasZeradas = registros.filter((r) => r.estoqueIndividual === 0).length;
+  const gruposComRuptura = grupos.filter((g) => g.rupturaReal === true);
+  const cobertas = grupos.filter((g) => g.zeradoCobertoPorOutroCadastro);
+  return {
+    linhasCadastrais: registros.length,
+    gruposConsolidados: grupos.length,
+    cadastrosDuplicados: registros.length - grupos.length,
+    linhasComSaldoZero: linhasZeradas,
+    linhasZeradasCobertasPorOutroCadastro: cobertas.reduce((s, g) => s + g.cadastrosZerados, 0),
+    gruposEmRupturaReal: gruposComRuptura.length,
+    unidadesEmEstoque: grupos.reduce((s, g) => s + (g.estoqueGrupo || 0), 0),
+  };
+}
+
+/* FIM MOTOR IDENTIDADE */
+
 /* ═══════════════════════════════════════════════════════════════════
    CENTRAL DE COMPRAS — Filial Ribeirão Preto
    Tudo roda no navegador. Nenhuma requisição de rede é feita em
@@ -3458,6 +3831,7 @@ function calcularConsumo(anterior, atual) {
 function recalcular() {
   invalidarRede();
   invalidarCarteira();
+  invalidarProdutos();
   const atual = envioAtual();
   if (!atual) { estado.analise = null; estado.consumo = null; return; }
   estado.resumoDemanda = resumirDemanda(estado.movimentos);
@@ -3731,6 +4105,159 @@ function barraHorizontal({ titulo, direita, fracao, cor }) {
 }
 
 /* ─── 14. Painel ─────────────────────────────────────────────────── */
+
+/* ─── Produtos consolidados — a tela do motor novo ────────────────────
+   Aqui a unidade é a PEÇA, nunca a linha do relatório. Cada peça abre e
+   mostra os cadastros que a formam, o saldo somado e a frase que explica a
+   decisão de ruptura. É a auditoria visível: nenhum número aparece sem o
+   caminho que levou até ele. */
+const filtroProdutos = { recorte: 'ruptura', quantas: 50, busca: '' };
+let cacheProdutos = null;
+const invalidarProdutos = () => { cacheProdutos = null; };
+
+function produtos() {
+  if (cacheProdutos) return cacheProdutos;
+  const envio = envioAtual();
+  if (!envio || !envio.itens.length) return null;
+
+  /* O motor injetado espera os nomes do relatório, não os do estado antigo. */
+  const registros = envio.itens.map((i) => registroCanonico({
+    interno: i.interno, produto: i.produto, original: i.original, grupo: i.grupo,
+    descricao: i.descricao, curva: i.curva, localizacao: i.localizacao ?? '', saldo: i.saldo,
+  }));
+  const grupos = agruparCadastros(registros);
+  cacheProdutos = {
+    registros,
+    grupos,
+    resumo: resumirEstoque(registros, grupos),
+    qualidade: qualidadeDaImportacao(registros, grupos),
+  };
+  return cacheProdutos;
+}
+
+function renderProdutos() {
+  const P = produtos();
+  const alvo = $('#listaProdutos');
+  if (!alvo) return;
+  if (!P) {
+    $('#placasProdutos').innerHTML = '';
+    alvo.innerHTML = '';
+    $('#seloProdutos').textContent = '0';
+    return;
+  }
+  const R = P.resumo, Q = P.qualidade;
+  $('#seloProdutos').textContent = n(R.gruposEmRupturaReal);
+  const e = envioAtual();
+  $('#notaProdutos').textContent = e ? e.nome + ' · ' + dataBr(e.dataISO) : '';
+
+  $('#placasProdutos').innerHTML = [
+    placa({ rotulo: 'Linhas cadastrais', valor: n(R.linhasCadastrais),
+      rodape: 'O que o relatório trouxe. Uma peça pode ocupar várias linhas.', tom: 'neutro' }),
+    placa({ rotulo: 'Peças consolidadas', valor: n(R.gruposConsolidados),
+      rodape: n(R.cadastrosDuplicados) + ' cadastros a mais que peças — são recadastros do mesmo item.', tom: 'marca' }),
+    placa({ rotulo: 'Linhas com saldo zero', valor: n(R.linhasComSaldoZero),
+      rodape: 'Número bruto. Não é ruptura: é linha zerada.', tom: 'atencao' }),
+    placa({ rotulo: 'Zeradas mas cobertas', valor: n(R.linhasZeradasCobertasPorOutroCadastro),
+      rodape: 'Linhas com saldo zero cuja peça tem estoque em outro cadastro. Comprar aqui seria comprar em dobro.', tom: 'saudavel' }),
+    placa({ rotulo: 'Ruptura real', valor: n(R.gruposEmRupturaReal),
+      rodape: 'Peças com o grupo inteiro zerado. É a falta que o cliente sente.', tom: 'critico' }),
+  ].join('');
+
+  /* Recortes. Cada um responde a uma pergunta que alguém faz de verdade. */
+  const colisao = new Set(Q.colisoesDeCodigoBase.flatMap((c) => c.grupos.map((g) => g.duplicateKey)));
+  const recortes = {
+    ruptura: (g) => g.rupturaReal === true,
+    cobertas: (g) => g.zeradoCobertoPorOutroCadastro,
+    duplicados: (g) => g.quantidadeCadastros > 1,
+    colisao: (g) => colisao.has(g.duplicateKey),
+    semid: (g) => g.semIdentidade,
+    todas: () => true,
+  };
+  const b = semAcento(filtroProdutos.busca).toUpperCase().trim();
+  const lista = P.grupos
+    .filter(recortes[filtroProdutos.recorte] || recortes.todas)
+    .filter((g) => !b || semAcento(
+      g.codigoFabricaBase + ' ' + g.denominacao + ' ' + g.codigosInternosDoGrupo.join(' ') + ' ' +
+      g.codigosFabricaOriginaisDoGrupo.join(' ')).toUpperCase().includes(b))
+    .sort((x, y) => (y.quantidadeCadastros - x.quantidadeCadastros) || ((y.estoqueGrupo || 0) - (x.estoqueGrupo || 0)));
+
+  $('#notaListaProdutos').textContent = n(lista.length) + ' peças no recorte' +
+    (lista.length > filtroProdutos.quantas ? ' — mostrando ' + n(filtroProdutos.quantas) : '');
+
+  alvo.innerHTML = lista.length
+    ? lista.slice(0, filtroProdutos.quantas).map((g) => {
+        const nivel = g.rupturaReal === true ? 'critico'
+          : g.zeradoCobertoPorOutroCadastro ? 'atencao'
+          : g.semIdentidade ? 'atencao' : 'normal';
+        const estado = g.estoqueGrupo === null ? 'saldo ilegível'
+          : g.rupturaReal ? 'ruptura real'
+          : g.zeradoCobertoPorOutroCadastro ? 'coberta por outro cadastro'
+          : 'com estoque';
+        const motivo = g.estoqueGrupo === null
+          ? 'Nenhum cadastro desta peça teve o saldo lido. Sem saldo não há conclusão — e lacuna não vira compra.'
+          : g.rupturaReal
+          ? 'Os ' + n(g.quantidadeCadastros) + ' cadastro' + (g.quantidadeCadastros > 1 ? 's' : '') +
+            ' desta peça somam ' + n(g.estoqueGrupo) + '. O grupo inteiro está sem saldo.'
+          : g.zeradoCobertoPorOutroCadastro
+          ? 'Embora ' + n(g.cadastrosZerados) + ' de ' + n(g.quantidadeCadastros) +
+            ' cadastros estejam zerados, outro cadastro do mesmo grupo tem ' + n(g.estoqueGrupo) + ' unidades.'
+          : 'Peça com ' + n(g.estoqueGrupo) + ' unidades.';
+
+        return '<div class="peca" data-nivel="' + nivel + '">' +
+          '<button class="cab" type="button" aria-expanded="false">' +
+            '<span class="pos">' + (g.quantidadeCadastros > 1 ? g.quantidadeCadastros + '×' : '·') + '</span>' +
+            '<span class="nome"><b>' + esc(g.denominacao || '(sem descrição)') + '</b>' +
+              '<span>' + esc(g.codigoFabricaBase) + ' · fornecedor ' + esc(g.fornecedorNormalizado) + '</span></span>' +
+            '<span class="acao">' + esc(estado) + '</span>' +
+            '<span class="num">estoque da peça <b>' + (g.estoqueGrupo === null ? '—' : n(g.estoqueGrupo)) + '</b>' +
+              ' · ' + n(g.cadastrosZerados) + ' de ' + n(g.quantidadeCadastros) + ' zerados</span>' +
+            '<span class="conf"></span><span class="seta" aria-hidden="true">▾</span>' +
+          '</button>' +
+          '<div class="porque oculto">' +
+            '<div class="titulo">Como o sistema chegou a este resultado</div>' +
+            '<ul><li>' + esc(motivo) + '</li>' +
+            '<li>Chave de identidade: <code>' + esc(g.duplicateKey) + '</code>' +
+              (g.semIdentidade ? ' — código sem identidade utilizável, a peça fica sozinha de propósito' : '') + '</li></ul>' +
+            '<div class="cadastros"><div class="titulo">Cadastros deste grupo</div>' +
+              '<div class="rolo"><table><thead><tr><th>Cód. interno</th><th>Cód. de fábrica</th>' +
+              '<th>Base</th><th class="dir">Estoque</th><th>Curva</th></tr></thead><tbody>' +
+              g.cadastros.map((c) => '<tr><td><code>' + esc(c.codigoInterno) + '</code></td>' +
+                '<td>' + esc(c.codigoFabricaOriginal) + '</td>' +
+                '<td>' + esc(c.codigoFabricaBase) + '</td>' +
+                '<td class="dir">' + (c.estoqueIndividual === null ? '—' : n(c.estoqueIndividual)) + '</td>' +
+                '<td>' + esc(c.curva || '—') + '</td></tr>').join('') +
+              '</tbody></table></div></div>' +
+          '</div></div>';
+      }).join('')
+    : '<p style="font-size:13px;color:var(--tinta-2);margin:0">Nenhuma peça neste recorte.</p>';
+
+  $$('#listaProdutos .cab').forEach((bt) => bt.addEventListener('click', () => {
+    const corpo = bt.nextElementSibling;
+    const aberto = !corpo.classList.contains('oculto');
+    corpo.classList.toggle('oculto', aberto);
+    bt.setAttribute('aria-expanded', String(!aberto));
+    bt.querySelector('.seta').textContent = aberto ? '▾' : '▴';
+  }));
+
+  const linhaQ = (rot, val, obs) => '<tr><td style="width:44%">' + esc(rot) + '</td>' +
+    '<td class="dir" style="width:16%;font-variant-numeric:tabular-nums"><b>' + val + '</b></td>' +
+    '<td style="color:var(--tinta-3);font-size:12.5px">' + obs + '</td></tr>';
+  $('#qualidadeImport').innerHTML = [
+    linhaQ('Linhas lidas', n(Q.linhasLidas), 'Tudo o que o arquivo trouxe.'),
+    linhaQ('Códigos alterados pela normalização', n(Q.codigosAlteradosPelaNormalizacao),
+      'Tinham sufixo [n] no fim. Uma remoção só, nada mais.'),
+    linhaQ('Códigos sem alteração', n(Q.codigosSemAlteracao), 'Ficaram exatamente como vieram.'),
+    linhaQ('Saldos ilegíveis', n(Q.saldosIlegiveis), 'Viram lacuna, nunca zero.'),
+    linhaQ('Códigos vazios', n(Q.codigosVazios), 'Sem código não há identidade.'),
+    linhaQ('Peças com mais de um cadastro', n(Q.gruposComMaisDeUmCadastro), 'Onde a consolidação faz diferença.'),
+    linhaQ('Peças sem identidade utilizável', n(Q.gruposSemIdentidade),
+      'Código placeholder tipo N/E. Ficam isoladas em vez de juntar peças diferentes.'),
+    linhaQ('Maior grupo', Q.maiorGrupo ? esc(Q.maiorGrupo.duplicateKey) + ' (' + Q.maiorGrupo.cadastros + ')' : '—',
+      'Grupo grande demais costuma ser sinal de código repetido no ERP.'),
+    linhaQ('Colisões de código base entre fornecedores', n(Q.colisoesDeCodigoBase.length),
+      'Mesmo código em fornecedores diferentes. Legítimo, mas registrado para conferência.'),
+  ].join('');
+}
 
 const ROTULO_NIVEL = { critico: 'Crítico', alta: 'Alta prioridade', atencao: 'Atenção', normal: 'Normal' };
 
@@ -4980,6 +5507,7 @@ function trocarVista(vista) {
     v.classList.toggle('ativa', ativa);
     v.hidden = !ativa;
   });
+  if (vista === 'produtos') renderProdutos();
   if (vista === 'hoje') renderHoje();
   if (vista === 'evolucao') renderEvolucao();
   if (vista === 'dados') { renderDados(); renderConferir(); }
@@ -5210,6 +5738,7 @@ function renderTudo() {
   renderEstado();
   if (!temDados) { $('#seloComprar').textContent = '0'; $('#seloOport').textContent = '0'; atualizarCarrinho(); return; }
   montarSelects();
+  renderProdutos();
   renderHoje();
   renderPainel();
   renderComprar();
@@ -6323,6 +6852,9 @@ function renderEquipe() {
     '<h3>' + esc(val) + '</h3><p>' + esc(txt) + '</p></div>').join('');
 }
 
+liga('#fProdRecorte', 'change', (e) => { filtroProdutos.recorte = e.target.value; renderProdutos(); });
+liga('#fProdQuantas', 'change', (e) => { filtroProdutos.quantas = Number(e.target.value); renderProdutos(); });
+liga('#fProdBusca', 'input', (e) => { filtroProdutos.busca = e.target.value; renderProdutos(); });
 liga('#fConferir', 'input', () => renderConferir());
 liga('#fDecisao', 'change', (e) => { filtroDecisao.decisao = e.target.value; renderCarteira(); });
 liga('#fQuantas', 'change', (e) => { filtroDecisao.quantas = Number(e.target.value); renderCarteira(); });
@@ -6441,7 +6973,7 @@ $('#logo').src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAOAAAAB4CAIAAABk
     estado.gravacao = { ok: true, em: new Date().toISOString(), erro: null };
   }
   renderTudo();
-  trocarVista(itens().length ? 'hoje' : 'painel');
+  trocarVista(itens().length ? 'produtos' : 'painel');
   const st = situacaoDoSistema();
   if (equipe.erro && naEquipe && naEquipe.versao > 0) {
     recado('A base da equipe tem dados mais novos e eu não consegui trazer',

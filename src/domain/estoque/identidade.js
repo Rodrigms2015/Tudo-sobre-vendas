@@ -37,15 +37,33 @@
  * 505 rupturas contra 504.
  *
  * Como o guarda separa família e não marca, ele erra num sentido conhecido:
- * a MESMA peça cadastrada em dois grupos vira duas peças. São 5 casos em
- * 5.545 códigos base. Em vez de fingir que não existem — ou de juntar tudo
- * e ressuscitar as colisões —, o motor liga os grupos irmãos
- * (`gruposIrmaos`) e marca `cobertoPorGrupoIrmao` quando o mesmo código base
- * com a mesma descrição tem saldo do outro lado. Nada é somado às escondidas;
- * a peça aparece com a ligação visível.
+ * a MESMA peça cadastrada em dois grupos vira duas peças. Em vez de fingir
+ * que não existem — ou de juntar tudo e ressuscitar as colisões —, o motor
+ * liga os grupos irmãos (`gruposIrmaos`). Nada é somado às escondidas.
  *
- * O que o motor NUNCA faz: inventar marca. Não há coluna de fabricante no
- * arquivo, então não há campo de fabricante aqui.
+ * ────────────────────────────────────────────────────────────────────────
+ * DESCRIÇÃO IGUAL NÃO É PROVA DE MESMA PEÇA
+ *
+ * A primeira versão desta ligação declarava `cobertoPorGrupoIrmao` quando o
+ * código base e a descrição batiam, e tirava a peça da lista de compra. O
+ * catálogo da loja desmentiu isso no primeiro cruzamento:
+ *
+ *   8PK1700  004831 = AGRO-GATES   "Correia micro V BA/"
+ *            004874 = AGRO-DAYCO   "Correia micro V BA/"
+ *
+ * Duas marcas, mesma descrição — porque o relatório trunca a descrição em 19
+ * caracteres e ela nunca carregou a marca. Suprimir a compra ali é deixar o
+ * cliente que pede Dayco sem atendimento; é exatamente a distinção entre
+ * variante fiscal e equivalente, que o resto do sistema já respeita.
+ *
+ * Agora a cobertura exige **mesma marca comprovada**. Sem marca conhecida dos
+ * dois lados, o motor não conclui: marca `conferirGrupoIrmao` e a peça
+ * continua na fila, com a dúvida escrita. Ausência é lacuna, nunca sinal
+ * verde (R3).
+ *
+ * A marca é campo OPCIONAL, importado de fonte externa com código interno
+ * rastreável. O motor NUNCA a inventa nem a deduz do código: quando não vem,
+ * vale `''` e o componente simplesmente não conclui.
  */
 
 /* Um sufixo de recadastro, e só ele: colchetes no FIM do código.
@@ -200,14 +218,19 @@ export function agruparCadastros(registros) {
 
 /**
  * Liga grupos que compartilham o código base mas caíram em grupos de produto
- * diferentes. Não junta nada — só torna a ligação visível, porque um deles
- * pode ser outra peça (o `79111` é bolsa pneumática de um lado e junta de
- * radiador do outro).
+ * diferentes. Não junta nada — só torna a ligação visível, porque o outro
+ * lado pode ser outra peça (o `79111` é bolsa pneumática de um lado e junta
+ * de radiador do outro) ou outra marca (o `8PK1700` é Gates de um lado e
+ * Dayco do outro).
  *
- * `cobertoPorGrupoIrmao` só fica verdadeiro quando a descrição é a mesma:
- * mesmo código de fábrica e mesma denominação em dois grupos é o mesmo
- * produto cadastrado duas vezes, e nesse caso declarar ruptura seria mandar
- * comprar o que está na prateleira.
+ * Três desfechos, e a diferença entre eles é o que o motor tem de prova:
+ *
+ *   cobertoPorGrupoIrmao  mesma descrição E mesma marca comprovada, com saldo
+ *                         → é o mesmo item cadastrado duas vezes; sai da compra
+ *   conferirGrupoIrmao    mesma descrição, marca desconhecida ou diferente
+ *                         → pode ser duplicata, pode ser outra marca; fica na
+ *                           fila com a dúvida escrita
+ *   (nada)                descrição diferente → o código só coincide
  *
  * @param {Array<object>} grupos
  * @returns {Array<object>} os mesmos grupos, com os vínculos preenchidos
@@ -228,23 +251,34 @@ function vincularGruposIrmaos(grupos) {
     if (!irmaos || irmaos.length < 2) continue;
 
     const minhaDenominacao = denominacaoComparavel(g.denominacao);
-    let estoqueIrmaoIgual = null;
+    let estoqueMesmaMarca = null;
+    let estoqueSemProva = null;
     for (const outro of irmaos) {
       if (outro === g) continue;
       const mesma = denominacaoComparavel(outro.denominacao) === minhaDenominacao;
+      /* `null` quando falta marca de um dos lados: não é "diferente", é
+         "não sei" — e as duas coisas levam a decisões opostas. */
+      const mesmaMarca = (!g.marca || !outro.marca) ? null : g.marca === outro.marca;
       g.gruposIrmaos.push({
         duplicateKey: outro.duplicateKey,
         grupoProdutoNormalizado: outro.grupoProdutoNormalizado,
         denominacao: outro.denominacao,
+        marca: outro.marca,
         estoqueGrupo: outro.estoqueGrupo,
         mesmaDenominacao: mesma,
+        mesmaMarca,
       });
-      if (mesma && outro.estoqueGrupo !== null) {
-        estoqueIrmaoIgual = (estoqueIrmaoIgual === null ? 0 : estoqueIrmaoIgual) + outro.estoqueGrupo;
-      }
+      if (!mesma || outro.estoqueGrupo === null || outro.estoqueGrupo <= 0) continue;
+      if (mesmaMarca === true) estoqueMesmaMarca = (estoqueMesmaMarca || 0) + outro.estoqueGrupo;
+      else if (mesmaMarca === null) estoqueSemProva = (estoqueSemProva || 0) + outro.estoqueGrupo;
     }
-    g.estoqueEmGrupoIrmao = estoqueIrmaoIgual;
-    g.cobertoPorGrupoIrmao = g.rupturaReal === true && estoqueIrmaoIgual !== null && estoqueIrmaoIgual > 0;
+    g.estoqueEmGrupoIrmao = estoqueMesmaMarca;
+    g.estoqueEmGrupoIrmaoSemProva = estoqueSemProva;
+    /* Só suprime a compra com marca comprovada dos dois lados. */
+    g.cobertoPorGrupoIrmao = g.rupturaReal === true && estoqueMesmaMarca !== null && estoqueMesmaMarca > 0;
+    /* Dúvida honesta: parece duplicata, mas não há marca que prove. */
+    g.conferirGrupoIrmao = g.rupturaReal === true && !g.cobertoPorGrupoIrmao
+      && estoqueSemProva !== null && estoqueSemProva > 0;
   }
   return grupos;
 }
@@ -272,6 +306,9 @@ function montarGrupo(chave, cadastros, semIdentidade) {
     grupoProdutoNormalizado: normalizarGrupoProduto(principal.grupoProduto),
     codigoFabricaBase: normalizarCodigoFabrica(principal.codigoFabrica),
     denominacao: principal.denominacao || '',
+    /* Marca vem de importação externa e é opcional. Vazio = desconhecida,
+       nunca deduzida do código. */
+    marca: principal.marca || '',
     cadastros,
     quantidadeCadastros: cadastros.length,
     cadastrosZerados: zerados,
@@ -286,7 +323,9 @@ function montarGrupo(chave, cadastros, semIdentidade) {
     /* Preenchidos por `vincularGruposIrmaos`. */
     gruposIrmaos: [],
     estoqueEmGrupoIrmao: null,
+    estoqueEmGrupoIrmaoSemProva: null,
     cobertoPorGrupoIrmao: false,
+    conferirGrupoIrmao: false,
   };
 }
 
@@ -312,6 +351,9 @@ export function registroCanonico(bruto) {
     denominacao: bruto.descricao === null || bruto.descricao === undefined ? '' : String(bruto.descricao).trim(),
     curva: bruto.curva === null || bruto.curva === undefined ? '' : String(bruto.curva).trim().toUpperCase(),
     localizacao: bruto.localizacao === null || bruto.localizacao === undefined ? '' : String(bruto.localizacao).trim(),
+    /* Opcional: só existe quando um catálogo externo com código interno
+       rastreável foi importado. Sem ele fica vazio — jamais inferido. */
+    marca: bruto.marca === null || bruto.marca === undefined ? '' : String(bruto.marca).trim().toUpperCase(),
     estoqueIndividual: paraNumeroBr(bruto.saldo),
   };
 }
@@ -386,6 +428,8 @@ export function resumirEstoque(registros, grupos) {
     /* Ruptura no papel, prateleira cheia do outro lado. Sai da lista de
        compra e entra na lista de cadastro duplicado. */
     gruposCobertosPorGrupoIrmao: grupos.filter((g) => g.cobertoPorGrupoIrmao).length,
+    /* Parecem duplicata mas não há marca que prove. Continuam na fila. */
+    gruposAConferirComGrupoIrmao: grupos.filter((g) => g.conferirGrupoIrmao).length,
     unidadesEmEstoque: grupos.reduce((s, g) => s + (g.estoqueGrupo || 0), 0),
   };
 }

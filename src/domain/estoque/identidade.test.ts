@@ -25,6 +25,10 @@ import {
 const reg = (interno: string, produto: string, grupo: string, saldo: unknown, descricao = 'Peça') =>
   registroCanonico({ interno, produto, grupo, saldo, descricao, original: '', curva: 'A', localizacao: '1 01 001' });
 
+/** O mesmo, com marca — que só existe quando um catálogo externo foi importado. */
+const regM = (interno: string, produto: string, grupo: string, saldo: unknown, descricao: string, marca: string) =>
+  registroCanonico({ interno, produto, grupo, saldo, descricao, marca, original: '', curva: 'A', localizacao: '1 01 001' });
+
 describe('o sufixo entre colchetes é a única coisa que o código perde', () => {
   it('tira o [n] do fim e devolve o código base', () => {
     expect(normalizarCodigoFabrica('8PK1420[5]')).toBe('8PK1420');
@@ -280,12 +284,28 @@ describe('a mesma peça cadastrada em dois grupos de produto', () => {
     expect(zerado?.gruposIrmaos).toHaveLength(1);
     expect(zerado?.gruposIrmaos[0].duplicateKey).toBe('004808|P777639');
     expect(zerado?.gruposIrmaos[0].mesmaDenominacao).toBe(true);
-    expect(zerado?.estoqueEmGrupoIrmao).toBe(5);
+    /* Sem marca, a comparação não é "diferente" — é "não sei". */
+    expect(zerado?.gruposIrmaos[0].mesmaMarca).toBeNull();
+    expect(zerado?.estoqueEmGrupoIrmao).toBeNull();
+    expect(zerado?.estoqueEmGrupoIrmaoSemProva).toBe(5);
   });
 
-  it('marca a peça como coberta pelo irmão, para sair da lista de compra', () => {
+  it('sem marca dos dois lados, NÃO conclui cobertura — manda conferir', () => {
     expect(zerado?.rupturaReal).toBe(true);
-    expect(zerado?.cobertoPorGrupoIrmao).toBe(true);
+    expect(zerado?.cobertoPorGrupoIrmao).toBe(false);
+    expect(zerado?.conferirGrupoIrmao).toBe(true);
+    expect(zerado?.estoqueEmGrupoIrmaoSemProva).toBe(5);
+  });
+
+  it('com a mesma marca comprovada, aí sim tira da lista de compra', () => {
+    const g = agruparCadastros([
+      regM('4504000070', 'P777639', '004808', '5', 'Filtro ar secundari', 'DONALDSON'),
+      regM('4504000212', 'P777639', '004594', '0', 'Filtro ar secundari', 'DONALDSON'),
+    ]);
+    const z = g.find((x) => x.duplicateKey.startsWith('004594'));
+    expect(z?.cobertoPorGrupoIrmao).toBe(true);
+    expect(z?.estoqueEmGrupoIrmao).toBe(5);
+    expect(z?.conferirGrupoIrmao).toBe(false);
   });
 
   it('não marca cobertura quando o irmão também está zerado', () => {
@@ -298,12 +318,29 @@ describe('a mesma peça cadastrada em dois grupos de produto', () => {
 
   it('conta as peças cobertas por grupo irmão no resumo', () => {
     const registros = [
-      reg('4504000070', 'P777639', '004808', '5', 'Filtro ar secundari'),
-      reg('4504000212', 'P777639', '004594', '0', 'Filtro ar secundari'),
+      regM('4504000070', 'P777639', '004808', '5', 'Filtro ar secundari', 'DONALDSON'),
+      regM('4504000212', 'P777639', '004594', '0', 'Filtro ar secundari', 'DONALDSON'),
     ];
     const resumo = resumirEstoque(registros, agruparCadastros(registros));
     expect(resumo.gruposEmRupturaReal).toBe(1);
     expect(resumo.gruposCobertosPorGrupoIrmao).toBe(1);
+    expect(resumo.gruposAConferirComGrupoIrmao).toBe(0);
+  });
+
+  /* O caso que o catálogo da loja desmentiu, virado teste: mesma descrição,
+     mesmo código base, MARCAS DIFERENTES. Suprimir a compra aqui deixa quem
+     pede Dayco sem atendimento. */
+  it('marcas diferentes NUNCA cobrem uma à outra, mesmo com descrição igual', () => {
+    const grupos = agruparCadastros([
+      regM('2710000086', '8PK1700[8]', '004831', '6', 'Correia micro V BA/', 'AGRO-GATES'),
+      regM('2710000127', '8PK1700', '004874', '0', 'Correia micro V BA/', 'AGRO-DAYCO'),
+    ]);
+    const dayco = grupos.find((g) => g.duplicateKey.startsWith('004874'));
+    expect(dayco?.rupturaReal).toBe(true);
+    expect(dayco?.cobertoPorGrupoIrmao).toBe(false);
+    expect(dayco?.conferirGrupoIrmao).toBe(false);
+    expect(dayco?.gruposIrmaos[0].mesmaMarca).toBe(false);
+    expect(dayco?.estoqueEmGrupoIrmao).toBeNull();
   });
 
   it('não inventa irmão para quem tem código base único', () => {

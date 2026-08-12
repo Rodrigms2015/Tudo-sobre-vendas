@@ -21,6 +21,8 @@ export interface RegistroCanonico {
   denominacao: string;
   curva: string;
   localizacao: string;
+  /** Opcional, de catálogo externo com código interno rastreável. `''` = desconhecida. */
+  marca: string;
   /** `null` quando o saldo não pôde ser lido. Nunca zero por omissão. */
   estoqueIndividual: number | null;
 }
@@ -30,9 +32,12 @@ export interface GrupoIrmao {
   duplicateKey: string;
   grupoProdutoNormalizado: string;
   denominacao: string;
+  marca: string;
   estoqueGrupo: number | null;
-  /** Descrição idêntica: forte indício de ser a mesma peça cadastrada duas vezes. */
+  /** Descrição idêntica — indício, não prova: ela vem truncada em 19 caracteres. */
   mesmaDenominacao: boolean;
+  /** `null` quando falta marca de um dos lados: "não sei" não é "diferente". */
+  mesmaMarca: boolean | null;
 }
 
 /**
@@ -46,6 +51,7 @@ export interface GrupoCadastral {
   grupoProdutoNormalizado: string;
   codigoFabricaBase: string;
   denominacao: string;
+  marca: string;
   cadastros: RegistroCanonico[];
   quantidadeCadastros: number;
   cadastrosZerados: number;
@@ -55,10 +61,14 @@ export interface GrupoCadastral {
   rupturaReal: boolean | null;
   zeradoCobertoPorOutroCadastro: boolean;
   gruposIrmaos: GrupoIrmao[];
-  /** Soma do saldo dos irmãos com a mesma descrição. `null` se não há nenhum. */
+  /** Saldo em irmãos de mesma descrição E mesma marca comprovada. */
   estoqueEmGrupoIrmao: number | null;
-  /** Ruptura no papel com saldo do outro lado: não é compra, é cadastro duplicado. */
+  /** Saldo em irmãos de mesma descrição cuja marca não pôde ser comparada. */
+  estoqueEmGrupoIrmaoSemProva: number | null;
+  /** Duplicata comprovada pela marca: sai da lista de compra. */
   cobertoPorGrupoIrmao: boolean;
+  /** Parece duplicata, mas sem marca que prove. Continua na fila, com a dúvida. */
+  conferirGrupoIrmao: boolean;
 }
 
 export interface ColisaoDeCodigo {
@@ -91,6 +101,7 @@ export interface ResumoEstoque {
   linhasZeradasCobertasPorOutroCadastro: number;
   gruposEmRupturaReal: number;
   gruposCobertosPorGrupoIrmao: number;
+  gruposAConferirComGrupoIrmao: number;
   unidadesEmEstoque: number;
 }
 

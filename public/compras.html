@@ -210,6 +210,9 @@
   .ficha-estado[data-ok="sim"] .sinal { background: #1F8A5F; color: #fff; }
   .ficha-estado[data-ok="nao"] .sinal { background: rgba(255,255,255,.16); color: rgba(255,255,255,.75); border: 1px dashed rgba(255,255,255,.5); }
   .ficha-estado[data-ok="erro"] .sinal { background: #C4362B; color: #fff; }
+  /* Rótulo sobre valor, e não lado a lado: em linha única as quatro fichas
+     ficam largas demais para caber ao lado do título, quebram para uma
+     segunda faixa e o cabeçalho fica MAIS alto — o oposto do pretendido. */
   .ficha-estado .txt { line-height: 1.25; min-width: 0; }
   .ficha-estado .rot { font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: rgba(255,255,255,.62); }
   .ficha-estado .val { font-size: 12.5px; font-weight: 600; white-space: nowrap; }
@@ -340,19 +343,18 @@
   /* ── Placas de número ────────────────────────────────────────── */
   .placas {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
-    gap: 12px;
+    grid-template-columns: repeat(auto-fit, minmax(168px, 1fr));
+    gap: 10px;
   }
   .placa {
     background: var(--papel);
     border: 1px solid var(--borda);
     border-left: 4px solid var(--borda-forte);
     border-radius: var(--raio);
-    padding: 14px 16px;
-    box-shadow: var(--sombra);
+    padding: 11px 13px;
     display: flex;
     flex-direction: column;
-    gap: 3px;
+    gap: 2px;
   }
   .placa[data-tom="critico"] { border-left-color: var(--critico); }
   .placa[data-tom="atencao"] { border-left-color: var(--atencao); }
@@ -360,13 +362,20 @@
   .placa[data-tom="parado"] { border-left-color: var(--parado); }
   .placa[data-tom="marca"] { border-left-color: var(--laranja); }
   .placa .valor {
-    font-size: 30px;
+    font-size: 26px;
     font-weight: 700;
     line-height: 1.05;
     font-variant-numeric: tabular-nums;
     letter-spacing: -.02em;
   }
-  .placa .rodape { font-size: 12px; color: var(--tinta-3); line-height: 1.35; }
+  /* A explicação é essencial na primeira leitura e ruído da segunda em
+     diante. Fica em duas linhas; o texto inteiro continua acessível no
+     title, e nada é removido do documento. */
+  .placa .rodape {
+    font-size: 11.5px; color: var(--tinta-3); line-height: 1.35;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
 
   /* ── Fila de decisões ────────────────────────────────────────
      A hierarquia é carregada por três coisas ao mesmo tempo — posição,
@@ -444,27 +453,50 @@
   /* Linha de decisão. Densa por escolha: o comprador precisa varrer muitas
      por minuto. O porquê fica escondido até ser pedido — quem confia na
      recomendação não deveria pagar leitura por isso. */
+  /* Uma lista contínua, não oito cartões soltos: o comprador varre 1.000
+     peças, e cada borda arredondada repetida é ruído que ele paga em rolagem.
+     A faixa de cor à esquerda continua — ela é portadora de significado e
+     anda sempre acompanhada do rótulo textual. */
+  .lista-pecas {
+    border: 1px solid var(--borda); border-radius: var(--raio);
+    background: var(--papel); overflow: hidden;
+  }
   .peca {
+    border-left: 4px solid var(--borda-forte);
+    border-bottom: 1px solid var(--borda);
+    background: var(--papel);
+  }
+  .lista-pecas > .peca:last-child { border-bottom: 0; }
+  /* Fora da lista contínua (fila do Hoje) a peça continua sendo um cartão. */
+  .peca.solta {
     border: 1px solid var(--borda); border-left: 4px solid var(--borda-forte);
-    border-radius: var(--raio); background: var(--papel);
-    margin-bottom: 7px; overflow: hidden;
+    border-radius: var(--raio); margin-bottom: 7px; overflow: hidden;
   }
   .peca[data-nivel="critico"] { border-left-color: var(--critico); }
   .peca[data-nivel="alta"]    { border-left-color: var(--laranja); }
   .peca[data-nivel="atencao"] { border-left-color: var(--atencao); }
   .peca[data-nivel="normal"]  { border-left-color: var(--borda-forte); }
   .peca > .cab {
-    display: grid; grid-template-columns: 26px minmax(0,2.2fr) 128px 1fr 92px 34px;
-    gap: 12px; align-items: center; width: 100%;
-    padding: 11px 13px; background: none; border: 0; cursor: pointer;
+    display: grid; grid-template-columns: 26px minmax(0,2.4fr) auto 1fr auto 28px;
+    gap: 14px; align-items: center; width: 100%;
+    /* 44px de alvo de toque com uma linha só de conteúdo: 9+9+26. */
+    padding: 9px 13px; min-height: 44px; background: none; border: 0; cursor: pointer;
     text-align: left; font: inherit; color: inherit;
   }
   .peca > .cab:hover { background: var(--papel-2); }
   .peca > .cab:focus-visible { outline: 3px solid var(--laranja); outline-offset: -3px; }
   .peca .pos { font-size: 12px; font-weight: 700; color: var(--tinta-3); font-variant-numeric: tabular-nums; }
-  .peca .nome { min-width: 0; }
-  .peca .nome b { display: block; font-size: 14px; line-height: 1.3; }
-  .peca .nome span { font-size: 11.5px; color: var(--tinta-3); }
+  /* Nome e código na MESMA linha: empilhados, dobravam a altura da linha
+     para caber um dado que cabe ao lado. */
+  .peca .nome {
+    min-width: 0; display: flex; align-items: baseline; gap: 8px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .peca .nome b { font-size: 13.5px; line-height: 1.3; flex: 0 0 auto; }
+  .peca .nome span {
+    font-size: 11.5px; color: var(--tinta-3); min-width: 0;
+    overflow: hidden; text-overflow: ellipsis;
+  }
   .peca .acao { font-size: 12px; font-weight: 700; }
   .peca[data-nivel="critico"] .acao { color: var(--critico); }
   .peca[data-nivel="alta"]    .acao { color: var(--laranja-texto); }
@@ -490,8 +522,11 @@
     border: 1px solid var(--borda); border-radius: 4px; padding: 1px 5px; margin-right: 5px;
   }
   @media (max-width: 900px) {
-    .peca > .cab { grid-template-columns: 24px 1fr 34px; row-gap: 7px; }
+    .peca > .cab { grid-template-columns: 24px 1fr 34px; row-gap: 6px; }
     .peca .acao, .peca .num, .peca .conf { grid-column: 2; text-align: left; }
+    /* Em 390px o código não cabe ao lado do nome; volta a empilhar. */
+    .peca .nome { display: block; white-space: normal; }
+    .peca .nome b { display: block; }
     .peca .porque { padding-left: 13px; }
   }
 
@@ -943,7 +978,6 @@
     <button class="aba" role="tab" data-vista="oportunidades" aria-selected="false" title="Itens com saldo alto e giro baixo — o que os vendedores têm para empurrar">Oportunidades <span class="selo" id="seloOport">0</span></button>
     <button class="aba" role="tab" data-vista="demanda" aria-selected="false" title="Itens zerados que tiveram venda comprovada — a compra que não pode esperar">Demanda <span class="selo" id="seloDemanda">0</span></button>
     <button class="aba" role="tab" data-vista="rede" aria-selected="false" title="Comparação com as filiais irmãs: curva, quantidade e o que pedir de abastecimento">Rede <span class="selo" id="seloRede">0</span></button>
-    <button class="aba" role="tab" data-vista="evolucao" aria-selected="false">Evolução</button>
     <button class="aba" role="tab" data-vista="dados" aria-selected="false" title="O que está carregado, o que está gravado e a qualidade do cadastro">Situação</button>
   </div>
 </nav>
@@ -1101,6 +1135,14 @@
         </div>
       </div>
     </div>
+
+    <div class="secao">
+      <div class="secao-topo">
+        <h2>O que mudou desde o envio anterior</h2>
+        <span class="nota" id="notaEvolucao"></span>
+      </div>
+      <div id="conteudoEvolucao"></div>
+    </div>
   </section>
 
   <!-- ── COMPRAR ─────────────────────────────────────────────── -->
@@ -1193,7 +1235,7 @@
               <th style="width:120px">Cód. original</th>
               <th class="ord dir" data-ord="vendeu" style="width:92px">Vendeu</th>
               <th class="ord dir" data-ord="fora" style="width:104px">Outra filial</th>
-              <th style="width:132px">Situação</th>
+              <th style="width:132px" id="thSituacao">Situação</th>
               <th class="ord dir" data-ord="saldo" style="width:66px">Saldo</th>
               <th class="dir" style="width:128px">Pedir</th>
             </tr>
@@ -1347,16 +1389,6 @@
   </section>
 
   <!-- ── EVOLUÇÃO ────────────────────────────────────────────── -->
-  <section class="vista" id="vista-evolucao" hidden>
-    <div class="secao">
-      <div class="secao-topo">
-        <h2>O que mudou desde o envio anterior</h2>
-        <span class="nota" id="notaEvolucao"></span>
-      </div>
-      <div id="conteudoEvolucao"></div>
-    </div>
-  </section>
-
   <!-- ── DADOS ───────────────────────────────────────────────── -->
   <section class="vista" id="vista-dados" hidden>
         <div class="secao">
@@ -3102,11 +3134,28 @@ function resolvedorDeRecadastro(pares) {
   return raiz;
 }
 
-const chaveFiscal = (item, raiz) => {
-  const b = raiz(semSufixo(item.produto).toUpperCase());
-  const d = chave(item.descricao);
-  return b && d ? b + '|' + d : null;
-};
+/**
+ * A chave que consolida cadastros na peça. FONTE ÚNICA: delega ao motor
+ * (`montarChaveDuplicidade`), o mesmo que a aba Produtos usa. Antes existiam
+ * duas consolidações diferentes no arquivo e as abas discordavam entre si.
+ *
+ * Duas diferenças em relação à versão anterior, e as duas foram medidas:
+ *
+ *   1. Entrou o `Grupo` do Opus, que é guarda de família. Sem ele, `79111`
+ *      junta bolsa pneumática com junta de radiador.
+ *   2. Saiu a descrição. Ela vem truncada em 19 caracteres, então a mesma
+ *      peça aparece como "Correia micro V 8PK" e "Correia micro V AT/" e
+ *      virava duas peças. Como prova de identidade ela já se mostrou fraca
+ *      (é o caso Gates/Dayco), e como separador ela só fragmentava.
+ *
+ * O `raiz()` continua na frente: ele resolve o sufixo `-N` de recadastro,
+ * que o motor não conhece e que vale 220 rupturas inventadas.
+ */
+const chaveFiscal = (item, raiz) =>
+  montarChaveDuplicidade({
+    grupoProduto: item.grupo,
+    codigoFabrica: raiz(semSufixo(item.produto).toUpperCase()),
+  });
 
 function analisar(itens, mapaMarcas = {}, resumo = null, tabelaMarcas = null) {
   /* Com venda medida, "giro" deixa de ser a letra da curva e passa a ser
@@ -4229,10 +4278,14 @@ function barraPrioridade(p) {
 }
 
 function placa({ rotulo, valor, rodape, tom }) {
+  /* O rodapé é cortado em duas linhas por CSS; o texto inteiro vai no title
+     para não se perder. `rodape` pode conter marcação, então o title usa a
+     versão sem tags. */
+  const limpo = String(rodape).replace(/<[^>]+>/g, '');
   return '<div class="placa" data-tom="' + (tom || 'neutro') + '">' +
     '<div class="sobrancelha">' + esc(rotulo) + '</div>' +
     '<div class="valor">' + valor + '</div>' +
-    '<div class="rodape">' + rodape + '</div></div>';
+    '<div class="rodape" title="' + esc(limpo) + '">' + rodape + '</div></div>';
 }
 
 function barraHorizontal({ titulo, direita, fracao, cor }) {
@@ -4342,17 +4395,23 @@ function renderProdutos() {
     (lista.length > filtroProdutos.quantas ? ' — mostrando ' + n(filtroProdutos.quantas) : '');
 
   alvo.innerHTML = lista.length
-    ? lista.slice(0, filtroProdutos.quantas).map((g) => {
+    ? '<div class="lista-pecas">' + lista.slice(0, filtroProdutos.quantas).map((g) => {
         const nivel = g.cobertoPorGrupoIrmao ? 'atencao'
           : g.rupturaReal === true ? 'critico'
           : g.zeradoCobertoPorOutroCadastro ? 'atencao'
           : g.semIdentidade ? 'atencao' : 'normal';
-        const estado = g.estoqueGrupo === null ? 'saldo ilegível'
+        const estadoCheio = g.estoqueGrupo === null ? 'saldo ilegível'
           : g.cobertoPorGrupoIrmao ? 'coberta por outro grupo'
           : g.conferirGrupoIrmao ? 'ruptura real — conferir outro grupo'
           : g.rupturaReal ? 'ruptura real'
           : g.zeradoCobertoPorOutroCadastro ? 'coberta por outro cadastro'
           : 'com estoque';
+        /* O recorte já diz o estado de todas. Repeti-lo 1.037 vezes é ruído:
+           só aparece quando destoa do filtro escolhido. */
+        const redundante = (filtroProdutos.recorte === 'ruptura' && estadoCheio === 'ruptura real')
+          || (filtroProdutos.recorte === 'cobertas' && estadoCheio === 'coberta por outro cadastro')
+          || (filtroProdutos.recorte === 'conferirIrmao' && estadoCheio.startsWith('ruptura real'));
+        const estado = redundante ? '' : estadoCheio;
         const motivo = g.estoqueGrupo === null
           ? 'Nenhum cadastro desta peça teve o saldo lido. Sem saldo não há conclusão — e lacuna não vira compra.'
           : g.cobertoPorGrupoIrmao
@@ -4389,8 +4448,10 @@ function renderProdutos() {
               '<span>' + esc(g.codigoFabricaBase) + ' · grupo ' + esc(g.grupoProdutoNormalizado) +
                 (g.marca ? ' · ' + esc(g.marca) : '') + '</span></span>' +
             '<span class="acao">' + esc(estado) + '</span>' +
-            '<span class="num">estoque da peça <b>' + (g.estoqueGrupo === null ? '—' : n(g.estoqueGrupo)) + '</b>' +
-              ' · ' + n(g.cadastrosZerados) + ' de ' + n(g.quantidadeCadastros) + ' zerados</span>' +
+            '<span class="num"><b>' + (g.estoqueGrupo === null ? '—' : n(g.estoqueGrupo)) + '</b> un' +
+              (g.quantidadeCadastros > 1
+                ? ' · ' + n(g.cadastrosZerados) + '/' + n(g.quantidadeCadastros) + ' zerados'
+                : '') + '</span>' +
             '<span class="conf"></span><span class="seta" aria-hidden="true">▾</span>' +
           '</button>' +
           '<div class="porque oculto">' +
@@ -4409,7 +4470,7 @@ function renderProdutos() {
                 '<td>' + esc(c.curva || '—') + '</td></tr>').join('') +
               '</tbody></table></div></div>' + irmaos +
           '</div></div>';
-      }).join('')
+      }).join('') + '</div>'
     : '<p style="font-size:13px;color:var(--tinta-2);margin:0">Nenhuma peça neste recorte.</p>';
 
   $$('#listaProdutos .cab').forEach((bt) => bt.addEventListener('click', () => {
@@ -4490,7 +4551,7 @@ function renderCarteira() {
     const cob = p.cobertura === null ? '—'
       : p.cobertura > 365 ? (p.cobertura / 365).toFixed(1) + ' anos'
       : Math.round(p.cobertura) + ' dias';
-    return '<div class="peca" data-nivel="' + D.nivel + '">' +
+    return '<div class="peca solta" data-nivel="' + D.nivel + '">' +
       '<button class="cab" type="button" aria-expanded="false">' +
         '<span class="pos">' + (idx + 1) + '</span>' +
         '<span class="nome"><b>' + esc(p.descricao || p.produto) + '</b>' +
@@ -4716,6 +4777,12 @@ function renderComprar() {
       : 'sugestão por classe — sem movimentação nem segundo envio') +
     (editados ? ' · ' + n(editados) + ' quantidade' + (editados > 1 ? 's' : '') + ' ajustada' + (editados > 1 ? 's' : '') + ' por você' : '');
 
+  /* Quando o filtro fixa uma situação, todas as linhas trazem a mesma — a
+     coluna vira um rótulo repetido e sai de cena junto com o cabeçalho. */
+  const fixaSituacao = !!estado.filtros.situacao;
+  const thSit = $('#thSituacao');
+  if (thSit) thSit.hidden = fixaSituacao;
+
   $('#corpoLista').innerHTML = mostrados.map((i) => {
     const id = i.interno || i.produto;
     const marcado = estado.marcados.has(id);
@@ -4727,22 +4794,26 @@ function renderComprar() {
       '<td>' + (i.curva ? '<span class="curva" data-c="' + i.curva + '">' + i.curva + '</span>' : '<span class="etiqueta" data-tom="neutro">sem curva</span>') + '</td>' +
       '<td><b style="font-weight:600">' + esc(i.descricao || '—') + '</b>' +
         (i.repetidos > 1 ? ' <span class="etiqueta" data-tom="neutro" title="Mesma peça em ' + i.repetidos + ' cadastros fiscais. Saldo e venda somados; escolha o cadastro na hora de faturar.">' + i.repetidos + ' variantes fiscais</span>' : '') +
-        '<br><span style="font-size:11.5px;color:var(--tinta-3)">' + esc(i.produto || '') + '</span></td>' +
+        '</td>' +
       '<td class="mono">' + esc(i.produto || '—') + '</td>' +
       '<td class="mono">' + esc(i.original || '—') + '</td>' +
       '<td class="dir num">' + (i.demandaUsada
         ? '<b>' + n(Math.round(i.demandaUsada.unidades)) + '</b><br><span style="font-size:10.5px;color:var(--tinta-3)">' + i.demandaUsada.pedidos + ' ped.</span>'
         : '<span style="color:var(--tinta-3)">—</span>') + '</td>' +
       '<td class="dir num">' + celulaOutraFilial(i) + '</td>' +
-      '<td>' + etiquetaSituacao(i.situacao) + '</td>' +
+      /* O filtro de situação já diz qual é. Repetir a etiqueta em 163 linhas
+         é ruído; a coluna inteira (com o cabeçalho) volta assim que o filtro
+         deixa de fixar uma situação. */
+      '<td class="col-situacao"' + (fixaSituacao ? ' hidden' : '') + '>' +
+        (fixaSituacao ? '' : etiquetaSituacao(i.situacao)) + '</td>' +
       '<td class="dir num"><b>' + (i.saldo === null ? '—' : n(i.saldo)) + '</b></td>' +
       '<td class="dir">' + campoQuantidade(i) + '</td>' +
       '</tr>' +
-      '<tr class="expandivel oculto" data-detalhe="' + esc(id) + '"><td colspan="11">' + detalheItem(i) + '</td></tr>';
+      '<tr class="expandivel oculto" data-detalhe="' + esc(id) + '"><td colspan="' + (fixaSituacao ? 10 : 11) + '">' + detalheItem(i) + '</td></tr>';
   }).join('');
 
   if (!mostrados.length) {
-    $('#corpoLista').innerHTML = '<tr><td colspan="11" style="padding:26px;text-align:center;color:var(--tinta-2)">' +
+    $('#corpoLista').innerHTML = '<tr><td colspan="' + (fixaSituacao ? 10 : 11) + '" style="padding:26px;text-align:center;color:var(--tinta-2)">' +
       'Nenhum item com esses filtros. Baixe a prioridade mínima ou troque a situação.</td></tr>';
   }
 
@@ -5697,7 +5768,7 @@ function trocarVista(vista) {
   });
   if (vista === 'produtos') renderProdutos();
   if (vista === 'hoje') renderHoje();
-  if (vista === 'evolucao') renderEvolucao();
+  if (vista === 'painel') renderEvolucao();
   if (vista === 'dados') { renderDados(); renderConferir(); }
   if (vista === 'demanda') renderDemanda();
   if (vista === 'rede') renderRede();
@@ -5934,7 +6005,7 @@ function renderTudo() {
   $('#seloOport').textContent = n(itens().filter((i) => i.situacao === 'EXCESSO').length);
   const ativa = $$('.aba').find((a) => a.getAttribute('aria-selected') === 'true');
   const vista = ativa ? ativa.dataset.vista : 'painel';
-  if (vista === 'evolucao') renderEvolucao();
+  if (vista === 'painel') renderEvolucao();
   if (vista === 'dados') renderDados();
   renderRede();
   renderDemanda();

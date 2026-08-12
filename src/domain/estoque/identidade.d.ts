@@ -51,7 +51,10 @@ export interface GrupoCadastral {
   grupoProdutoNormalizado: string;
   codigoFabricaBase: string;
   denominacao: string;
+  /** Marca de qualquer cadastro do grupo. `''` se desconhecida ou se houve divergência. */
   marca: string;
+  /** Preenchido só quando cadastros do mesmo grupo trazem marcas diferentes. */
+  marcasDivergentes: string[];
   cadastros: RegistroCanonico[];
   quantidadeCadastros: number;
   cadastrosZerados: number;
@@ -89,6 +92,8 @@ export interface QualidadeDaImportacao {
   gruposSemIdentidade: number;
   maiorGrupo: { duplicateKey: string; cadastros: number } | null;
   colisoesDeCodigoBase: ColisaoDeCodigo[];
+  gruposComMarcaConhecida: number;
+  gruposComMarcasDivergentes: number;
   provavelMesmoProdutoEmDoisGrupos: number;
   colisoesEntreProdutosDiferentes: number;
 }

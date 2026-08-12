@@ -299,6 +299,7 @@ function montarGrupo(chave, cadastros, semIdentidade) {
   const zerados = cadastros.filter((c) => c.estoqueIndividual === 0).length;
   const principal = cadastros.slice().sort((a, b) =>
     (b.estoqueIndividual ?? -1) - (a.estoqueIndividual ?? -1))[0];
+  const marcasDoGrupo = [...new Set(cadastros.map((c) => c.marca).filter(Boolean))];
 
   return {
     duplicateKey: chave,
@@ -306,9 +307,16 @@ function montarGrupo(chave, cadastros, semIdentidade) {
     grupoProdutoNormalizado: normalizarGrupoProduto(principal.grupoProduto),
     codigoFabricaBase: normalizarCodigoFabrica(principal.codigoFabrica),
     denominacao: principal.denominacao || '',
-    /* Marca vem de importação externa e é opcional. Vazio = desconhecida,
-       nunca deduzida do código. */
-    marca: principal.marca || '',
+    /* A marca da peça NÃO sai do cadastro principal: `principal` é o de maior
+       saldo, e o catálogo externo raramente cobre justo esse. Sai de qualquer
+       cadastro do grupo que a tenha — basta um.
+
+       Se dois cadastros do mesmo grupo discordarem, o motor não escolhe: fica
+       vazia e a divergência é registrada. Discordância aqui significa que a
+       chave juntou fabricantes diferentes, e isso precisa de olho humano, não
+       de desempate automático. */
+    marca: marcasDoGrupo.length === 1 ? marcasDoGrupo[0] : '',
+    marcasDivergentes: marcasDoGrupo.length > 1 ? marcasDoGrupo : [],
     cadastros,
     quantidadeCadastros: cadastros.length,
     cadastrosZerados: zerados,
@@ -408,6 +416,8 @@ export function qualidadeDaImportacao(registros, grupos) {
     gruposSemIdentidade: grupos.filter((g) => g.semIdentidade).length,
     maiorGrupo: maior ? { duplicateKey: maior.duplicateKey, cadastros: maior.quantidadeCadastros } : null,
     colisoesDeCodigoBase: colisoes,
+    gruposComMarcaConhecida: grupos.filter((g) => g.marca).length,
+    gruposComMarcasDivergentes: grupos.filter((g) => g.marcasDivergentes.length).length,
     provavelMesmoProdutoEmDoisGrupos: colisoes.filter((c) => c.mesmaDenominacao).length,
     colisoesEntreProdutosDiferentes: colisoes.filter((c) => !c.mesmaDenominacao).length,
   };

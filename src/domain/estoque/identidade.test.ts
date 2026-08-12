@@ -441,3 +441,36 @@ describe('placeholder não é identidade', () => {
     expect(grupos).toHaveLength(1);
   });
 });
+
+describe('a marca da peça não sai do cadastro de maior saldo', () => {
+  /* Caso real: o catálogo externo cobria o cadastro zerado, não o que tinha
+     saldo. Tirar a marca do "principal" perdia 2.094 peças. */
+  it('usa a marca de qualquer cadastro do grupo — basta um', () => {
+    const grupos = agruparCadastros([
+      reg('2710000086', '8PK1700[8]', '004874', '4', 'Correia micro V BA/'),
+      regM('2710000127', '8PK1700', '004874', '0', 'Correia micro V BA/', 'AGRO-DAYCO'),
+    ]);
+    expect(grupos).toHaveLength(1);
+    expect(grupos[0].marca).toBe('AGRO-DAYCO');
+    expect(grupos[0].marcasDivergentes).toEqual([]);
+  });
+
+  it('não escolhe quando os cadastros discordam — fica vazia e registra', () => {
+    const grupos = agruparCadastros([
+      regM('1', 'ZK900', '000001', '4', 'Peça', 'GATES'),
+      regM('2', 'ZK900[2]', '000001', '1', 'Peça', 'DAYCO'),
+    ]);
+    expect(grupos[0].marca).toBe('');
+    expect(grupos[0].marcasDivergentes).toHaveLength(2);
+  });
+
+  it('conta na qualidade quantas peças têm marca e quantas divergem', () => {
+    const registros = [
+      regM('1', 'AA1', '000001', '1', 'Peça', 'MANN'),
+      reg('2', 'BB2', '000001', '1'),
+    ];
+    const q = qualidadeDaImportacao(registros, agruparCadastros(registros));
+    expect(q.gruposComMarcaConhecida).toBe(1);
+    expect(q.gruposComMarcasDivergentes).toBe(0);
+  });
+});

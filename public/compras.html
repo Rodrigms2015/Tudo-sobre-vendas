@@ -1817,6 +1817,7 @@ function montarGrupo(chave, cadastros, semIdentidade) {
   const zerados = cadastros.filter((c) => c.estoqueIndividual === 0).length;
   const principal = cadastros.slice().sort((a, b) =>
     (b.estoqueIndividual ?? -1) - (a.estoqueIndividual ?? -1))[0];
+  const marcasDoGrupo = [...new Set(cadastros.map((c) => c.marca).filter(Boolean))];
 
   return {
     duplicateKey: chave,
@@ -1824,9 +1825,16 @@ function montarGrupo(chave, cadastros, semIdentidade) {
     grupoProdutoNormalizado: normalizarGrupoProduto(principal.grupoProduto),
     codigoFabricaBase: normalizarCodigoFabrica(principal.codigoFabrica),
     denominacao: principal.denominacao || '',
-    /* Marca vem de importação externa e é opcional. Vazio = desconhecida,
-       nunca deduzida do código. */
-    marca: principal.marca || '',
+    /* A marca da peça NÃO sai do cadastro principal: `principal` é o de maior
+       saldo, e o catálogo externo raramente cobre justo esse. Sai de qualquer
+       cadastro do grupo que a tenha — basta um.
+
+       Se dois cadastros do mesmo grupo discordarem, o motor não escolhe: fica
+       vazia e a divergência é registrada. Discordância aqui significa que a
+       chave juntou fabricantes diferentes, e isso precisa de olho humano, não
+       de desempate automático. */
+    marca: marcasDoGrupo.length === 1 ? marcasDoGrupo[0] : '',
+    marcasDivergentes: marcasDoGrupo.length > 1 ? marcasDoGrupo : [],
     cadastros,
     quantidadeCadastros: cadastros.length,
     cadastrosZerados: zerados,
@@ -1926,6 +1934,8 @@ function qualidadeDaImportacao(registros, grupos) {
     gruposSemIdentidade: grupos.filter((g) => g.semIdentidade).length,
     maiorGrupo: maior ? { duplicateKey: maior.duplicateKey, cadastros: maior.quantidadeCadastros } : null,
     colisoesDeCodigoBase: colisoes,
+    gruposComMarcaConhecida: grupos.filter((g) => g.marca).length,
+    gruposComMarcasDivergentes: grupos.filter((g) => g.marcasDivergentes.length).length,
     provavelMesmoProdutoEmDoisGrupos: colisoes.filter((c) => c.mesmaDenominacao).length,
     colisoesEntreProdutosDiferentes: colisoes.filter((c) => !c.mesmaDenominacao).length,
   };
@@ -4246,10 +4256,20 @@ function produtos() {
   const envio = envioAtual();
   if (!envio || !envio.itens.length) return null;
 
+  /* A marca resolvida vem da análise, e não de um cálculo próprio daqui: é a
+     mesma precedência do resto do sistema (cadastro > tabela importada > mapa
+     manual > regra de código), então as abas não discordam entre si.
+     Sem tabela de marcas importada este mapa fica vazio, e o motor
+     simplesmente não conclui cobertura — que é o comportamento correto. */
+  const marcaPorInterno = new Map(
+    ((estado.analise && estado.analise.itens) || []).map((i) => [i.interno, i.marca || '']),
+  );
+
   /* O motor injetado espera os nomes do relatório, não os do estado antigo. */
   const registros = envio.itens.map((i) => registroCanonico({
     interno: i.interno, produto: i.produto, original: i.original, grupo: i.grupo,
     descricao: i.descricao, curva: i.curva, localizacao: i.localizacao ?? '', saldo: i.saldo,
+    marca: marcaPorInterno.get(i.interno) || '',
   }));
   const grupos = agruparCadastros(registros);
   cacheProdutos = {
@@ -4354,7 +4374,7 @@ function renderProdutos() {
             '<ul>' + g.gruposIrmaos.map((i) => '<li><code>' + esc(i.duplicateKey) + '</code> — ' +
               esc(i.denominacao || '(sem descrição)') + ' · estoque ' +
               (i.estoqueGrupo === null ? '—' : n(i.estoqueGrupo)) + ' · ' +
-              (i.marca ? ' · marca ' + esc(i.marca) : ' · marca desconhecida') + ' · ' +
+              (i.marca ? esc(i.marca) : 'marca desconhecida') + ' · ' +
               (!i.mesmaDenominacao ? 'descrição diferente: outra peça, o código só coincide'
                 : i.mesmaMarca === true ? 'mesma descrição e mesma marca: cadastro duplicado'
                 : i.mesmaMarca === false ? 'mesma descrição, MARCA DIFERENTE: atende o balcão, mas é outra compra'
@@ -4366,7 +4386,8 @@ function renderProdutos() {
           '<button class="cab" type="button" aria-expanded="false">' +
             '<span class="pos">' + (g.quantidadeCadastros > 1 ? g.quantidadeCadastros + '×' : '·') + '</span>' +
             '<span class="nome"><b>' + esc(g.denominacao || '(sem descrição)') + '</b>' +
-              '<span>' + esc(g.codigoFabricaBase) + ' · grupo ' + esc(g.grupoProdutoNormalizado) + '</span></span>' +
+              '<span>' + esc(g.codigoFabricaBase) + ' · grupo ' + esc(g.grupoProdutoNormalizado) +
+                (g.marca ? ' · ' + esc(g.marca) : '') + '</span></span>' +
             '<span class="acao">' + esc(estado) + '</span>' +
             '<span class="num">estoque da peça <b>' + (g.estoqueGrupo === null ? '—' : n(g.estoqueGrupo)) + '</b>' +
               ' · ' + n(g.cadastrosZerados) + ' de ' + n(g.quantidadeCadastros) + ' zerados</span>' +
@@ -4379,10 +4400,11 @@ function renderProdutos() {
               (g.semIdentidade ? ' — código sem identidade utilizável, a peça fica sozinha de propósito' : '') + '</li></ul>' +
             '<div class="cadastros"><div class="titulo">Cadastros deste grupo</div>' +
               '<div class="rolo"><table><thead><tr><th>Cód. interno</th><th>Cód. de fábrica</th>' +
-              '<th>Base</th><th class="dir">Estoque</th><th>Curva</th></tr></thead><tbody>' +
+              '<th>Base</th><th>Marca</th><th class="dir">Estoque</th><th>Curva</th></tr></thead><tbody>' +
               g.cadastros.map((c) => '<tr><td><code>' + esc(c.codigoInterno) + '</code></td>' +
                 '<td>' + esc(c.codigoFabricaOriginal) + '</td>' +
                 '<td>' + esc(c.codigoFabricaBase) + '</td>' +
+                '<td>' + esc(c.marca || '—') + '</td>' +
                 '<td class="dir">' + (c.estoqueIndividual === null ? '—' : n(c.estoqueIndividual)) + '</td>' +
                 '<td>' + esc(c.curva || '—') + '</td></tr>').join('') +
               '</tbody></table></div></div>' + irmaos +
@@ -4398,6 +4420,7 @@ function renderProdutos() {
     bt.querySelector('.seta').textContent = aberto ? '▾' : '▴';
   }));
 
+  const comMarca = Q.gruposComMarcaConhecida;
   const linhaQ = (rot, val, obs) => '<tr><td style="width:44%">' + esc(rot) + '</td>' +
     '<td class="dir" style="width:16%;font-variant-numeric:tabular-nums"><b>' + val + '</b></td>' +
     '<td style="color:var(--tinta-3);font-size:12.5px">' + obs + '</td></tr>';
@@ -4413,6 +4436,10 @@ function renderProdutos() {
       'Código placeholder tipo N/E. Ficam isoladas em vez de juntar peças diferentes.'),
     linhaQ('Maior grupo', Q.maiorGrupo ? esc(Q.maiorGrupo.duplicateKey) + ' (' + Q.maiorGrupo.cadastros + ')' : '—',
       'Grupo grande demais costuma ser sinal de código repetido no ERP.'),
+    linhaQ('Peças com marca conhecida', n(comMarca) + ' de ' + n(P.grupos.length),
+      comMarca
+        ? 'Vem da tabela de marcas importada, casada pelo código interno. Sem ela o sistema não conclui cobertura entre grupos.'
+        : 'Nenhuma tabela de marcas importada. Sem marca, duas peças de fabricantes diferentes com o mesmo código não podem ser distinguidas.'),
     linhaQ('Mesmo código e descrição em dois grupos', n(Q.provavelMesmoProdutoEmDoisGrupos),
       'Pode ser cadastro duplicado ou marcas diferentes — a descrição vem truncada e não diz. Só a marca decide.'),
     linhaQ('Código base igual em produtos diferentes', n(Q.colisoesEntreProdutosDiferentes),

@@ -550,6 +550,27 @@ realmente não existem na loja.
 Resultado: **27.975 códigos com marca, 261 marcas** — contra as 61 do mapa manual. Em peças
 consolidadas, **5.046 de 5.578 ficam com marca (90,5%)**.
 
+Uma terceira passada abriu a página de cada uma das 5.220 peças do estoque e trouxe
+**montadora** e **aplicação**. Esses dois campos são consulta: aparecem no card e na auditoria,
+com a fonte declarada, e **nenhuma conta do motor olha para eles** — a regra R1 proíbe o
+sistema concluir que uma peça serve num veículo.
+
+### O que o login NÃO deu
+
+O acesso de cliente foi usado e o resultado precisa ficar registrado, para ninguém repetir a
+tentativa achando que vai dar em outra coisa:
+
+| Campo | Resultado |
+|---|---|
+| Preço / custo | `99999999.99` em todos os itens — sentinela do Magento para "sem preço". Testado em produto, listagem e com o CD `03`. **Não existe para esta conta.** |
+| `Cód. Original` | Preenche **zero** das 1.892 linhas vazias do relatório: os 967 que pareciam preenchidos eram `.`. Onde os dois têm o campo, são **100% idênticos** nos 4.150. |
+| `Cód. Fabricante` | **99,7% igual** ao `Cód. Produto` do relatório. As 18 diferenças são artefato (`3756.0`) ou sufixo de um lado só. |
+
+Tudo o que serve — marca, montadora, aplicação — aparece **deslogado**.
+
+As concordâncias de 100% e 99,7% acima são o subproduto valioso: são prova externa de que a
+junção pelo código interno de 10 dígitos está correta.
+
 O arquivo entra pela mesma porta do estoque (`Cód. Interno;Marca;Montadora`) e **não é
 versionado** — dado real não mora no repositório.
 

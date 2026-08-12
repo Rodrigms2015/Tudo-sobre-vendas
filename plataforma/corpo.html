@@ -2192,6 +2192,10 @@ function normalizarMovimentacao(linhas, iCab) {
 
 const NOMES_CODIGO = ['chave', 'codigo', 'cod', 'sku', 'codproduto', 'produto', 'referencia', 'ref', 'item', 'codinterno'];
 const NOMES_MARCA = ['marca', 'fabricante', 'manufacturer', 'brand', 'fornecedor', 'marcapreenchaaqui'];
+/* Colunas extras do catálogo da loja. Opcionais: quem importa só código e
+   marca continua funcionando exatamente como antes. */
+const NOMES_MONTADORA = ['montadora', 'veiculo', 'fabricantedoveiculo'];
+const NOMES_APLICACAO = ['aplicacao', 'aplicacoes', 'resumodeaplicacoes'];
 
 function ehTabelaDeMarcas(linhas) {
   for (let i = 0; i < Math.min(linhas.length, 25); i++) {
@@ -2212,8 +2216,13 @@ function normalizarTabelaDeMarcas(linhas, iCab) {
   const cab = linhas[iCab].map((c) => chave(c));
   const iCodigo = cab.findIndex((k) => NOMES_CODIGO.includes(k));
   const iMarca = cab.findIndex((k) => NOMES_MARCA.includes(k));
+  const iMontadora = cab.findIndex((k) => NOMES_MONTADORA.includes(k));
+  const iAplicacao = cab.findIndex((k) => NOMES_APLICACAO.includes(k));
   const porCodigo = {};
   const porChave = {};
+  /* Ficha do catálogo, separada da marca: ela é informação de consulta e não
+     entra em nenhuma conta do motor. */
+  const ficha = {};
   let lidas = 0, vazias = 0;
   for (let i = iCab + 1; i < linhas.length; i++) {
     const l = linhas[i];
@@ -2228,7 +2237,12 @@ function normalizarTabelaDeMarcas(linhas, iCab) {
     if (/^[PG]:/.test(codigo)) porChave[codigo] = marca.toUpperCase();
     else {
       const k = chave(codigo);
-      if (k) porCodigo[k] = marca.toUpperCase();
+      if (k) {
+        porCodigo[k] = marca.toUpperCase();
+        const montadora = iMontadora >= 0 ? String(l[iMontadora] ?? '').trim() : '';
+        const aplicacao = iAplicacao >= 0 ? String(l[iAplicacao] ?? '').trim() : '';
+        if (montadora || aplicacao) ficha[k] = { montadora, aplicacao };
+      }
     }
     lidas++;
   }
@@ -2236,7 +2250,7 @@ function normalizarTabelaDeMarcas(linhas, iCab) {
     throw new Error('Achei as colunas de codigo e marca, mas nenhuma linha tinha a marca preenchida' +
       (vazias ? ' (' + vazias + ' linhas vieram com o codigo e a marca em branco).' : '.'));
   }
-  return { porCodigo, porChave, lidas, vazias };
+  return { porCodigo, porChave, ficha, lidas, vazias };
 }
 
 /* Tenta o código interno, o do produto (com e sem variante fiscal) e o
@@ -3443,7 +3457,7 @@ const guardarEnvio = (e) => gravarVerificado(e, (r) => (r.itens || []).length);
 const guardarMapaMarcas = () => comLoja('readwrite', (l) => l.put({ id: '__marcas', mapa: estado.mapaMarcas }));
 const guardarQuantidades = () => comLoja('readwrite', (l) => l.put({ id: '__quantidades', mapa: estado.quantidades }));
 const guardarTabelaMarcas = (nome) => gravarVerificado(
-  { id: '__tabelaMarcas', nome, em: new Date().toISOString(), tabela: estado.tabelaMarcas },
+  { id: '__tabelaMarcas', nome, em: new Date().toISOString(), tabela: estado.tabelaMarcas, ficha: estado.fichaCatalogo },
   (r) => Object.keys(r.tabela || {}).length);
 
 const guardarMovimentos = (nome) => gravarVerificado(
@@ -3472,6 +3486,9 @@ const estado = {
   mapaMarcas: {},
   quantidades: {},
   tabelaMarcas: null,
+  /* Montadora e aplicação vindas do catálogo. Consulta rastreável, nunca
+     entrada de cálculo — nenhuma nota do motor olha para cá. */
+  fichaCatalogo: null,
   nomeTabelaMarcas: null,
   formatoMovimentos: null,
   rede: {},
@@ -3879,6 +3896,25 @@ function produtos() {
   return cacheProdutos;
 }
 
+/**
+ * Ficha de catálogo da peça: montadora e aplicação, casadas pelo código
+ * interno de qualquer cadastro do grupo.
+ *
+ * É CONSULTA, não entrada de cálculo. Nenhuma nota, nenhum recorte e nenhuma
+ * sugestão de compra olham para estes campos — a regra R1 proíbe o sistema
+ * concluir que uma peça serve num veículo, e aplicação de catálogo é
+ * exatamente o dado que tentaria fazer isso sozinho.
+ */
+function fichaDaPeca(g) {
+  const f = estado.fichaCatalogo;
+  if (!f) return null;
+  for (const c of g.codigosInternosDoGrupo) {
+    const achado = f[chave(c)];
+    if (achado && (achado.montadora || achado.aplicacao)) return achado;
+  }
+  return null;
+}
+
 function renderProdutos() {
   const P = produtos();
   const alvo = $('#listaProdutos');
@@ -3973,6 +4009,7 @@ function renderProdutos() {
           ? 'Embora ' + n(g.cadastrosZerados) + ' de ' + n(g.quantidadeCadastros) +
             ' cadastros estejam zerados, outro cadastro do mesmo grupo tem ' + n(g.estoqueGrupo) + ' unidades.'
           : 'Peça com ' + n(g.estoqueGrupo) + ' unidades.';
+        const ficha = fichaDaPeca(g);
         const irmaos = g.gruposIrmaos.length
           ? '<div class="cadastros"><div class="titulo">Mesmo código de fábrica em outro grupo de produto</div>' +
             '<ul>' + g.gruposIrmaos.map((i) => '<li><code>' + esc(i.duplicateKey) + '</code> — ' +
@@ -3991,7 +4028,8 @@ function renderProdutos() {
             '<span class="pos">' + (g.quantidadeCadastros > 1 ? g.quantidadeCadastros + '×' : '·') + '</span>' +
             '<span class="nome"><b>' + esc(g.denominacao || '(sem descrição)') + '</b>' +
               '<span>' + esc(g.codigoFabricaBase) + ' · grupo ' + esc(g.grupoProdutoNormalizado) +
-                (g.marca ? ' · ' + esc(g.marca) : '') + '</span></span>' +
+                (g.marca ? ' · ' + esc(g.marca) : '') +
+                (ficha && ficha.montadora ? ' · ' + esc(ficha.montadora) : '') + '</span></span>' +
             '<span class="acao">' + esc(estado) + '</span>' +
             '<span class="num"><b>' + (g.estoqueGrupo === null ? '—' : n(g.estoqueGrupo)) + '</b> un' +
               (g.quantidadeCadastros > 1
@@ -4014,6 +4052,13 @@ function renderProdutos() {
                 '<td class="dir">' + (c.estoqueIndividual === null ? '—' : n(c.estoqueIndividual)) + '</td>' +
                 '<td>' + esc(c.curva || '—') + '</td></tr>').join('') +
               '</tbody></table></div></div>' + irmaos +
+            (ficha && ficha.aplicacao
+              ? '<div class="cadastros"><div class="titulo">Aplicação declarada no catálogo</div>' +
+                '<p style="margin:0 0 6px">' + esc(ficha.aplicacao) +
+                (ficha.montadora ? ' <span style="color:var(--tinta-3)">· ' + esc(ficha.montadora) + '</span>' : '') + '</p>' +
+                '<p style="margin:0;font-size:12px;color:var(--tinta-3)">Texto do catálogo da Pacaembu, reproduzido como veio. ' +
+                'O sistema não conclui a partir dele que a peça serve num veículo — confira na aplicação oficial antes de prometer.</p></div>'
+              : '') +
           '</div></div>';
       }).join('') + '</div>'
     : '<p style="font-size:13px;color:var(--tinta-2);margin:0">Nenhuma peça neste recorte.</p>';
@@ -5159,6 +5204,9 @@ async function carregarArquivo(file) {
       if (nCodigos) {
         estado.tabelaMarcas = Object.assign({}, estado.tabelaMarcas || {}, lido.porCodigo);
         estado.nomeTabelaMarcas = nome;
+        if (lido.ficha && Object.keys(lido.ficha).length) {
+          estado.fichaCatalogo = Object.assign({}, estado.fichaCatalogo || {}, lido.ficha);
+        }
       }
       if (nChaves) Object.assign(estado.mapaMarcas, lido.porChave);
       let erroGrav = null;
@@ -5701,6 +5749,7 @@ function pacoteDeDados() {
     formatoMovimentos: estado.formatoMovimentos,
     mapaMarcas: estado.mapaMarcas,
     tabelaMarcas: estado.tabelaMarcas,
+    fichaCatalogo: estado.fichaCatalogo,
     nomeTabelaMarcas: estado.nomeTabelaMarcas,
     quantidades: estado.quantidades,
     rede: estado.rede,
@@ -5724,6 +5773,7 @@ async function aplicarPacote(pacote) {
   estado.formatoMovimentos = pacote.formatoMovimentos || null;
   estado.mapaMarcas = pacote.mapaMarcas || {};
   estado.tabelaMarcas = pacote.tabelaMarcas || null;
+  estado.fichaCatalogo = pacote.fichaCatalogo || null;
   estado.nomeTabelaMarcas = pacote.nomeTabelaMarcas || null;
   estado.quantidades = pacote.quantidades || {};
   estado.rede = pacote.rede || {};
@@ -6727,7 +6777,11 @@ $('#logo').src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAOAAAAB4CAIAAABk
     if (rede) estado.rede = rede.filiais || {};
     const eq = guardados.find((e) => e.id === '__equipe');
     if (eq) equipe.versao = Number(eq.versao) || 0;
-    if (tab) { estado.tabelaMarcas = tab.tabela || null; estado.nomeTabelaMarcas = tab.nome || null; }
+    if (tab) {
+      estado.tabelaMarcas = tab.tabela || null;
+      estado.nomeTabelaMarcas = tab.nome || null;
+      estado.fichaCatalogo = tab.ficha || null;
+    }
     if (marcas) estado.mapaMarcas = marcas.mapa || {};
     if (quantidades) estado.quantidades = quantidades.mapa || {};
     if (movs) { estado.movimentos = movs.movimentos || null; estado.nomeMovimentos = movs.nome || null; }

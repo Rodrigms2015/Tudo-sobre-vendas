@@ -4160,7 +4160,9 @@ const estado = {
   consumo: null,
   diasCobertura: 45,
   marcados: new Set(),
-  limite: 150,
+  /* 50 linhas iniciais. O comprador decide em lotes pequenos, e montar 150
+     fichas para ver as 10 primeiras é custo puro. "Mostrar mais" continua. */
+  limite: 50,
   ordem: { campo: 'prioridade', desc: true },
   /* `fonte` nasce em 'medida': a visão padrão mostra só o que tem venda real
      por trás. Estimativa é decisão de quem compra, não default do sistema. */
@@ -4954,7 +4956,7 @@ function renderHoje() {
       } else if (b.vista) { trocarVista(b.vista); }
       else {
         estado.filtros = { ...estado.filtros, ...b.filtro };
-        estado.limite = 150;
+        estado.limite = 50;
         sincronizarFiltros();
         trocarVista('comprar');
       }
@@ -5204,7 +5206,10 @@ function renderComprar() {
       '<td class="dir num"><b>' + (i.saldo === null ? '—' : n(i.saldo)) + '</b></td>' +
       '<td class="dir">' + campoQuantidade(i) + '</td>' +
       '</tr>' +
-      '<tr class="expandivel oculto" data-detalhe="' + esc(id) + '"><td colspan="' + (fixaSituacao ? 10 : 11) + '">' + detalheItem(i) + '</td></tr>';
+      /* O detalhe NÃO nasce montado. Ele era o grosso dos 11.304 elementos da
+         aba Comprar: 150 fichas completas construídas para ficarem ocultas.
+         Agora nasce uma célula vazia e o conteúdo entra no primeiro clique. */
+      '<tr class="expandivel oculto" data-detalhe="' + esc(id) + '"><td colspan="' + (fixaSituacao ? 10 : 11) + '"></td></tr>';
   }).join('');
 
   if (!mostrados.length) {
@@ -5216,12 +5221,19 @@ function renderComprar() {
     ? '<button class="bt" id="btMais">Mostrar mais ' + Math.min(150, lista.length - estado.limite) + ' (de ' + n(lista.length - estado.limite) + ' restantes)</button>'
     : (lista.length ? '<span class="sobrancelha">fim da lista — ' + n(lista.length) + ' itens</span>' : '');
   const btMais = $('#btMais');
-  if (btMais) btMais.addEventListener('click', () => { estado.limite += 150; renderComprar(); });
+  if (btMais) btMais.addEventListener('click', () => { estado.limite += 50; renderComprar(); });
 
   $$('#corpoLista tr.linha').forEach((tr) => tr.addEventListener('click', (ev) => {
     if (ev.target.closest('input')) return;
     const alvo = document.querySelector('[data-detalhe="' + CSS.escape(tr.dataset.id) + '"]');
-    if (alvo) alvo.classList.toggle('oculto');
+    if (!alvo) return;
+    /* Constrói na primeira abertura e guarda. Fechar e reabrir não remonta. */
+    const cel = alvo.firstElementChild;
+    if (cel && !cel.dataset.montado) {
+      const item = itens().find((x) => (x.interno || x.produto) === tr.dataset.id);
+      if (item) { cel.innerHTML = detalheItem(item); cel.dataset.montado = '1'; }
+    }
+    alvo.classList.toggle('oculto');
   }));
   const aplicarQtd = async (id, valor) => {
     const item = itens().find((x) => (x.interno || x.produto) === id);
@@ -6173,12 +6185,9 @@ function trocarVista(vista) {
     v.classList.toggle('ativa', ativa);
     v.hidden = !ativa;
   });
-  if (vista === 'produtos') { renderProdutos(); renderReconciliacao(); }
-  if (vista === 'hoje') renderHoje();
-  if (vista === 'painel') renderEvolucao();
-  if (vista === 'dados') { renderDados(); renderConferir(); }
-  if (vista === 'demanda') renderDemanda();
-  if (vista === 'rede') renderRede();
+  /* Monta só se estiver suja. Reabrir uma aba já montada é troca de
+     `hidden`, sem custo. */
+  if (vistasSujas.has(vista) || !RENDER_DA_VISTA[vista]) renderVista(vista);
 }
 
 function sincronizarFiltros() {
@@ -6191,7 +6200,7 @@ function sincronizarFiltros() {
   $('#fNota').value = String(f.nota);
   $('#fAgrupar').value = estado.agrupar ? '1' : '0';
   $('#fCoberturaCompra').value = String(estado.diasCobertura);
-  estado.limite = 150;
+  estado.limite = 50;
   renderComprar();
 }
 
@@ -6397,26 +6406,85 @@ function renderConferir() {
   alvo.innerHTML = nota + blocos;
 }
 
+/* ── Renderização por aba ────────────────────────────────────────────
+   Renderizar as oito abas a cada mudança de dado levava o documento a 23.055
+   elementos, com a Comprar sozinha em 11.304 — e sete oitavos disso invisível.
+   Agora só a aba ATIVA é montada; as outras ficam marcadas como sujas e são
+   montadas quando alguém abre.
+
+   Os selos são exceção: eles aparecem na barra de abas o tempo todo, então
+   são contados sempre — mas contar é varrer um array, não montar DOM. */
+const vistasSujas = new Set();
+const RENDER_DA_VISTA = {
+  produtos: () => { renderProdutos(); renderReconciliacao(); },
+  hoje: () => renderHoje(),
+  painel: () => { renderPainel(); renderEvolucao(); },
+  comprar: () => renderComprar(),
+  oportunidades: () => renderOportunidades(),
+  demanda: () => renderDemanda(),
+  rede: () => renderRede(),
+  dados: () => { renderDados(); renderConferir(); },
+};
+
+function vistaAtiva() {
+  const a = $$('.aba').find((x) => x.getAttribute('aria-selected') === 'true');
+  return a ? a.dataset.vista : 'produtos';
+}
+
+function renderVista(vista) {
+  const f = RENDER_DA_VISTA[vista];
+  if (!f) return;
+  f();
+  vistasSujas.delete(vista);
+}
+
+/** Marca todas as abas para remontar. A ativa remonta na hora. */
+function invalidarVistas() {
+  for (const k of Object.keys(RENDER_DA_VISTA)) vistasSujas.add(k);
+}
+
+/**
+ * Contagem dos selos sem montar tela. Cada um é uma varredura de array —
+ * barato o bastante para rodar sempre, ao contrário de montar a lista.
+ */
+function atualizarSelos() {
+  const L = itens();
+  const P = produtos();
+  if (P) {
+    const R = P.resumo;
+    $('#seloProdutos').textContent = n(R.gruposEmRupturaReal - R.gruposCobertosPorGrupoIrmao);
+  } else $('#seloProdutos').textContent = '0';
+
+  const plano = planoDeAcao();
+  $('#seloHoje').textContent = plano ? n(plano.blocos.length) : '0';
+  $('#seloComprar').textContent = n(filtrar().length);
+  $('#seloOport').textContent = n(L.filter((i) => i.situacao === 'EXCESSO').length);
+  const R = analisarRede();
+  $('#seloRede').textContent = R ? n(R.faltaAB.length) : '0';
+
+  /* Demanda: mesma regra de `renderDemanda`, contada sem montar a tela.
+     Ficou 0 quando parei de renderizar todas as abas na carga — o selo vivia
+     dentro do render. Contar e desenhar são coisas diferentes. */
+  const temMov = !!estado.resumoDemanda;
+  $('#seloDemanda').textContent = temMov
+    ? n(L.filter((i) => i.situacao === 'RUPTURA' && i.demandaUsada &&
+        (estado.agrupar ? i.ehRepresentante || i.repetidos === 1 : true)).length)
+    : '0';
+}
+
 function renderTudo() {
   const temDados = itens().length > 0;
   $('#semDados').classList.toggle('oculto', temDados);
   $$('.vista').forEach((v) => { if (temDados) v.classList.remove('oculto'); else v.classList.add('oculto'); });
   renderEstado();
-  if (!temDados) { $('#seloComprar').textContent = '0'; $('#seloOport').textContent = '0'; atualizarCarrinho(); return; }
+  if (!temDados) {
+    $('#seloComprar').textContent = '0'; $('#seloOport').textContent = '0';
+    atualizarCarrinho(); return;
+  }
   montarSelects();
-  renderProdutos();
-  renderReconciliacao();
-  renderHoje();
-  renderPainel();
-  renderComprar();
-  renderOportunidades();
-  $('#seloOport').textContent = n(itens().filter((i) => i.situacao === 'EXCESSO').length);
-  const ativa = $$('.aba').find((a) => a.getAttribute('aria-selected') === 'true');
-  const vista = ativa ? ativa.dataset.vista : 'painel';
-  if (vista === 'painel') renderEvolucao();
-  if (vista === 'dados') renderDados();
-  renderRede();
-  renderDemanda();
+  invalidarVistas();
+  atualizarSelos();
+  renderVista(vistaAtiva());
   atualizarCarrinho();
 }
 
@@ -6466,11 +6534,11 @@ const zona = $('#zonaSolta');
 document.addEventListener('drop', (e) => { if (e.dataTransfer.files[0]) carregarArquivo(e.dataTransfer.files[0]); });
 
 const liga = (id, ev, fn) => $(id).addEventListener(ev, fn);
-liga('#fBusca', 'input', (e) => { estado.filtros.busca = e.target.value; estado.limite = 150; renderComprar(); });
+liga('#fBusca', 'input', (e) => { estado.filtros.busca = e.target.value; estado.limite = 50; renderComprar(); });
 ['fSituacao', 'fCurva', 'fClasse', 'fDesvio'].forEach((id) =>
   liga('#' + id, 'change', (e) => { estado.filtros[id.slice(1).charAt(0).toLowerCase() + id.slice(2)] = e.target.value; estado.limite = 150; renderComprar(); }));
-liga('#fNota', 'change', (e) => { estado.filtros.nota = Number(e.target.value); estado.limite = 150; renderComprar(); });
-liga('#fAgrupar', 'change', (e) => { estado.agrupar = e.target.value === '1'; estado.limite = 150; renderComprar(); });
+liga('#fNota', 'change', (e) => { estado.filtros.nota = Number(e.target.value); estado.limite = 50; renderComprar(); });
+liga('#fAgrupar', 'change', (e) => { estado.agrupar = e.target.value === '1'; estado.limite = 50; renderComprar(); });
 liga('#fCoberturaCompra', 'change', (e) => { estado.diasCobertura = Number(e.target.value); recalcular(); renderTudo(); });
 liga('#btLimpar', 'click', () => {
   estado.filtros = { busca: '', situacao: '', curva: '', classe: '', desvio: '', nota: 0 };

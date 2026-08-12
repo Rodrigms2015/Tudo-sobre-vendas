@@ -935,6 +935,39 @@
   .ajuda .corpo ol { margin: 0 0 9px; padding-left: 20px; }
   .ajuda .corpo li { margin-bottom: 5px; }
 
+  /* ── Busca global ────────────────────────────────────────────────
+     Fixa no topo, presente em toda aba: procurar uma peça é a coisa que o
+     comprador mais faz, e trocar de aba para procurar é atrito puro. */
+  .busca-global { position: relative; flex: 1 1 260px; max-width: 380px; min-width: 180px; }
+  .busca-global input {
+    width: 100%; height: 42px; padding: 0 12px; font-size: 14px;
+    color: #fff; background: rgba(255, 255, 255, .10);
+    border: 1px solid rgba(255, 255, 255, .22); border-radius: 8px;
+  }
+  .busca-global input::placeholder { color: rgba(255, 255, 255, .62); }
+  .busca-global input:focus { background: rgba(255, 255, 255, .18); border-color: rgba(255, 255, 255, .5); }
+  #resultadoGlobal {
+    position: absolute; z-index: 60; top: calc(100% + 6px); left: 0; right: 0;
+    max-height: 60vh; overflow-y: auto; background: var(--papel);
+    border: 1px solid var(--borda); border-radius: 10px;
+    box-shadow: 0 12px 34px rgba(11, 59, 125, .22); padding: 5px;
+  }
+  #resultadoGlobal .achado {
+    display: block; width: 100%; text-align: left; padding: 9px 10px; min-height: 44px;
+    background: none; border: 0; border-radius: 7px; cursor: pointer; font: inherit; color: inherit;
+  }
+  #resultadoGlobal .achado:hover, #resultadoGlobal .achado[aria-selected="true"] { background: var(--chao); }
+  #resultadoGlobal .achado b { display: block; font-size: 13.5px; }
+  #resultadoGlobal .achado span { font-size: 11.5px; color: var(--tinta-3); }
+  #resultadoGlobal .vazio-busca { padding: 12px 10px; font-size: 13px; color: var(--tinta-2); }
+  .oculto-visual {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+  }
+  @media (max-width: 720px) {
+    .busca-global { flex: 1 1 100%; max-width: none; order: 5; }
+  }
+
   .oculto { display: none !important; }
 
   @media (max-width: 700px) {
@@ -963,6 +996,12 @@
     </div>
     <div class="topo-dir">
       <div class="estado-fichas" id="estadoFichas"></div>
+      <div class="busca-global">
+        <label for="buscaGlobal" class="oculto-visual">Procurar peça</label>
+        <input id="buscaGlobal" type="search" autocomplete="off" role="combobox" aria-expanded="false"
+               aria-controls="resultadoGlobal" placeholder="Procurar por código, descrição ou marca" />
+        <div id="resultadoGlobal" role="listbox" class="oculto"></div>
+      </div>
       <button class="bt bt-claro bt-mini" id="btImportarTopo" type="button">Carregar arquivo</button>
       <a class="bt bt-claro bt-mini bt-sair" id="btSair" href="/sair" hidden>Sair</a>
     </div>
@@ -1562,9 +1601,10 @@
   </div>
   <div class="modal-corpo">
     <p class="nota" id="modalNota" style="font-size:13px;color:var(--tinta-3);margin-bottom:11px"></p>
-    <textarea class="saida" id="modalTexto" readonly></textarea>
+    <div id="modalFicha" class="oculto"></div>
+    <div id="modalCaixaTexto"><textarea class="saida" id="modalTexto" readonly></textarea></div>
   </div>
-  <div class="modal-pe">
+  <div class="modal-pe" id="modalPe">
     <button class="bt" id="btCopiar" type="button">Copiar texto</button>
     <button class="bt" id="btBaixarCsv" type="button">Baixar CSV</button>
     <button class="bt bt-forte" id="btImprimir" type="button">Imprimir / PDF</button>
@@ -5149,6 +5189,145 @@ function renderReconciliacao() {
   });
 }
 
+/* ─── 14b. Busca global e ficha da peça ──────────────────────────────
+   Procurar uma peça é a operação mais frequente do dia, e antes ela exigia
+   escolher a aba certa antes de saber onde a peça estava. A busca é fixa no
+   topo, procura pelos cinco campos que a pessoa tem na mão e abre uma ficha
+   única — consolidada, com o porquê junto. */
+
+/** Procura por código interno, código do produto, código original, descrição e marca. */
+function procurarPecas(texto, limite = 12) {
+  const t = semAcento(String(texto || '')).toUpperCase().trim();
+  if (t.length < 2) return [];
+  const P = produtos();
+  if (!P) return [];
+  const achados = [];
+  for (const g of P.grupos) {
+    const alvo = semAcento(
+      g.codigoFabricaBase + ' ' + g.denominacao + ' ' + g.marca + ' ' +
+      g.codigosInternosDoGrupo.join(' ') + ' ' + g.codigosFabricaOriginaisDoGrupo.join(' ') + ' ' +
+      g.cadastros.map((c) => c.codigoOriginal).join(' ')).toUpperCase();
+    if (!alvo.includes(t)) continue;
+    achados.push(g);
+    if (achados.length >= limite) break;
+  }
+  return achados;
+}
+
+/** O item analisado de um cadastro do grupo, para trazer venda e prioridade. */
+function itemDoGrupo(g) {
+  const porInterno = new Map(itens().map((i) => [String(i.interno), i]));
+  for (const c of g.codigosInternosDoGrupo) {
+    const it = porInterno.get(String(c));
+    if (it) return it;
+  }
+  return null;
+}
+
+/**
+ * Ficha única da peça. Tudo o que se sabe, com a origem de cada número e a
+ * lacuna onde não se sabe. Nada aqui é inferido.
+ */
+function fichaDaPecaCompleta(g) {
+  const it = itemDoGrupo(g);
+  const d = it && it.demandaUsada;
+  const cat = fichaDaPeca(g);
+  const irmas = filiaisIrmas();
+  const kRede = semSufixo((it && it.produto) || g.codigoFabricaBase).toUpperCase();
+  const comSaldo = irmas
+    .map((f) => ({ nome: f.nome, p: f.pecas[kRede] }))
+    .filter((x) => x.p && (x.p.s || 0) > 0);
+
+  const linha = (rot, val) => '<tr><td style="width:38%;color:var(--tinta-3)">' + esc(rot) + '</td><td><b>' + val + '</b></td></tr>';
+  const faltando = [];
+  if (!d) faltando.push('venda medida (item fora do recorte da movimentação)');
+  if (!g.marca) faltando.push('marca (importe a tabela do catálogo)');
+  if (!irmas.length) faltando.push('estoque das filiais irmãs');
+  if (!temCusto()) faltando.push('custo — nenhum relatório carregado traz a coluna');
+
+  const cobertura = d && d.porDia > 0 && g.estoqueGrupo !== null
+    ? Math.floor(g.estoqueGrupo / d.porDia) : null;
+
+  return '<div class="ficha-peca">' +
+    '<div class="sobrancelha">' + esc(g.codigoFabricaBase) + (g.marca ? ' · ' + esc(g.marca) : '') + '</div>' +
+    '<h3 style="margin:2px 0 10px">' + esc(g.denominacao || '(sem descrição)') + '</h3>' +
+    '<div class="rolo"><table><tbody>' +
+    linha('Saldo consolidado', g.estoqueGrupo === null ? '— <span style="font-weight:400;color:var(--tinta-3)">saldo ilegível</span>' : emUnidades(g.estoqueGrupo)) +
+    linha('Variantes fiscais', emCadastros(g.quantidadeCadastros) +
+      (g.cadastrosZerados ? ' <span style="font-weight:400;color:var(--tinta-3)">· ' + g.cadastrosZerados + ' zerados</span>' : '')) +
+    linha('Venda medida', d ? emUnidades(Math.round(d.unidades)) + ' <span style="font-weight:400;color:var(--tinta-3)">em ' + plural(d.pedidos, 'pedido', 'pedidos') + '</span>' : '— <span style="font-weight:400;color:var(--tinta-3)">não medida</span>') +
+    linha('Última venda', d ? haDias(d.diasSemVender) + (estado.resumoDemanda ? ' <span style="font-weight:400;color:var(--tinta-3)">(referência: ' + dataBr(estado.resumoDemanda.fimISO || envioAtual().dataISO) + ')</span>' : '') : '—') +
+    linha('Cobertura', cobertura === null ? '— <span style="font-weight:400;color:var(--tinta-3)">sem ritmo medido</span>' : plural(cobertura, 'dia', 'dias')) +
+    linha('Filiais com saldo', irmas.length
+      ? (comSaldo.length ? comSaldo.map((x) => esc(x.nome) + ' (' + x.p.s + ')').join(', ') : 'nenhuma das ' + emFiliais(irmas.length))
+      : '— <span style="font-weight:400;color:var(--tinta-3)">nenhuma filial irmã carregada</span>') +
+    (cat && cat.montadora ? linha('Montadora', esc(cat.montadora)) : '') +
+    '</tbody></table></div>' +
+    '<div class="cadastros" style="margin-top:12px"><div class="titulo">Recomendação</div>' +
+    (it && it.sugestao
+      ? '<p style="margin:0 0 6px"><b>' + (it.sugestao.qtd > 0 ? 'Comprar ' + emUnidades(it.sugestao.qtd) : 'Não comprar agora') + '</b>' +
+        ' <span class="etiqueta" data-tom="' + (it.sugestao.fonte === FONTE.MEDIDA ? 'critico' : 'neutro') + '">' +
+        (it.sugestao.fonte === FONTE.MEDIDA ? 'venda real' : 'estimativa') + '</span></p>' +
+        '<p style="margin:0;font-size:12.5px;color:var(--tinta-2)">' + esc(it.sugestao.texto) + '</p>'
+      : '<p style="margin:0;font-size:12.5px;color:var(--tinta-2)">Sem recomendação: este cadastro não entrou na análise de compra.</p>') +
+    '</div>' +
+    (faltando.length
+      ? '<div class="cadastros" style="margin-top:10px"><div class="titulo">O que não se sabe desta peça</div>' +
+        '<ul style="margin:0">' + faltando.map((f) => '<li>' + esc(f) + '</li>').join('') + '</ul></div>'
+      : '') +
+    '</div>';
+}
+
+function ligarBuscaGlobal() {
+  const campo = $('#buscaGlobal');
+  const caixa = $('#resultadoGlobal');
+  if (!campo || !caixa) return;
+
+  const fechar = () => { caixa.classList.add('oculto'); campo.setAttribute('aria-expanded', 'false'); };
+  const desenhar = () => {
+    const achados = procurarPecas(campo.value);
+    if (!campo.value.trim() || campo.value.trim().length < 2) return fechar();
+    caixa.classList.remove('oculto');
+    campo.setAttribute('aria-expanded', 'true');
+    if (!achados.length) {
+      caixa.innerHTML = '<p class="vazio-busca">Nenhuma peça com “' + esc(campo.value) + '”. ' +
+        'A busca cobre código interno, código do produto, código original, descrição e marca.</p>';
+      return;
+    }
+    caixa.innerHTML = achados.map((g, idx) =>
+      '<button class="achado" type="button" role="option" aria-selected="false" data-chave="' + esc(g.duplicateKey) + '">' +
+      '<b>' + esc(g.denominacao || '(sem descrição)') + '</b>' +
+      '<span>' + esc(g.codigoFabricaBase) + (g.marca ? ' · ' + esc(g.marca) : '') +
+      ' · ' + (g.estoqueGrupo === null ? 'saldo ilegível' : emUnidades(g.estoqueGrupo)) +
+      ' · ' + emCadastros(g.quantidadeCadastros) + '</span></button>').join('');
+    $$('#resultadoGlobal .achado').forEach((bt) => bt.addEventListener('click', () => {
+      const g = (produtos().grupos || []).find((x) => x.duplicateKey === bt.dataset.chave);
+      if (!g) return;
+      fechar();
+      abrirFicha(g);
+    }));
+  };
+
+  campo.addEventListener('input', desenhar);
+  campo.addEventListener('focus', desenhar);
+  campo.addEventListener('keydown', (ev) => { if (ev.key === 'Escape') { fechar(); campo.blur(); } });
+  document.addEventListener('click', (ev) => {
+    if (!ev.target.closest('.busca-global')) fechar();
+  });
+}
+
+function abrirFicha(g) {
+  $('#modalTitulo').textContent = g.denominacao || g.codigoFabricaBase;
+  $('#modalNota').textContent = 'Ficha consolidada · ' + g.duplicateKey;
+  const corpo = $('#modalFicha');
+  if (corpo) { corpo.innerHTML = fichaDaPecaCompleta(g); corpo.classList.remove('oculto'); }
+  const cx = $('#modalCaixaTexto');
+  if (cx) cx.classList.add('oculto');
+  /* A ficha não exporta nada: os botões de copiar e baixar não se aplicam. */
+  $('#modalPe').classList.add('oculto');
+  $('#modal').showModal();
+}
+
 /* ─── 15. Lista de compra ────────────────────────────────────────── */
 
 function renderComprar() {
@@ -5925,6 +6104,11 @@ function pedidosPorFornecedor(lista) {
 }
 
 function abrirModal(titulo, nota, texto, csv, nomeCsv) {
+  /* O modal serve a dois usos: exportação (texto + CSV) e ficha da peça.
+     Cada um esconde o que é do outro, senão sobra caixa de texto vazia. */
+  $('#modalFicha').classList.add('oculto');
+  $('#modalCaixaTexto').classList.remove('oculto');
+  $('#modalPe').classList.remove('oculto');
   $('#modalTitulo').textContent = titulo;
   $('#modalNota').textContent = nota;
   $('#modalTexto').value = texto;
@@ -6489,6 +6673,8 @@ function renderTudo() {
 }
 
 /* ─── 23. Ligações ───────────────────────────────────────────────── */
+
+ligarBuscaGlobal();
 
 $$('.aba').forEach((a) => a.addEventListener('click', () => trocarVista(a.dataset.vista)));
 

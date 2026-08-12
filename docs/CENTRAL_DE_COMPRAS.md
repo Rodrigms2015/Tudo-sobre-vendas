@@ -100,9 +100,23 @@ cadastrada em dois grupos** vira duas peças. São 5 códigos base em 5.545 no a
 
 O motor não junta por conta própria (juntar ressuscitaria as colisões acima) e também não
 finge que o caso não existe. Ele liga os grupos que compartilham o código base
-(`gruposIrmaos`) e, quando a **descrição também é a mesma**, marca `cobertoPorGrupoIrmao`: a
-peça sai da ruptura e passa a aparecer como cadastro duplicado, com a ligação visível no card.
-Descrição diferente não cobre nada — ali o código só coincide.
+(`gruposIrmaos`) e classifica a ligação em três desfechos, pela prova disponível:
+
+| Desfecho | Quando | Efeito |
+|---|---|---|
+| `cobertoPorGrupoIrmao` | mesma descrição **e mesma marca comprovada**, com saldo | sai da lista de compra |
+| `conferirGrupoIrmao` | mesma descrição, **marca desconhecida** | continua na fila, com a dúvida escrita |
+| — | descrição diferente, ou marca diferente | o código só coincide |
+
+**A primeira versão desta regra estava errada e foi publicada.** Ela concluía duplicata só com
+descrição igual. O catálogo da loja desmentiu no primeiro cruzamento: dos 8 códigos base que
+caem em dois grupos e têm marca dos dois lados, **os 8 são marcas diferentes e nenhum é
+duplicata** — `8PK1700` é AGRO-GATES contra AGRO-DAYCO, `9PK2140` é GATES contra CONTITECH,
+`214` é BINS contra MBU. A descrição vem truncada em 19 caracteres e nunca carregou a marca.
+Suprimir a compra ali deixa sem atendimento quem pede a outra marca.
+
+Marca ausente não é sinal verde: `mesmaMarca` vale `null` quando falta o dado de um dos lados,
+porque "não sei" e "diferente" levam a decisões opostas (R3).
 
 O recorte **"Mesma peça cadastrada em dois grupos"**, na aba Produtos, é a lista para corrigir
 no Opus.
@@ -514,8 +528,43 @@ cadastro com a participação dela no mercado.
 
 ## 5. Marcas
 
-O catálogo de 61 marcas vem do site da própria Pacaembu (pabu.com.br). A marca de cada item
-sai de três lugares, nesta ordem:
+### O catálogo completo, tirado do site
+
+O `pabu.com.br` é a loja Magento da própria Pacaembu, e ela resolve o que o relatório do Opus
+não traz. A URL de cada produto carrega o **mesmo código interno de 10 dígitos** do relatório
+(`pabu.com.br/4504000212-filtro-ar-secundario.html`), e a página de categoria já traz, por
+produto, `data-product-sku` + **Marca** + **Montadora**. É junção exata, sem heurística.
+
+A coleta foi feita em duas fases, ambas sem falha:
+
+| Fase | Requisições | Resultado |
+|---|---:|---|
+| Categorias de veículo | 1.109 páginas | 25.369 produtos, 16,8 min |
+| Busca por código | 6.770 buscas | +2.606 produtos, 56,4 min |
+
+A varredura por categoria veio íntegra — caminhão 19.743 de 19.743, ônibus 13.693 de 13.693,
+sem cap de paginação. A segunda fase existiu porque **parte dos produtos não está classificada
+em nenhuma categoria de veículo**; só a busca os alcança. Sobram 4.166 códigos do estoque que
+realmente não existem na loja.
+
+Resultado: **27.975 códigos com marca, 261 marcas** — contra as 61 do mapa manual. Em peças
+consolidadas, **5.046 de 5.578 ficam com marca (90,5%)**.
+
+O arquivo entra pela mesma porta do estoque (`Cód. Interno;Marca;Montadora`) e **não é
+versionado** — dado real não mora no repositório.
+
+Duas coisas que ficaram de fora de propósito:
+
+- **Grafias divergentes não são unificadas.** A loja escreve `CONTITECH` e `CONTITECH
+  CORREIAS`, `O.M` e `OM`, `BOSCH DIESEL` e `BOSCH-DIESEL ELETRON` — 5 grupos em 261. A
+  comparação é exata porque ela erra para o lado seguro: no máximo mantém uma peça na fila
+  para conferência, nunca some com uma compra legítima.
+- **Aplicação e montadora não viram afirmação técnica.** A página traz "Resumo de aplicações",
+  mas nada na interface conclui que uma peça serve num veículo — é a regra R1 do `CLAUDE.md`.
+
+### A ordem de precedência
+
+A marca de cada item sai de três lugares, nesta ordem:
 
 **1. O mapa que o usuário definiu** (aba Marcas). Ele conhece o fornecedor; a regra
 automática só conhece o formato do código. Por isso o mapa manual sempre vence.

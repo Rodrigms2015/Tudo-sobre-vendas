@@ -474,3 +474,58 @@ describe('a marca da peça não sai do cadastro de maior saldo', () => {
     expect(q.gruposComMarcasDivergentes).toBe(0);
   });
 });
+
+describe('CASO 4 (caracterização) — variantes fiscais somam saldo E venda', () => {
+  /* O saldo é somado pelo motor. A venda é somada por quem consome o motor,
+     usando os códigos internos do grupo — este teste fixa esse contrato. */
+  const grupos = agruparCadastros([
+    reg('0840201180', '4644TX-140C', '000084', '0', 'Correia dentada'),
+    reg('0849972248', '4644TX-140C[5]', '000084', '27', 'Correia dentada'),
+    reg('0849972249', '4644TX-140C[2]', '000084', '13', 'Correia dentada'),
+  ]);
+
+  it('soma o saldo das três variantes numa peça só', () => {
+    expect(grupos).toHaveLength(1);
+    expect(grupos[0].estoqueGrupo).toBe(40);
+  });
+
+  it('expõe os códigos internos para que a venda seja somada pelos mesmos cadastros', () => {
+    const vendaPorCadastro: Record<string, number> = {
+      '0840201180': 12, '0849972248': 9, '0849972249': 8,
+    };
+    const venda = grupos[0].codigosInternosDoGrupo.reduce((s, c) => s + (vendaPorCadastro[c] || 0), 0);
+    expect(grupos[0].codigosInternosDoGrupo).toHaveLength(3);
+    expect(venda).toBe(29);
+  });
+});
+
+describe('CASO 7 (caracterização) — descrição parecida NUNCA une duas peças', () => {
+  it('não une códigos diferentes só porque a descrição é idêntica', () => {
+    const grupos = agruparCadastros([
+      reg('1', 'AF4223', '000032', '0', 'Elemento filtro ar'),
+      reg('2', 'CF21540', '000032', '9', 'Elemento filtro ar'),
+    ]);
+    expect(grupos).toHaveLength(2);
+    const zerado = grupos.find((g) => g.codigoFabricaBase === 'AF4223');
+    expect(zerado?.rupturaReal).toBe(true);
+    expect(zerado?.estoqueGrupo).toBe(0);
+  });
+
+  it('não une por prefixo, contains nem startsWith', () => {
+    const grupos = agruparCadastros([
+      reg('1', 'WK1080', '000032', '0', 'Filtro combustivel'),
+      reg('2', 'WK10801', '000032', '5', 'Filtro combustivel'),
+      reg('3', 'WK108', '000032', '3', 'Filtro combustivel'),
+    ]);
+    expect(grupos).toHaveLength(3);
+  });
+
+  it('descrição truncada igual não basta: o código base manda', () => {
+    const grupos = agruparCadastros([
+      reg('1', '8PK1400HD', '000271', '0', 'Correia micro V VB/'),
+      reg('2', '8PK1475HD', '000271', '11', 'Correia micro V VB/'),
+    ]);
+    expect(grupos).toHaveLength(2);
+    expect(grupos.find((g) => g.codigoFabricaBase === '8PK1400HD')?.rupturaReal).toBe(true);
+  });
+});

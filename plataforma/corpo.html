@@ -962,14 +962,14 @@
 
 <nav class="abas" aria-label="Seções">
   <div class="abas-interno" role="tablist">
-    <button class="aba" role="tab" data-vista="produtos" aria-selected="true" title="A peça consolidada: cadastros somados, ruptura no grupo, auditoria linha a linha">Produtos <span class="selo" id="seloProdutos">0</span></button>
-    <button class="aba" role="tab" data-vista="hoje" aria-selected="false" title="A fila de decisões do dia, em ordem de prejuízo">Hoje <span class="selo" id="seloHoje">0</span></button>
-    <button class="aba" role="tab" data-vista="painel" aria-selected="false">Painel</button>
-    <button class="aba" role="tab" data-vista="comprar" aria-selected="false" title="Itens que passam nos filtros da lista de compra agora">Comprar <span class="selo" id="seloComprar">0</span></button>
-    <button class="aba" role="tab" data-vista="oportunidades" aria-selected="false" title="Itens com saldo alto e giro baixo — o que os vendedores têm para empurrar">Oportunidades <span class="selo" id="seloOport">0</span></button>
-    <button class="aba" role="tab" data-vista="demanda" aria-selected="false" title="Itens zerados que tiveram venda comprovada — a compra que não pode esperar">Demanda <span class="selo" id="seloDemanda">0</span></button>
-    <button class="aba" role="tab" data-vista="rede" aria-selected="false" title="Comparação com as filiais irmãs: curva, quantidade e o que pedir de abastecimento">Rede <span class="selo" id="seloRede">0</span></button>
-    <button class="aba" role="tab" data-vista="dados" aria-selected="false" title="O que está carregado, o que está gravado e a qualidade do cadastro">Situação</button>
+    <button class="aba" role="tab" data-vista="produtos" aria-controls="vista-produtos" id="aba-produtos" aria-selected="true" title="A peça consolidada: cadastros somados, ruptura no grupo, auditoria linha a linha">Produtos <span class="selo" id="seloProdutos">0</span></button>
+    <button class="aba" role="tab" data-vista="hoje" aria-controls="vista-hoje" id="aba-hoje" aria-selected="false" title="A fila de decisões do dia, em ordem de prejuízo">Hoje <span class="selo" id="seloHoje">0</span></button>
+    <button class="aba" role="tab" data-vista="painel" aria-controls="vista-painel" id="aba-painel" aria-selected="false">Painel</button>
+    <button class="aba" role="tab" data-vista="comprar" aria-controls="vista-comprar" id="aba-comprar" aria-selected="false" title="Itens que passam nos filtros da lista de compra agora">Comprar <span class="selo" id="seloComprar">0</span></button>
+    <button class="aba" role="tab" data-vista="oportunidades" aria-controls="vista-oportunidades" id="aba-oportunidades" aria-selected="false" title="Itens com saldo alto e giro baixo — o que os vendedores têm para girar">Oportunidades <span class="selo" id="seloOport">0</span></button>
+    <button class="aba" role="tab" data-vista="demanda" aria-controls="vista-demanda" id="aba-demanda" aria-selected="false" title="Itens zerados que tiveram venda comprovada — a compra que não pode esperar">Demanda <span class="selo" id="seloDemanda">0</span></button>
+    <button class="aba" role="tab" data-vista="rede" aria-controls="vista-rede" id="aba-rede" aria-selected="false" title="Comparação com as filiais irmãs: curva, quantidade e o que pedir de abastecimento">Rede <span class="selo" id="seloRede">0</span></button>
+    <button class="aba" role="tab" data-vista="dados" aria-controls="vista-dados" id="aba-dados" aria-selected="false" title="O que está carregado, o que está gravado e a qualidade do cadastro">Situação</button>
   </div>
 </nav>
 
@@ -982,10 +982,24 @@
       <h3>Dois relatórios do Opus, na ordem que você quiser</h3>
       <p>
         Aceita <b>.xls</b>, <b>.pdf</b>, <b>.csv</b> e <b>.txt</b>, e reconhece sozinha qual arquivo é qual —
-        o estoque sai em Excel, a venda sai em PDF, e os dois entram pelo mesmo lugar. Tudo é lido
-        <b>dentro do seu navegador</b> e fica gravado só neste aparelho: nada vai para servidor nenhum,
-        e quem abrir este link vê esta tela, não os seus dados.
+        o estoque sai em Excel, a venda sai em PDF, e os dois entram pelo mesmo lugar. A leitura
+        acontece <b>dentro do seu navegador</b>: o arquivo em si nunca é enviado.
       </p>
+      <details class="ajuda" style="max-width:640px;margin:4px auto 0;text-align:left">
+        <summary>Para onde vão os dados</summary>
+        <div class="corpo">
+          <p><b>Fica só neste aparelho:</b> os arquivos que você carrega, o histórico de envios, as
+          quantidades que você ajusta e o mapa de marcas. Gravados no armazenamento do navegador.
+          Trocar de aparelho ou limpar o navegador começa do zero.</p>
+          <p><b>Vai para a base da equipe:</b> quando você clica em <b>Publicar para a equipe</b>, o
+          resultado consolidado — peças, saldos, curvas e quantidades — é enviado para o servidor
+          desta página e passa a valer para todos que entram com login.</p>
+          <p><b>Quando acontece:</b> só nesse clique. Nenhum envio automático, nenhum envio ao
+          carregar arquivo.</p>
+          <p><b>Quem acessa:</b> as pessoas com login nesta página. A leitura é feita antes de
+          qualquer byte sair do servidor — quem não entra não recebe a tela nem os dados.</p>
+        </div>
+      </details>
       <div class="passos" id="passos"></div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:4px">
         <button class="bt bt-forte" id="btEscolher" type="button">Escolher arquivo</button>
@@ -996,7 +1010,7 @@
   </section>
 
   <!-- ── PRODUTOS ────────────────────────────────────────────── -->
-  <section class="vista" id="vista-produtos">
+  <section class="vista" id="vista-produtos" role="tabpanel" aria-labelledby="aba-produtos" tabindex="0">
     <div class="secao">
       <div class="secao-topo">
         <h2>Linha cadastral não é peça</h2>
@@ -1047,10 +1061,18 @@
       </div>
       <div class="rolo"><table><tbody id="qualidadeImport"></tbody></table></div>
     </div>
+
+    <div class="secao">
+      <div class="secao-topo">
+        <h2>Estoque × movimentação</h2>
+        <span class="nota">Os dois recortes não coincidem. A diferença aparece inteira.</span>
+      </div>
+      <div id="reconciliacao"></div>
+    </div>
   </section>
 
   <!-- ── HOJE ────────────────────────────────────────────────── -->
-  <section class="vista" id="vista-hoje">
+  <section class="vista" id="vista-hoje" role="tabpanel" aria-labelledby="aba-hoje" tabindex="0">
     <div class="secao">
       <div class="secao-topo">
         <h2>O que precisa de decisão hoje</h2>
@@ -1089,7 +1111,7 @@
   </section>
 
   <!-- ── PAINEL ──────────────────────────────────────────────── -->
-  <section class="vista ativa" id="vista-painel" hidden>
+  <section class="vista ativa" id="vista-painel" role="tabpanel" aria-labelledby="aba-painel" tabindex="0" hidden>
         <div class="secao">
       <div class="placas" id="placasPainel"></div>
     </div>
@@ -1137,7 +1159,7 @@
   </section>
 
   <!-- ── COMPRAR ─────────────────────────────────────────────── -->
-  <section class="vista" id="vista-comprar" hidden>
+  <section class="vista" id="vista-comprar" role="tabpanel" aria-labelledby="aba-comprar" tabindex="0" hidden>
         <div class="secao">
       <div class="secao-topo">
         <h2>Lista de compra priorizada</h2>
@@ -1184,6 +1206,14 @@
             <option value="45" selected>45 dias</option>
             <option value="60">60 dias</option>
             <option value="90">90 dias</option>
+          </select>
+        </div>
+        <div class="campo">
+          <label for="fFonte">Base da sugestão</label>
+          <select id="fFonte">
+            <option value="medida" selected>Só venda real</option>
+            <option value="estimada">Só estimativa</option>
+            <option value="">As duas, separadas</option>
           </select>
         </div>
         <div class="campo">
@@ -1239,7 +1269,7 @@
   </section>
 
   <!-- ── OPORTUNIDADES ───────────────────────────────────────── -->
-  <section class="vista" id="vista-oportunidades" hidden>
+  <section class="vista" id="vista-oportunidades" role="tabpanel" aria-labelledby="aba-oportunidades" tabindex="0" hidden>
         <div class="secao">
       <div class="secao-topo">
         <h2>Lista de oportunidades para os vendedores</h2>
@@ -1250,7 +1280,7 @@
 
     <div class="secao">
       <div class="secao-topo">
-        <h2>Capital parado — empurrar</h2>
+        <h2>Capital parado — girar com estratégia</h2>
         
       </div>
       <div class="filtros">
@@ -1284,7 +1314,7 @@
   </section>
 
   <!-- ── DEMANDA ─────────────────────────────────────────────── -->
-  <section class="vista" id="vista-demanda" hidden>
+  <section class="vista" id="vista-demanda" role="tabpanel" aria-labelledby="aba-demanda" tabindex="0" hidden>
         <div id="demandaVazia" class="secao oculto">
       <div class="vazio">
         <div class="sobrancelha">Falta o relatório de movimentação</div>
@@ -1355,7 +1385,7 @@
   </section>
 
   <!-- ── REDE ────────────────────────────────────────────────── -->
-  <section class="vista" id="vista-rede" hidden>
+  <section class="vista" id="vista-rede" role="tabpanel" aria-labelledby="aba-rede" tabindex="0" hidden>
     <div class="secao">
       <div class="secao-topo">
         <h2>Ribeirão Preto comparado com as filiais irmãs</h2>
@@ -1381,7 +1411,7 @@
 
   <!-- ── EVOLUÇÃO ────────────────────────────────────────────── -->
   <!-- ── DADOS ───────────────────────────────────────────────── -->
-  <section class="vista" id="vista-dados" hidden>
+  <section class="vista" id="vista-dados" role="tabpanel" aria-labelledby="aba-dados" tabindex="0" hidden>
         <div class="secao">
       <div class="secao-topo"><h2>O que está carregado agora</h2><span class="nota">Se não está escrito aqui, não entrou.</span></div>
       <div class="grade" id="situacaoCartoes"></div>
@@ -1538,6 +1568,9 @@
    scripts/gerar-plataforma.mjs. NÃO EDITE AQUI: edite o módulo, que é
    testado por identidade.test.ts. Fonte única da verdade.
    ═══════════════════════════════════════════════════════════════════ */
+/* INICIO MOTOR REPOSICAO */
+/* FIM MOTOR REPOSICAO */
+
 /* INICIO MOTOR IDENTIDADE */
 /* FIM MOTOR IDENTIDADE */
 
@@ -2613,7 +2646,10 @@ function detectarMarca(item) {
 /* Quatro componentes, todos medidos em dado do proprio relatorio.
    Saiu "linha" (saude do grupo do ERP, que misturava coisas diferentes) e
    saiu "mercado" (participacao da montadora, longe demais do item). */
-const PESOS = { giro: 45, ruptura: 30, desvio: 15, essencialidade: 10 };
+/* Os pesos vêm do motor de reposição, que valida a soma 100 na carga. Se
+   alguém desbalancear, a página falha aqui e não silenciosamente na nota. */
+const PESOS = PESOS_PRIORIDADE;
+validarPesos(PESOS);
 const PESO_CURVA = { A: 1.00, B: 0.80, C: 0.55, D: 0.33, E: 0.15, F: 0.00 };
 const RISCO_CURVA = { A: 3, B: 2, C: 2, D: 1, E: 1, F: 1 };
 const EXCESSO_CURVA = { A: 90, B: 70, C: 45, D: 25, E: 20, F: 16 };
@@ -3280,33 +3316,44 @@ function sugerirQuantidade(item, consumo, diasCobertura, demanda) {
   /* Venda medida no relatório de movimentação é a melhor base que existe:
      é saída de verdade, não diferença entre duas fotos do estoque. */
   if (demanda && demanda.porDia > 0) {
-    /* Item zerado que parou de vender há tempo não perdeu procura: ficou
-       sem peça. Nesse caso a taxa correta é a do período em que ele existiu
-       na prateleira — senão a reposição repete a mesma falta. */
-    const emFalta = (item.saldo ?? 0) === 0 && demanda.diasSemVender >= 21 && demanda.porDiaDisponivel > demanda.porDia;
-    const taxa = emFalta ? demanda.porDiaDisponivel : demanda.porDia;
-    const qtd = Math.max(1, Math.ceil(taxa * diasCobertura - (item.saldo ?? 0)));
+    /* NÃO se conclui data de ruptura aqui.
+       A versão anterior deduzia "parou de vender porque acabou" a partir de
+       saldo zero + última venda antiga, e trocava o divisor pelo período em
+       que o item supostamente esteve disponível — aumentando a quantidade em
+       silêncio. Saldo zero HOJE e venda antiga não provam QUANDO faltou: o
+       relatório de movimentação diz quando houve venda, não quando houve
+       peça. Só um histórico de estoque que identifique os dias efetivamente
+       zerados autoriza o outro cálculo, e ele ainda não existe.
+       O ritmo é o do período completo; a dúvida vira texto e não número. */
+    const taxa = demanda.porDia;
+    const qtd = quantidadeParaCobrir({ porDia: taxa, diasCobertura, saldo: item.saldo ?? 0 });
+    const ressalva = ressalvaDeRuptura({
+      saldo: item.saldo ?? null,
+      diasSemVender: demanda.diasSemVender ?? null,
+      temHistoricoDeEstoque: false,
+    });
     return {
-      qtd, medida: true, fonte: 'movimentação', emFalta,
+      qtd, medida: true, fonte: FONTE.MEDIDA, ressalva: ressalva ? ressalva.aviso : null,
       texto: 'Saíram ' + Math.round(demanda.unidades) + ' unidades em ' + demanda.pedidos + ' pedidos. ' +
-        (emFalta
-          ? 'A última venda foi há ' + demanda.diasSemVender + ' dias e o saldo está zerado: parou de vender porque acabou, não porque a procura caiu. Por isso a conta usa ' +
-            taxa.toFixed(2).replace('.', ',') + ' por dia — o ritmo de quando havia peça — e não ' + demanda.porDia.toFixed(2).replace('.', ',') + ', que diluiria a falta no divisor.'
-          : 'Ritmo de ' + taxa.toFixed(2).replace('.', ',') + ' por dia.') +
-        ' Para cobrir ' + diasCobertura + ' dias, faltam ' + qtd + '.',
+        'Ritmo de ' + taxa.toFixed(2).replace('.', ',') + ' por dia no período inteiro. ' +
+        'Para cobrir ' + diasCobertura + ' dias, faltam ' + qtd + '.' +
+        (ressalva ? ' ' + ressalva.aviso : ''),
     };
   }
   if (consumo && consumo.dias >= 14 && consumo.saida > 0) {
     const porDia = consumo.saida / consumo.dias;
     const alvo = porDia * diasCobertura;
     const qtd = Math.max(1, Math.ceil(alvo - (item.saldo ?? 0)));
-    return { qtd, medida: true, texto: 'Saíram ' + consumo.saida + ' unidades em ' + consumo.dias + ' dias. Para cobrir ' + diasCobertura + ' dias, faltam ' + qtd + '.' };
+    return { qtd, medida: true, fonte: FONTE.MEDIDA, ressalva: null,
+      texto: 'Saíram ' + consumo.saida + ' unidades em ' + consumo.dias + ' dias. Para cobrir ' + diasCobertura + ' dias, faltam ' + qtd + '.' };
   }
-  if (item.situacao === 'EXCESSO' || item.situacao === 'SAUDAVEL') return { qtd: 0, medida: false, texto: 'Saldo já cobre a curva.' };
+  if (item.situacao === 'EXCESSO' || item.situacao === 'SAUDAVEL') {
+    return { qtd: 0, medida: false, fonte: FONTE.ESTIMADA, ressalva: null, texto: 'Saldo já cobre a curva.' };
+  }
   const base = BASE_CLASSE[item.classe] ?? 2;
   const mult = MULT_CURVA[item.curva] ?? 0.5;
   const qtd = Math.max(1, Math.round(base * mult) - (item.saldo ?? 0));
-  return { qtd: Math.max(1, qtd), medida: false, texto: 'Referência por classe (' + (item.classe ? ROTULO_CLASSE[item.classe] : 'sem classe') + ' × curva ' + (item.curva || '—') + '). Suba um segundo envio e esta conta passa a usar o consumo medido.' };
+  return { qtd: Math.max(1, qtd), medida: false, fonte: FONTE.ESTIMADA, ressalva: null, texto: 'Referência por classe (' + (item.classe ? ROTULO_CLASSE[item.classe] : 'sem classe') + ' × curva ' + (item.curva || '—') + '). Suba um segundo envio e esta conta passa a usar o consumo medido.' };
 }
 
 /* ─── 7b. Demanda medida ─────────────────────────────────────────────
@@ -3415,7 +3462,8 @@ function resumirDemanda(movimentos) {
 }
 
 /* ─── 8. Persistência local ──────────────────────────────────────────
-   IndexedDB no navegador do usuário. Nada sai daqui. */
+   IndexedDB no navegador do usuário. Daqui só sai o que a pessoa publicar
+   explicitamente para a equipe — ver `equipePublicar`. */
 
 const BANCO = 'compras-ribeirao-preto', VERSAO_BANCO = 1, LOJA = 'envios';
 
@@ -3479,7 +3527,9 @@ const estado = {
   marcados: new Set(),
   limite: 150,
   ordem: { campo: 'prioridade', desc: true },
-  filtros: { busca: '', situacao: 'RUPTURA', curva: '', classe: '', desvio: '', nota: 55 },
+  /* `fonte` nasce em 'medida': a visão padrão mostra só o que tem venda real
+     por trás. Estimativa é decisão de quem compra, não default do sistema. */
+  filtros: { busca: '', situacao: 'RUPTURA', curva: '', classe: '', desvio: '', nota: 55, fonte: 'medida' },
   agrupar: true,
   movimentos: null,
   resumoDemanda: null,
@@ -3504,6 +3554,29 @@ const nf = new Intl.NumberFormat('pt-BR');
 const n = (v) => nf.format(v);
 const pct = (v) => (v * 100).toFixed(v < 0.1 ? 1 : 0).replace('.', ',') + '%';
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+/* ── Plural e unidade ────────────────────────────────────────────────
+   "1 filiais irmãs" e "há 1 dias" são o tipo de detalhe que faz o usuário
+   desconfiar do resto da conta. E todo número na interface anda com a
+   unidade colada: cadastro, peça e unidade física são grandezas diferentes. */
+
+/** `plural(1,'peça','peças')` → "1 peça". Aceita null e devolve travessão. */
+function plural(qtd, singular, plural_) {
+  if (qtd === null || qtd === undefined || !Number.isFinite(Number(qtd))) return '—';
+  const q = Number(qtd);
+  return n(q) + ' ' + (Math.abs(q) === 1 ? singular : plural_);
+}
+
+const haDias = (d) => (d === null || d === undefined ? 'sem data de venda'
+  : Number(d) === 0 ? 'hoje' : 'há ' + plural(d, 'dia', 'dias'));
+
+/* Unidades explícitas — uma função por grandeza, para ninguém escolher
+   errado no meio de um template. */
+const emCadastros = (q) => plural(q, 'cadastro', 'cadastros');
+const emPecas = (q) => plural(q, 'peça', 'peças');
+const emUnidades = (q) => plural(q, 'unidade', 'unidades');
+const emItens = (q) => plural(q, 'item', 'itens');
+const emFiliais = (q) => plural(q, 'filial irmã', 'filiais irmãs');
 const dataBr = (iso) => new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 const horaBr = (iso) => new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
@@ -3804,6 +3877,12 @@ function filtrar() {
       if (f.desvio === 'uf' && !(d && d.foraUF > 0)) return false;
     }
     if (i.prioridade < f.nota) return false;
+    /* A base da sugestão é filtro de primeira classe: comprar por venda real
+       e comprar por estimativa são decisões diferentes. */
+    if (f.fonte) {
+      const fonteDoItem = i.sugestao && i.sugestao.fonte === FONTE.MEDIDA ? FONTE.MEDIDA : FONTE.ESTIMADA;
+      if (fonteDoItem !== f.fonte) return false;
+    }
     if (busca) {
       const alvo = chave(i.descricao + i.produto + i.original + i.grupo + i.interno);
       if (!alvo.includes(busca)) return false;
@@ -4233,7 +4312,11 @@ function renderHoje() {
     $$('#filaHoje [data-bloco]').forEach((bt) => bt.addEventListener('click', () => {
       const b = plano.blocos.find((x) => x.id === bt.dataset.bloco);
       if (!b) return;
-      if (b.vista) { trocarVista(b.vista); }
+      if (b.vista === 'rede') {
+        aplicarRecorteRede(b.lista, b.titulo);
+        trocarVista('rede');
+        renderRede();
+      } else if (b.vista) { trocarVista(b.vista); }
       else {
         estado.filtros = { ...estado.filtros, ...b.filtro };
         estado.limite = 150;
@@ -4351,21 +4434,108 @@ function renderPainel() {
     })).join('') || '<p class="nota">Sem ruptura relevante por família.</p>';
 }
 
+/**
+ * Reconciliação entre o relatório de estoque e o de movimentação.
+ *
+ * Os dois recortes quase nunca coincidem, e a diferença precisa aparecer
+ * inteira: um código que vendeu e não está no estoque é cadastro que sumiu ou
+ * recorte diferente; um código no estoque fora da movimentação NÃO vendeu zero
+ * — ele não foi medido. Tratar as duas coisas como a mesma inventa capital
+ * morto que não existe.
+ */
+function reconciliar() {
+  const R = estado.resumoDemanda;
+  const L = itens();
+  if (!R || !L.length) return null;
+
+  const noEstoque = new Map();
+  for (const i of L) {
+    if (i.interno) noEstoque.set(String(i.interno).trim(), i);
+    const p = semSufixo(i.produto || '').toUpperCase();
+    if (p && !noEstoque.has(p)) noEstoque.set(p, i);
+  }
+
+  const comVenda = [...R.demanda.keys()].map(String);
+  const cruzados = [], soNaVenda = [];
+  for (const c of comVenda) {
+    const d = R.demanda.get(c);
+    if (noEstoque.has(c.trim())) cruzados.push(c);
+    else soNaVenda.push({ codigo: c, descricao: (d && d.descricao) || '', unidades: (d && d.unidades) || 0 });
+  }
+  const medidos = new Set(cruzados.map((c) => c.trim()));
+  const soNoEstoque = L.filter((i) => !medidos.has(String(i.interno || '').trim()));
+
+  return {
+    comVenda: comVenda.length,
+    cruzados: cruzados.length,
+    soNaVenda,
+    soNoEstoque,
+    cobertura: L.length ? cruzados.length / L.length : 0,
+  };
+}
+
+function renderReconciliacao() {
+  const alvo = $('#reconciliacao');
+  if (!alvo) return;
+  const r = reconciliar();
+  if (!r) {
+    alvo.innerHTML = '<p class="nota">Carregue o relatório de movimentação para conciliar os dois recortes.</p>';
+    return;
+  }
+  const linha = (rot, val, obs) => '<tr><td style="width:42%">' + esc(rot) + '</td>' +
+    '<td class="dir" style="width:18%;font-variant-numeric:tabular-nums"><b>' + val + '</b></td>' +
+    '<td style="color:var(--tinta-3);font-size:12.5px">' + obs + '</td></tr>';
+  alvo.innerHTML =
+    '<div class="rolo"><table><tbody>' +
+    linha('Códigos com venda no relatório', emItens(r.comVenda), 'Saíram do relatório de movimentação.') +
+    linha('Cruzados com o estoque atual', emItens(r.cruzados), 'Existem nos dois relatórios — é a base medida.') +
+    linha('Da movimentação, sem estoque', emItens(r.soNaVenda.length),
+      'Venderam mas não estão no relatório de estoque: cadastro removido, ou recorte diferente entre os dois arquivos.') +
+    linha('Do estoque, fora da movimentação', emItens(r.soNoEstoque.length),
+      '<b>Não vendeu zero: não foi medido.</b> O relatório de movimentação cobre ' + pct(r.cobertura) +
+      ' do cadastro. Para medir tudo, rode o IAMMR2 sem filtrar produto.') +
+    '</tbody></table></div>' +
+    '<div style="display:flex;gap:9px;flex-wrap:wrap;margin-top:10px">' +
+    '<button class="bt bt-mini" id="btCsvNaoConciliados" type="button">Baixar não conciliados</button></div>';
+
+  const bt = $('#btCsvNaoConciliados');
+  if (bt) bt.addEventListener('click', () => {
+    const linhas = ['origem;codigo;descricao;unidades_vendidas;saldo'];
+    for (const x of r.soNaVenda) {
+      linhas.push(['movimentacao', x.codigo, String(x.descricao).replace(/;/g, ','), Math.round(x.unidades), ''].join(';'));
+    }
+    for (const i of r.soNoEstoque) {
+      linhas.push(['estoque', i.interno || '', String(i.descricao || '').replace(/;/g, ','), '', i.saldo === null ? '' : i.saldo].join(';'));
+    }
+    baixar('nao-conciliados-ribeirao-preto.csv', linhas.join('\n'), 'text/csv');
+    recado('Planilha baixada', emItens(r.soNaVenda.length + r.soNoEstoque.length) + ' fora do cruzamento.');
+  });
+}
+
 /* ─── 15. Lista de compra ────────────────────────────────────────── */
 
 function renderComprar() {
   const lista = filtrar();
   const mostrados = lista.slice(0, estado.limite);
-  const unidades = lista.reduce((s, i) => s + (i.qtd || 0), 0);
+  const qtdDe = (i) => i.qtd || 0;
   const editados = lista.filter((i) => i.qtdEscolhida !== null).length;
 
   const valorLista = temCusto() ? somaValor(lista, (i) => i.qtd || 0) : null;
-  $('#resumoLista').textContent = n(lista.length) + ' itens no filtro · ' + n(unidades) + ' unidades a pedir · ' +
-    (valorLista !== null ? brl(valorLista) + ' a custo · ' : '') +
-    (estado.resumoDemanda ? 'sugestão pela venda medida em ' + estado.resumoDemanda.dias + ' dias'
-      : estado.consumo ? 'sugestão pela diferença entre dois envios de estoque'
-      : 'sugestão por classe — sem movimentação nem segundo envio') +
-    (editados ? ' · ' + n(editados) + ' quantidade' + (editados > 1 ? 's' : '') + ' ajustada' + (editados > 1 ? 's' : '') + ' por você' : '');
+  /* As duas fontes NUNCA aparecem somadas num número só: chamar o total de
+     "sugestão pela venda medida" quando parte é estimativa é mentir sobre a
+     origem de metade do pedido. */
+  const porFonte = separarPorFonte(lista.map((i) => ({
+    fonte: i.sugestao && i.sugestao.fonte === FONTE.MEDIDA ? FONTE.MEDIDA : FONTE.ESTIMADA,
+    quantidade: qtdDe(i),
+  })));
+  $('#resumoLista').innerHTML =
+    '<b>' + emItens(porFonte.medida.itens) + '</b> e <b>' + emUnidades(porFonte.medida.unidades) + '</b> por venda real' +
+    (porFonte.estimada.itens
+      ? ' · ' + emItens(porFonte.estimada.itens) + ' e ' + emUnidades(porFonte.estimada.unidades) + ' por estimativa de classe e curva'
+      : '') +
+    (valorLista !== null ? ' · ' + brl(valorLista) + ' a custo' : '') +
+    (estado.resumoDemanda ? ' · venda medida em ' + plural(estado.resumoDemanda.dias, 'dia', 'dias') : '') +
+    (editados ? ' · ' + plural(editados, 'quantidade ajustada por você', 'quantidades ajustadas por você') : '');
 
   /* Quando o filtro fixa uma situação, todas as linhas trazem a mesma — a
      coluna vira um rótulo repetido e sai de cena junto com o cabeçalho. */
@@ -4477,7 +4647,7 @@ function campoQuantidade(i) {
         ? '<b style="color:var(--laranja-texto)">você pediu</b> · sugerido ' + i.sugestao.qtd
         : (i.sugestao.medida
             ? '<b style="color:var(--saudavel)" title="' + esc(i.sugestao.texto) + '">' +
-                (i.sugestao.fonte === 'movimentação' ? (i.sugestao.emFalta ? 'VENDA REAL ↑' : 'VENDA REAL') : 'MEDIDO') + '</b>'
+                (i.sugestao.fonte === FONTE.MEDIDA ? 'VENDA REAL' : 'ESTIMADO') + '</b>'
             : 'sugerido')) +
     '</div>';
 }
@@ -4720,8 +4890,8 @@ function renderDemanda() {
     '<td class="dir num"><b>' + n(Math.round(i.demandaUsada.unidades)) + '</b> un</td>' +
     '<td class="dir num">' + n(i.demandaUsada.pedidos) + '</td>' +
     '<td class="dir num" style="font-size:12.5px">' + dataBr(i.demandaUsada.ultima) +
-      '<br><span style="font-size:10.5px;color:' + (i.sugestao.emFalta ? 'var(--critico)' : 'var(--tinta-3)') + '">há ' + i.demandaUsada.diasSemVender + ' dias' +
-      (i.sugestao.emFalta ? '<br>parou por falta' : '') + '</span></td>' +
+      '<br><span style="font-size:10.5px;color:var(--tinta-3)">' + haDias(i.demandaUsada.diasSemVender) +
+      (i.sugestao && i.sugestao.ressalva ? '<br><abbr title="' + esc(i.sugestao.ressalva) + '">pode estar subestimada</abbr>' : '') + '</span></td>' +
     '<td class="dir num"><b style="color:var(--laranja-texto);font-weight:700">' + i.qtd + '</b></td></tr>').join('') ||
     '<tr><td colspan="6" style="padding:24px;text-align:center;color:var(--tinta-2)">Nenhum item zerado teve venda no período. Boa notícia.</td></tr>';
 
@@ -5359,7 +5529,7 @@ function trocarVista(vista) {
     v.classList.toggle('ativa', ativa);
     v.hidden = !ativa;
   });
-  if (vista === 'produtos') renderProdutos();
+  if (vista === 'produtos') { renderProdutos(); renderReconciliacao(); }
   if (vista === 'hoje') renderHoje();
   if (vista === 'painel') renderEvolucao();
   if (vista === 'dados') { renderDados(); renderConferir(); }
@@ -5591,6 +5761,7 @@ function renderTudo() {
   if (!temDados) { $('#seloComprar').textContent = '0'; $('#seloOport').textContent = '0'; atualizarCarrinho(); return; }
   montarSelects();
   renderProdutos();
+  renderReconciliacao();
   renderHoje();
   renderPainel();
   renderComprar();
@@ -5608,6 +5779,24 @@ function renderTudo() {
 /* ─── 23. Ligações ───────────────────────────────────────────────── */
 
 $$('.aba').forEach((a) => a.addEventListener('click', () => trocarVista(a.dataset.vista)));
+
+/* Navegação por teclado no tablist: setas andam entre abas, Home e End vão
+   às pontas. Sem isso o `role="tablist"` promete um comportamento que a
+   página não cumpre — pior que não declarar. */
+$('.abas-interno').addEventListener('keydown', (ev) => {
+  const abas = $$('.aba');
+  const atual = abas.indexOf(document.activeElement);
+  if (atual < 0) return;
+  let alvo = null;
+  if (ev.key === 'ArrowRight') alvo = abas[(atual + 1) % abas.length];
+  else if (ev.key === 'ArrowLeft') alvo = abas[(atual - 1 + abas.length) % abas.length];
+  else if (ev.key === 'Home') alvo = abas[0];
+  else if (ev.key === 'End') alvo = abas[abas.length - 1];
+  if (!alvo) return;
+  ev.preventDefault();
+  alvo.focus();
+  trocarVista(alvo.dataset.vista);
+});
 
 $('#arquivo').addEventListener('change', (ev) => { if (ev.target.files[0]) carregarArquivo(ev.target.files[0]); ev.target.value = ''; });
 $('#btEscolher').addEventListener('click', () => $('#arquivo').click());
@@ -6029,12 +6218,18 @@ function analisarRedeAgora() {
   /* Universo de referência: peça classificada A ou B em pelo menos duas
      praças irmãs. Duas, e não uma, porque uma praça sozinha pode ter uma
      particularidade de cliente; duas já é padrão de estado. */
+  /* Duas praças é o ideal — uma sozinha pode ter particularidade de cliente.
+     Mas exigir duas quando só existe UMA carregada devolve zero e faz o
+     usuário achar que não há nada a pedir, quando na verdade não há base de
+     comparação. O critério acompanha o que está carregado, e a interface diz
+     qual critério está valendo. */
+  const minPracas = Math.min(2, Math.max(1, irmas.length));
   const universo = new Set();
   const todosCodigos = new Set();
   for (const p of praças) for (const k of Object.keys(p.pecas)) todosCodigos.add(k);
   for (const k of todosCodigos) {
     const q = irmas.filter((f) => f.pecas[k] && postoCurva(f.pecas[k].c) <= 1).length;
-    if (q >= 2) universo.add(k);
+    if (q >= minPracas) universo.add(k);
   }
 
   const paridade = praças.map((p) => {
@@ -6083,8 +6278,9 @@ function analisarRedeAgora() {
     minhaParidade: paridade.find((p) => p.casa) || null,
     lider: paridade[0],
     falta,
-    faltaAB: falta.filter((f) => f.aqui && f.abNaRede >= 2),
-    todasAsPracas: falta.filter((f) => f.aqui && f.praças === irmas.length && f.abNaRede >= 2),
+    minPracas,
+    faltaAB: falta.filter((f) => f.aqui && f.abNaRede >= minPracas),
+    todasAsPracas: falta.filter((f) => f.aqui && f.praças === irmas.length && f.abNaRede >= minPracas),
     semCadastro,
     semCadastroAB: semCadastro.filter((f) => f.abNaRede >= 2),
     unidadesParadas: falta.reduce((t, f) => t + f.unidades, 0),
@@ -6093,6 +6289,26 @@ function analisarRedeAgora() {
 
 /* ── Filtros da lista ─────────────────────────────────────────────── */
 const filtroRede = { min: 1, so: 'ab', busca: '' };
+/* Recorte vindo de outra aba (o clique em "Ver a lista" do Hoje). Quando
+   preenchido, ele MANDA: a Rede mostra exatamente as peças que a outra tela
+   prometeu, sem recalcular por critério próprio. Antes o clique só trocava de
+   aba e a Rede recalculava com os filtros dela — 42 viravam 0. */
+let recorteRede = null;
+function aplicarRecorteRede(lista, rotulo) {
+  /* A lista do Hoje é `{item, fontes, disponivel}`; a Rede indexa por
+     `semSufixo(produto).toUpperCase()`. Casar os dois formatos aqui é o que
+     fazia 42 peças virarem 0: a chave era procurada no nível errado do
+     objeto e o conjunto saía vazio. */
+  const chaves = new Set();
+  for (const x of lista || []) {
+    const it = x && x.item ? x.item : x;
+    if (!it) continue;
+    const cod = semSufixo(it.produto || '') || it.interno || '';
+    if (cod) chaves.add(String(cod).toUpperCase());
+  }
+  recorteRede = chaves.size ? { chaves, rotulo, quantas: chaves.size } : null;
+}
+function limparRecorteRede() { recorteRede = null; }
 
 /* O recorte padrão mostra só o que está cadastrado aqui e zerado. Peça que
    não veio no relatório é outro assunto — não dá para pedir compra de um
@@ -6102,10 +6318,15 @@ const filtroRede = { min: 1, so: 'ab', busca: '' };
 function faltaFiltrada(R) {
   const b = semAcento(filtroRede.busca).toUpperCase().trim();
   return R.falta.filter((f) => {
+    if (recorteRede) {
+      /* Dentro de um recorte, os critérios da Rede não se aplicam: a lista
+         já foi decidida na tela que mandou para cá. */
+      return recorteRede.chaves.has(String(f.codigo || '').toUpperCase());
+    }
     if (f.praças < filtroRede.min) return false;
     if (filtroRede.so === 'novo') { if (f.aqui) return false; }
     else if (!f.aqui) return false;
-    if (filtroRede.so === 'ab' && f.abNaRede < 2) return false;
+    if (filtroRede.so === 'ab' && f.abNaRede < (R && R.minPracas ? R.minPracas : 2)) return false;
     if (b && !semAcento(f.descricao + ' ' + f.codigo + ' ' + f.original).toUpperCase().includes(b)) return false;
     return true;
   });
@@ -6186,9 +6407,20 @@ function renderRede() {
   const meu = R.minhaParidade;
   const atras = R.lider && !R.lider.casa ? R.lider.tem - meu.tem : 0;
 
+  const listaVisivel = faltaFiltrada(R);
   const placas = [
-    { tom: 'critico', valor: n(R.faltaAB.length), rot: 'Peças para pedir',
-      pe: 'Cadastradas aqui, com saldo zero, e classificadas A ou B em pelo menos duas praças irmãs.' },
+    recorteRede
+      ? { tom: 'critico', valor: n(listaVisivel.length), rot: 'Peças no recorte',
+          pe: 'Vieram da aba Hoje pelo bloco "' + esc(recorteRede.rotulo) + '". ' +
+            (listaVisivel.length < recorteRede.quantas
+              ? emPecas(recorteRede.quantas - listaVisivel.length) + ' do bloco não aparecem aqui porque nenhuma filial irmã carregada tem saldo delas.'
+              : 'Todas as peças do bloco têm saldo em alguma filial irmã carregada.') }
+      : { tom: 'critico', valor: n(R.faltaAB.length), rot: 'Peças para pedir',
+          pe: 'Cadastradas aqui, com saldo zero, e classificadas A ou B em ' +
+            (R.minPracas >= 2 ? 'pelo menos duas praças irmãs' : 'uma praça irmã') + '. ' +
+            (R.irmas.length === 1
+              ? 'Com ' + emFiliais(1) + ' carregada o critério é de uma praça — duas seria o ideal, mas exigir duas aqui devolveria zero por falta de comparação, não por falta de peça.'
+              : 'São ' + emFiliais(R.irmas.length) + ' carregadas.') },
     { tom: 'atencao', valor: pct(meu.taxa), rot: 'Paridade com a rede',
       pe: 'De ' + n(R.universo) + ' peças que giram no estado, Ribeirão tem ' + n(meu.tem) + ' com saldo.' +
         (atras > 0 ? ' ' + esc(R.lider.nome) + ' tem ' + n(R.lider.tem) + ' — ' + n(atras) + ' a mais.' : '') },
@@ -6288,6 +6520,12 @@ function renderRede() {
           '<option value="todas">Todas as zeradas aqui</option>' +
           '<option value="novo">Códigos que não vieram no relatório (' + n(R.semCadastro.length) + ')</option>' +
         '</select></div>' +
+        (recorteRede
+          ? '<div class="campo" style="flex:1 1 100%"><div class="etiqueta" data-tom="marca" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">' +
+            '<b>Recorte: ' + esc(recorteRede.rotulo) + '</b> · ' + emPecas(recorteRede.quantas) +
+            ' vindas da aba Hoje · os filtros abaixo não se aplicam' +
+            '<button class="bt bt-mini" id="btLimparRecorte" type="button">Ver a rede inteira</button></div></div>'
+          : '') +
         '<div class="campo"><label for="fRedeMin">Em quantas praças tem saldo</label><select id="fRedeMin">' +
           [1, 2, 3, 4].map((v) => '<option value="' + v + '">' + v + ' ou mais</option>').join('') +
         '</select></div>' +
@@ -6307,6 +6545,8 @@ function renderRede() {
 
   $('#fRedeSo').value = filtroRede.so;
   $('#fRedeMin').value = String(filtroRede.min);
+  const btLimpar = $('#btLimparRecorte');
+  if (btLimpar) btLimpar.addEventListener('click', () => { limparRecorteRede(); renderRede(); });
   $('#fRedeSo').addEventListener('change', (e) => { filtroRede.so = e.target.value; renderRede(); });
   $('#fRedeMin').addEventListener('change', (e) => { filtroRede.min = Number(e.target.value); renderRede(); });
   $('#fRedeBusca').addEventListener('input', (e) => {
@@ -6706,6 +6946,7 @@ function renderEquipe() {
     '<h3>' + esc(val) + '</h3><p>' + esc(txt) + '</p></div>').join('');
 }
 
+liga('#fFonte', 'change', (e) => { estado.filtros.fonte = e.target.value; estado.limite = 50; renderComprar(); });
 liga('#fProdRecorte', 'change', (e) => { filtroProdutos.recorte = e.target.value; renderProdutos(); });
 liga('#fProdQuantas', 'change', (e) => { filtroProdutos.quantas = Number(e.target.value); renderProdutos(); });
 liga('#fProdBusca', 'input', (e) => { filtroProdutos.busca = e.target.value; renderProdutos(); });

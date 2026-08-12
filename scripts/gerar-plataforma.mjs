@@ -26,18 +26,27 @@ let corpo = await readFile(origem, 'utf8');
  * então o módulo entra inline. Existe UMA fonte da verdade — se alguém editar
  * a cópia inline, o próximo `npm run plataforma` sobrescreve.
  */
-const motor = await readFile(join(raiz, 'src', 'domain', 'estoque', 'identidade.js'), 'utf8');
-const ABRE_MOTOR = '/* INICIO MOTOR IDENTIDADE */';
-const FECHA_MOTOR = '/* FIM MOTOR IDENTIDADE */';
-if (!corpo.includes(ABRE_MOTOR) || !corpo.includes(FECHA_MOTOR)) {
-  throw new Error('plataforma/corpo.html precisa dos marcadores do motor de identidade.');
+const MODULOS = [
+  { arquivo: ['src', 'domain', 'estoque', 'identidade.js'], abre: '/* INICIO MOTOR IDENTIDADE */', fecha: '/* FIM MOTOR IDENTIDADE */', nome: 'identidade' },
+  { arquivo: ['src', 'domain', 'compras', 'reposicao.js'], abre: '/* INICIO MOTOR REPOSICAO */', fecha: '/* FIM MOTOR REPOSICAO */', nome: 'reposicao' },
+];
+
+for (const m of MODULOS) {
+  const fonte = await readFile(join(raiz, ...m.arquivo), 'utf8');
+  if (!corpo.includes(m.abre) || !corpo.includes(m.fecha)) {
+    throw new Error(`plataforma/corpo.html precisa dos marcadores do motor ${m.nome}.`);
+  }
+  /* `export` sai (a página não tem módulos) e o bloco `export { ... }` do fim
+     também, senão vira erro de sintaxe dentro do script embutido. */
+  const inline = fonte
+    .replace(/^export\s*\{[\s\S]*?\};?\s*$/gm, '')
+    .replace(/^export /gm, '');
+  corpo =
+    corpo.slice(0, corpo.indexOf(m.abre) + m.abre.length) +
+    '\n' + inline + '\n' +
+    corpo.slice(corpo.indexOf(m.fecha));
+  console.log(`motor ${m.nome} injetado — ${(inline.length / 1024).toFixed(0)} kB`);
 }
-const motorInline = motor.replace(/^export /gm, '');
-corpo =
-  corpo.slice(0, corpo.indexOf(ABRE_MOTOR) + ABRE_MOTOR.length) +
-  '\n' + motorInline + '\n' +
-  corpo.slice(corpo.indexOf(FECHA_MOTOR));
-console.log(`motor de identidade injetado — ${(motorInline.length / 1024).toFixed(0)} kB`);
 
 const casouTitulo = corpo.match(/<title>([\s\S]*?)<\/title>/i);
 if (!casouTitulo) throw new Error('plataforma/corpo.html precisa declarar um <title>.');

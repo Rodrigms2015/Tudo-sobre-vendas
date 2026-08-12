@@ -2650,6 +2650,16 @@ function detectarMarca(item) {
    alguém desbalancear, a página falha aqui e não silenciosamente na nota. */
 const PESOS = PESOS_PRIORIDADE;
 validarPesos(PESOS);
+
+/* O que cada componente mede e quando ele fica em branco. Chaveado pelos
+   mesmos nomes de `PESOS` — componente sem descrição aparece com travessão,
+   nunca com "undefined". */
+const DESCRICAO_PESO = {
+  giro: { mede: 'A curva ABC do próprio cadastro, ou a venda medida quando há relatório de movimentação. Curva A vale o peso inteiro; curva F vale zero.', branco: 'Item sem curva no cadastro e sem venda medida.' },
+  ruptura: { mede: 'Ruptura real vale o peso inteiro. Zerado com similar disponível vale pouco. Última peça vale 70%.', branco: 'Coluna de saldo vazia ou ilegível.' },
+  desvio: { mede: 'Venda da peça faturada por outra filial — procura que existe aqui e foi atendida fora.', branco: 'Relatório sem a coluna de filial faturadora.' },
+  essencialidade: { mede: 'A classe da peça: filtro e correia pesam mais que virabrequim, porque a falta se sente todo dia.', branco: 'Descrição fora das famílias conhecidas.' },
+};
 const PESO_CURVA = { A: 1.00, B: 0.80, C: 0.55, D: 0.33, E: 0.15, F: 0.00 };
 const RISCO_CURVA = { A: 3, B: 2, C: 2, D: 1, E: 1, F: 1 };
 const EXCESSO_CURVA = { A: 90, B: 70, C: 45, D: 25, E: 20, F: 16 };
@@ -5167,12 +5177,21 @@ function renderDados() {
     'Todo componente que pontua registra o motivo com o número que usou; todo componente sem dado registra uma lacuna e <b>não pontua</b> — ' +
     'dado ausente nunca vira zero disfarçado. A confiança de cada item é a parcela dos pesos que teve dado para ser aplicada.</p>' +
     '<div class="rolo" style="box-shadow:none"><table><thead><tr><th>Componente</th><th class="dir">Peso</th><th>O que mede</th><th>Quando fica em branco</th></tr></thead><tbody>' +
-    [['Giro', PESOS.giro, 'A curva ABC do próprio cadastro. Curva A vale o peso inteiro; curva F vale zero.', 'Item sem curva no cadastro.'],
-     ['Falta', PESOS.ruptura, 'Ruptura real vale o peso inteiro. Zerado com similar disponível vale pouco. Última peça vale 70%.', 'Coluna de saldo vazia.'],
-     ['Essencial', PESOS.essencialidade, 'A classe da peça: filtro e correia pesam mais que virabrequim, porque a falta se sente todo dia.', 'Descrição fora das famílias conhecidas.'],
-     ['Linha', PESOS.linha, 'Quanto do grupo inteiro está zerado. Acima de 30% começa a pontuar; acima de 80% satura.', 'Grupo com menos de 8 itens.'],
-     ['Mercado', PESOS.mercado, 'Participação da montadora de origem nos emplacamentos de caminhão do país.', 'Código sem padrão reconhecível.']]
-      .map((r) => '<tr><td><b style="font-weight:600">' + r[0] + '</b></td><td class="dir num"><b>' + r[1] + '</b></td><td style="font-size:12.5px;color:var(--tinta-2)">' + r[2] + '</td><td style="font-size:12.5px;color:var(--tinta-3)">' + r[3] + '</td></tr>').join('') +
+    /* A tabela é GERADA a partir de `PESOS`, nunca digitada ao lado dele.
+       A versão anterior listava `PESOS.linha` e `PESOS.mercado`, componentes
+       que já não existem no motor — e os dois apareciam como "undefined" na
+       tela. Derivando, um componente removido some da tabela sozinho e um
+       componente novo aparece sem ninguém lembrar de editar aqui. */
+    Object.keys(PESOS)
+      .map((k) => {
+        const d = DESCRICAO_PESO[k] || { mede: '—', branco: '—' };
+        return '<tr><td><b style="font-weight:600">' + esc(ROTULO_PESO[k] || k) + '</b></td>' +
+          '<td class="dir num"><b>' + n(PESOS[k]) + '</b></td>' +
+          '<td style="font-size:12.5px;color:var(--tinta-2)">' + d.mede + '</td>' +
+          '<td style="font-size:12.5px;color:var(--tinta-3)">' + d.branco + '</td></tr>';
+      }).join('') +
+    '<tr><td><b>Soma</b></td><td class="dir num"><b>' + n(validarPesos(PESOS)) + '</b></td>' +
+    '<td colspan="2" style="font-size:12.5px;color:var(--tinta-3)">Validada na carga da página: se não fechar 100, a tela falha em vez de mudar a escala da nota em silêncio.</td></tr>' +
     '</tbody></table></div>';
 }
 

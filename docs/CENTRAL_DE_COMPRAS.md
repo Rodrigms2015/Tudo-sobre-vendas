@@ -170,11 +170,21 @@ ausente nunca vira zero disfarçado (mesma regra do motor principal, `CLAUDE.md`
 
 | Componente | Peso | O que mede | Fica em branco quando |
 |---|---:|---|---|
-| Giro | 30 | Curva ABC do próprio cadastro. A = peso inteiro, F = zero. | Item sem curva. |
-| Falta | 26 | Ruptura real vale tudo; zerado com similar disponível vale pouco; última peça vale 70%. | Saldo ilegível. |
-| Essencial | 20 | Classe da peça. Filtro e correia pesam mais que virabrequim: a falta se sente todo dia. | Descrição fora das famílias conhecidas. |
-| Linha | 14 | Quanto do grupo inteiro está zerado. Começa a pontuar em 30%, satura em 80%. | Grupo com menos de 8 itens. |
-| Mercado | 10 | Participação da montadora de origem nos emplacamentos de caminhão. | Código sem padrão reconhecível. |
+| Giro | **45** | Curva ABC do cadastro, ou a venda medida quando há movimentação. A = peso inteiro, F = zero. | Item sem curva e sem venda medida. |
+| Falta | **30** | Ruptura real vale tudo; zerado com similar disponível vale pouco; última peça vale 70%. | Saldo ilegível. |
+| Venda por outra filial | **15** | Procura que existe aqui e foi atendida por outra praça. | Relatório sem a coluna de filial faturadora. |
+| Essencialidade | **10** | Classe da peça. Filtro e correia pesam mais que virabrequim: a falta se sente todo dia. | Descrição fora das famílias conhecidas. |
+| | **100** | | |
+
+**Esta tabela não é digitada duas vezes.** Os pesos vivem em
+`src/domain/compras/reposicao.js` (`PESOS_PRIORIDADE`), a soma 100 é validada por
+`validarPesos()` na carga da página e por teste, e a tabela da aba Situação é **gerada** a
+partir deles.
+
+A versão anterior desta documentação listava dois componentes que já não existiam no motor —
+`Linha` (14) e `Mercado` (10) — e a tela os imprimia como **"Linha undefined"** e
+**"Mercado undefined"**, porque `PESOS.linha` e `PESOS.mercado` haviam sumido do código.
+Derivar em vez de repetir é o que impede a divergência voltar.
 
 Cada item mostra também a **confiança**: a parcela dos 100 pontos que teve dado para ser
 aplicada. Um item com confiança 60% teve dois componentes em branco, e a tela diz quais.

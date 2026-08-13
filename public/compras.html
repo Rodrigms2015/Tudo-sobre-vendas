@@ -266,6 +266,7 @@
     align-items: flex-start;
   }
   .recado[data-tom="erro"] { border-left-color: var(--critico); }
+  .recado[data-tom="atencao"] { border-left-color: var(--atencao); }
   .recado b { display: block; font-size: 14px; margin-bottom: 2px; }
   .recado .fechar { margin-left: auto; background: none; border: 0; color: rgba(255,255,255,.7); cursor: pointer; font-size: 18px; line-height: 1; padding: 0 2px; }
 
@@ -968,6 +969,62 @@
     .busca-global { flex: 1 1 100%; max-width: none; order: 5; }
   }
 
+  /* ── A lista de compra vira cartão no celular ─────────────────────
+     Onze colunas não cabem em 360px, e rolar a tabela de lado para ver a
+     quantidade sugerida é o oposto de decidir rápido. A MESMA marcação vira
+     cartão: cada célula mostra o rótulo que está no `data-rot`, e as colunas
+     de apoio (cód. original, outra filial, situação) saem — continuam no
+     detalhe, a um toque. */
+  @media (max-width: 720px) {
+    #corpoLista, #corpoLista tr, #corpoLista td { display: block; }
+    #tabelaCompra thead { display: none; }
+    #corpoLista tr.linha {
+      position: relative;
+      border: 1px solid var(--borda); border-radius: var(--raio);
+      background: var(--papel); margin-bottom: 9px; padding: 10px 12px 10px 16px;
+      display: grid; grid-template-columns: 1fr auto; gap: 5px 12px;
+    }
+    #corpoLista tr.linha > td { border: 0; padding: 0; }
+    #corpoLista .cel-faixa { position: absolute; inset: 0 auto 0 0; width: 5px; padding: 0; }
+    #corpoLista .cel-faixa .faixa { width: 5px; height: 100%; border-radius: var(--raio) 0 0 var(--raio); }
+    /* Acima da faixa colorida, senão ela intercepta o toque no checkbox. */
+    #corpoLista .cel-sel { grid-column: 2; grid-row: 1; justify-self: end; position: relative; z-index: 1; }
+    #corpoLista .cel-desc { grid-column: 1; grid-row: 1; font-size: 14px; }
+    /* As quatro que decidem a compra ficam numa faixa de rótulo + valor. */
+    #corpoLista tr.linha > td[data-rot]:not(.cel-pedir):not(.cel-secundaria) {
+      grid-column: span 1; font-size: 12.5px; text-align: left;
+      display: flex; align-items: baseline; gap: 6px;
+      /* `<br>` não quebra dentro de flex: sem isto, "10 ped." escorrega para
+         o lado do número em vez de ficar debaixo dele. */
+      flex-wrap: wrap;
+    }
+    #corpoLista tr.linha > td[data-rot] br { display: none; }
+    /* Excluída acima por seletor, não por ordem: `:not()` conta como classe,
+       então a regra do flex tinha especificidade maior e vencia. */
+    #corpoLista tr.linha > td.cel-secundaria { display: none; }
+    #corpoLista tr.linha > td[data-rot]::before {
+      content: attr(data-rot) ": ";
+      font-size: 10.5px; font-weight: 700; letter-spacing: .06em;
+      text-transform: uppercase; color: var(--tinta-3); flex: 0 0 auto;
+    }
+    #corpoLista .cel-pedir {
+      grid-column: 1 / -1; display: flex; align-items: center; gap: 8px;
+      border-top: 1px solid var(--borda); padding-top: 9px; margin-top: 3px;
+      /* A etiqueta da fonte vai para a linha de baixo em vez de vazar pela
+         direita do cartão. */
+      flex-wrap: wrap;
+    }
+    #corpoLista .cel-pedir::before { margin-right: auto; }
+    #corpoLista .cel-pedir > b, #corpoLista .cel-pedir > span:last-child { font-size: 10.5px; }
+    /* Cartão não rola de lado. O `.rolo` existe para tabela larga; aqui não
+       há mais tabela larga. */
+    #roloCompra { overflow-x: visible; border: 0; box-shadow: none; background: none; }
+    #corpoLista tr.expandivel { display: block; }
+    #corpoLista tr.expandivel > td { display: block; padding: 0; }
+    /* A barra de selecionados não pode cobrir a última linha da lista. */
+    .palco { padding-bottom: 110px; }
+  }
+
   .oculto { display: none !important; }
 
   @media (max-width: 700px) {
@@ -1291,8 +1348,8 @@
       </div>
 
       <div id="resumoLista" class="sobrancelha" style="margin-bottom:9px"></div>
-      <div class="rolo">
-        <table>
+      <div class="rolo" id="roloCompra">
+        <table id="tabelaCompra">
           <thead>
             <tr>
               <th style="width:26px"></th>
@@ -1564,8 +1621,8 @@
 <div class="barra-fixa oculto" id="barraCarrinho">
   <div class="barra-fixa-interno">
     <div class="resumo">
-      <b id="carrinhoItens">0</b> itens marcados ·
-      <b id="carrinhoUnidades">0</b> unidades<span id="carrinhoValor"></span>
+      <span id="carrinhoItens">0 itens marcados</span> ·
+      <span id="carrinhoUnidades">0 unidades</span><span id="carrinhoValor"></span>
     </div>
     <div class="acoes">
       <button class="bt bt-claro bt-mini" id="btEsvaziar" type="button">Desmarcar</button>
@@ -5366,27 +5423,30 @@ function renderComprar() {
     const id = i.interno || i.produto;
     const marcado = estado.marcados.has(id);
     const s = SITUACOES[i.situacao] || SITUACOES.SEM_SALDO;
+    /* `data-rot` é o rótulo que a célula ganha quando a tabela vira cartão no
+       celular. Fica na marcação, e não num segundo render, porque manter duas
+       montagens da mesma lista é como as telas passam a discordar entre si. */
     return '<tr class="linha" data-id="' + esc(id) + '">' +
-      '<td><span class="faixa" data-tom="' + s.tom + '"></span></td>' +
-      '<td><input type="checkbox" class="marca-item" data-id="' + esc(id) + '"' + (marcado ? ' checked' : '') + ' aria-label="Marcar ' + esc(i.descricao) + '" style="width:18px;height:18px;cursor:pointer" /></td>' +
-      '<td>' + barraPrioridade(i.prioridade) + '</td>' +
-      '<td>' + (i.curva ? '<span class="curva" data-c="' + i.curva + '">' + i.curva + '</span>' : '<span class="etiqueta" data-tom="neutro">sem curva</span>') + '</td>' +
-      '<td><b style="font-weight:600">' + esc(i.descricao || '—') + '</b>' +
+      '<td class="cel-faixa"><span class="faixa" data-tom="' + s.tom + '"></span></td>' +
+      '<td class="cel-sel"><input type="checkbox" class="marca-item" data-id="' + esc(id) + '"' + (marcado ? ' checked' : '') + ' aria-label="Marcar ' + esc(i.descricao) + '" style="width:18px;height:18px;cursor:pointer" /></td>' +
+      '<td data-rot="Prioridade">' + barraPrioridade(i.prioridade) + '</td>' +
+      '<td data-rot="Curva">' + (i.curva ? '<span class="curva" data-c="' + i.curva + '">' + i.curva + '</span>' : '<span class="etiqueta" data-tom="neutro">sem curva</span>') + '</td>' +
+      '<td class="cel-desc">' + '<b style="font-weight:600">' + esc(i.descricao || '—') + '</b>' +
         (i.repetidos > 1 ? ' <span class="etiqueta" data-tom="neutro" title="Mesma peça em ' + i.repetidos + ' cadastros fiscais. Saldo e venda somados; escolha o cadastro na hora de faturar.">' + i.repetidos + ' variantes fiscais</span>' : '') +
         '</td>' +
-      '<td class="mono">' + esc(i.produto || '—') + '</td>' +
-      '<td class="mono">' + esc(i.original || '—') + '</td>' +
-      '<td class="dir num">' + (i.demandaUsada
+      '<td class="mono" data-rot="Cód. produto">' + esc(i.produto || '—') + '</td>' +
+      '<td class="mono cel-secundaria" data-rot="Cód. original">' + esc(i.original || '—') + '</td>' +
+      '<td class="dir num" data-rot="Vendeu">' + (i.demandaUsada
         ? '<b>' + n(Math.round(i.demandaUsada.unidades)) + '</b><br><span style="font-size:10.5px;color:var(--tinta-3)">' + i.demandaUsada.pedidos + ' ped.</span>'
         : '<span style="color:var(--tinta-3)">—</span>') + '</td>' +
-      '<td class="dir num">' + celulaOutraFilial(i) + '</td>' +
+      '<td class="dir num cel-secundaria" data-rot="Outra filial">' + celulaOutraFilial(i) + '</td>' +
       /* O filtro de situação já diz qual é. Repetir a etiqueta em 163 linhas
          é ruído; a coluna inteira (com o cabeçalho) volta assim que o filtro
          deixa de fixar uma situação. */
-      '<td class="col-situacao"' + (fixaSituacao ? ' hidden' : '') + '>' +
+      '<td class="col-situacao cel-secundaria" data-rot="Situação"' + (fixaSituacao ? ' hidden' : '') + '>' +
         (fixaSituacao ? '' : etiquetaSituacao(i.situacao)) + '</td>' +
-      '<td class="dir num"><b>' + (i.saldo === null ? '—' : n(i.saldo)) + '</b></td>' +
-      '<td class="dir">' + campoQuantidade(i) + '</td>' +
+      '<td class="dir num" data-rot="Saldo"><b>' + (i.saldo === null ? '—' : n(i.saldo)) + '</b></td>' +
+      '<td class="dir cel-pedir" data-rot="Pedir">' + campoQuantidade(i) + '</td>' +
       '</tr>' +
       /* O detalhe NÃO nasce montado. Ele era o grosso dos 11.304 elementos da
          aba Comprar: 150 fichas completas construídas para ficarem ocultas.
@@ -6029,7 +6089,21 @@ function renderDados() {
  * uma confirmação e a pessoa pode recusar: recusa não é falha, e cada desfecho
  * vira recado na tela em vez de silêncio.
  */
+/* Arquivos que levam a carteira da filial para fora da tela. O aviso aparece
+   uma vez por sessão: repetir a cada clique vira ruído e a pessoa para de ler,
+   que é o oposto do que um aviso serve. */
+let avisouExportacao = false;
+function avisarSeComercial(nomeArquivo) {
+  if (avisouExportacao) return;
+  if (!/\.(csv|json|html|txt)$/i.test(nomeArquivo)) return;
+  avisouExportacao = true;
+  recado('O arquivo leva dados comerciais',
+    'Saldos, venda e códigos da filial saem do navegador para o seu aparelho. ' +
+    'Depois de baixado, quem controla para onde ele vai é você.', 'atencao');
+}
+
 async function baixar(nomeArquivo, conteudo, tipo) {
+  avisarSeComercial(nomeArquivo);
   const texto = '﻿' + conteudo;
   const runtime = typeof window !== 'undefined' && window.claude && window.claude.downloads;
 
@@ -6461,8 +6535,8 @@ function atualizarCarrinho() {
   const marcados = itensMarcados();
   const barra = $('#barraCarrinho');
   barra.classList.toggle('oculto', marcados.length === 0);
-  $('#carrinhoItens').textContent = n(marcados.length);
-  $('#carrinhoUnidades').textContent = n(marcados.reduce((s, i) => s + (i.qtd || 0), 0));
+  $('#carrinhoItens').textContent = plural(marcados.length, 'item marcado', 'itens marcados');
+  $('#carrinhoUnidades').textContent = emUnidades(marcados.reduce((s, i) => s + (i.qtd || 0), 0));
   $('#carrinhoValor').textContent = temCusto() ? ' · ' + brl(somaValor(marcados, (i) => i.qtd || 0)) + ' a custo' : '';
 }
 
@@ -6832,7 +6906,7 @@ liga('#btSolicitacao', 'click', () => {
   const lista = itensMarcados();
   if (!lista.length) return;
   abrirModal('Solicitação de compra',
-    lista.length + ' itens marcados. Copie o texto para o e-mail ou mensagem, ou baixe a planilha para o fornecedor.',
+    plural(lista.length, 'item marcado', 'itens marcados') + '. Copie o texto para o e-mail ou mensagem, ou baixe a planilha para o fornecedor.',
     textoSolicitacao(lista), csvDeItens(lista), 'solicitacao-compra-ribeirao-preto.csv');
 });
 liga('#btFecharModal', 'click', () => $('#modal').close());

@@ -5176,7 +5176,7 @@ function renderReconciliacao() {
     '<button class="bt bt-mini" id="btCsvNaoConciliados" type="button">Baixar não conciliados</button></div>';
 
   const bt = $('#btCsvNaoConciliados');
-  if (bt) bt.addEventListener('click', () => {
+  if (bt) bt.addEventListener('click', async () => {
     const linhas = ['origem;codigo;descricao;unidades_vendidas;saldo'];
     for (const x of r.soNaVenda) {
       linhas.push(['movimentacao', x.codigo, String(x.descricao).replace(/;/g, ','), Math.round(x.unidades), ''].join(';'));
@@ -5184,8 +5184,11 @@ function renderReconciliacao() {
     for (const i of r.soNoEstoque) {
       linhas.push(['estoque', i.interno || '', String(i.descricao || '').replace(/;/g, ','), '', i.saldo === null ? '' : i.saldo].join(';'));
     }
-    baixar('nao-conciliados-ribeirao-preto.csv', linhas.join('\n'), 'text/csv');
-    recado('Planilha baixada', emItens(r.soNaVenda.length + r.soNoEstoque.length) + ' fora do cruzamento.');
+    /* Só afirma que baixou depois que o download realmente aconteceu: no
+       visualizador de Artifacts a pessoa pode recusar a confirmação. */
+    if (await baixar('nao-conciliados-ribeirao-preto.csv', linhas.join('\n'), 'text/csv')) {
+      recado('Planilha baixada', emItens(r.soNaVenda.length + r.soNoEstoque.length) + ' fora do cruzamento.');
+    }
   });
 }
 
@@ -6013,13 +6016,67 @@ function renderDados() {
 
 /* ─── 20. Exportação ─────────────────────────────────────────────── */
 
-function baixar(nomeArquivo, conteudo, tipo) {
-  const blob = new Blob(['﻿' + conteudo], { type: tipo + ';charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = nomeArquivo;
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 2000);
+/**
+ * Entrega um arquivo para quem está usando a página.
+ *
+ * Dois ambientes, e a diferença não é detalhe: no site publicado (Netlify ou
+ * arquivo aberto do disco) o download é um link comum; dentro do visualizador
+ * de Artifacts o navegador da página não tem permissão de baixar nada, e um
+ * link comum **não faz nada, sem erro nenhum** — o pedido de compra
+ * simplesmente não sairia.
+ *
+ * Quando o runtime existe, pedimos o arquivo por ele. O visualizador mostra
+ * uma confirmação e a pessoa pode recusar: recusa não é falha, e cada desfecho
+ * vira recado na tela em vez de silêncio.
+ */
+async function baixar(nomeArquivo, conteudo, tipo) {
+  const texto = '﻿' + conteudo;
+  const runtime = typeof window !== 'undefined' && window.claude && window.claude.downloads;
+
+  if (!runtime) {
+    const blob = new Blob([texto], { type: tipo + ';charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = nomeArquivo;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+    return true;
+  }
+
+  try {
+    await window.claude.downloads.save({ filename: nomeArquivo, data: texto });
+    return true;
+  } catch (err) {
+    const codigo = (err && err.code) || 'unavailable';
+    /* `.csv` e `.html` estão num conjunto estendido que nem toda visualização
+       libera. Em vez de desistir, oferecemos o MESMO conteúdo em `.txt`, que
+       o Excel abre igual escolhendo ponto-e-vírgula como separador. */
+    if (codigo === 'extension_not_enabled' || codigo === 'rejected_extension') {
+      try {
+        await window.claude.downloads.save({
+          filename: nomeArquivo.replace(/\.[^.]+$/, '') + '.txt',
+          data: texto,
+        });
+        recado('Baixado como .txt', 'Esta visualização não libera .csv. O conteúdo é o mesmo — ' +
+          'no Excel, abra escolhendo ponto e vírgula como separador.');
+        return true;
+      } catch (err2) {
+        if ((err2 && err2.code) === 'declined') return false;
+      }
+    }
+    if (codigo === 'declined') return false;
+    if (codigo === 'rate_limited') {
+      recado('Muitos downloads seguidos', 'Espere alguns segundos e peça de novo.', 'erro');
+      return false;
+    }
+    if (codigo === 'too_large') {
+      recado('Arquivo grande demais', 'Filtre a lista antes de exportar — o limite é 16 MB.', 'erro');
+      return false;
+    }
+    recado('Não consegui entregar o arquivo', 'O visualizador não permitiu o download nesta sessão. ' +
+      'Copie o texto pela caixa acima, ou abra a Central pelo endereço publicado.', 'erro');
+    return false;
+  }
 }
 
 const csvCampo = (v) => '"' + String(v ?? '').replace(/"/g, '""') + '"';
@@ -7458,9 +7515,10 @@ function renderRede() {
       lista.length + ' peças no recorte atual.',
       textoAbastecimento(R, lista), csvRede(R, lista), 'abastecimento-ribeirao-preto.csv');
   });
-  $('#btCsvRede').addEventListener('click', () => {
-    baixar('comparacao-filiais-ribeirao-preto.csv', csvRede(R, R.falta), 'text/csv');
-    recado('Planilha baixada', n(R.falta.length) + ' peças que a rede mantém e que aqui estão zeradas ou sem cadastro.');
+  $('#btCsvRede').addEventListener('click', async () => {
+    if (await baixar('comparacao-filiais-ribeirao-preto.csv', csvRede(R, R.falta), 'text/csv')) {
+      recado('Planilha baixada', n(R.falta.length) + ' peças que a rede mantém e que aqui estão zeradas ou sem cadastro.');
+    }
   });
 }
 

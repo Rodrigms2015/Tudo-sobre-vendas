@@ -1525,6 +1525,12 @@
         <button class="bt" id="btEnviarEquipe" type="button">Enviar agora para a equipe</button>
         <button class="bt" id="btBaixarEquipe" type="button">Trazer a versão da equipe</button>
       </div>
+
+      <div class="secao-topo" style="margin-top:18px">
+        <h2 style="font-size:15px">Versões anteriores</h2>
+        <span class="nota">Publicou errado? Dá para voltar atrás.</span>
+      </div>
+      <div id="historicoEquipe"></div>
     </div>
 
     <div class="secao">
@@ -5976,11 +5982,25 @@ function renderEstado() {
     const quando = equipe.atualizadoEm
       ? new Date(equipe.atualizadoEm).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })
       : null;
+    /* Rascunho é o que está nesta tela e ainda não foi para a equipe. Dizer
+       "versão 12" enquanto existe alteração pendente esconde justamente o
+       estado em que as duas coisas divergem. */
+    const rascunho = !!(equipe.agendado || equipe.enviando || equipe.conflito);
     fichas.push({
-      ok: equipe.erro ? 'erro' : equipe.versao ? 'sim' : 'nao',
+      ok: equipe.erro ? 'erro' : rascunho ? 'nao' : equipe.versao ? 'sim' : 'nao',
       rot: 'Base da equipe',
-      val: equipe.erro ? 'desatualizada' : equipe.versao ? 'versão ' + equipe.versao : 'vazia',
-      titulo: equipe.erro
+      val: equipe.erro ? 'desatualizada'
+        : equipe.enviando ? 'publicando…'
+        : equipe.conflito ? 'rascunho · conflito'
+        : equipe.agendado ? 'rascunho por publicar'
+        : equipe.versao ? 'versão ' + equipe.versao : 'vazia',
+      titulo: equipe.conflito
+        ? 'O que está nesta tela é rascunho e ainda não foi para a equipe, e outra pessoa publicou depois que ela abriu. ' +
+          'Abra a aba Situação para escolher entre trazer a versão dela ou publicar a sua por cima.'
+        : equipe.agendado
+        ? 'O que está nesta tela é rascunho: já mudou aqui e ainda não subiu para a equipe. ' +
+          'Sobe sozinho em instantes; ninguém mais está vendo isto ainda.'
+        : equipe.erro
         ? 'A base tem dados mais novos e não consegui trazer: ' + equipe.erro +
           '. A tela pode estar desatualizada. Clique para abrir a aba Situação.'
         : equipe.versao
@@ -7349,6 +7369,69 @@ function renderEquipe() {
   alvo.innerHTML = cartoes.map(([rot, val, txt]) =>
     '<div class="ficha"><div class="sobrancelha">' + esc(rot) + '</div>' +
     '<h3>' + esc(val) + '</h3><p>' + esc(txt) + '</p></div>').join('');
+
+  renderHistoricoEquipe();
+}
+
+/**
+ * Histórico da base da equipe, com restauração.
+ *
+ * Restaurar não apaga nada: o servidor traz a versão escolhida de volta COMO
+ * VERSÃO NOVA, então a própria restauração pode ser desfeita. Um histórico que
+ * some quando se usa não é histórico.
+ */
+async function renderHistoricoEquipe() {
+  const alvo = $('#historicoEquipe');
+  if (!alvo || !equipe.ativa) return;
+
+  let dados;
+  try {
+    const r = await fetch('/api/dados?historico=1', { cache: 'no-store', headers: { Accept: 'application/json' } });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    dados = await r.json();
+  } catch (e) {
+    alvo.innerHTML = '<p class="nota">Não consegui ler o histórico agora (' + esc(e.message) + ').</p>';
+    return;
+  }
+
+  const versoes = dados.versoes || [];
+  if (!versoes.length) {
+    alvo.innerHTML = '<p class="nota">Só existe a versão ' + n(dados.atual.versao) +
+      '. A partir da próxima publicação, a anterior fica guardada aqui e dá para voltar atrás.</p>';
+    return;
+  }
+
+  const quando = (iso) => iso ? new Date(iso).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '—';
+  alvo.innerHTML =
+    '<div class="rolo"><table><thead><tr><th>Versão</th><th>Publicada por</th><th>Quando</th>' +
+    '<th class="dir">Tamanho</th><th></th></tr></thead><tbody>' +
+    versoes.map((v) => '<tr><td><b>nº ' + n(v.versao) + '</b></td>' +
+      '<td>' + esc(v.atualizadoPor || '—') + '</td>' +
+      '<td>' + esc(quando(v.atualizadoEm)) + '</td>' +
+      '<td class="dir num">' + n(Math.round(v.bytes / 1024)) + ' kB</td>' +
+      '<td class="dir"><button class="bt bt-mini" type="button" data-restaurar="' + v.versao + '">Restaurar</button></td>' +
+      '</tr>').join('') +
+    '</tbody></table></div>' +
+    '<p class="nota" style="margin-top:8px">Restaurar traz a versão escolhida de volta como uma versão nova — ' +
+    'nada é apagado, e dá para desfazer restaurando a atual depois. Guardamos as ' + n(10) + ' últimas.</p>';
+
+  $$('#historicoEquipe [data-restaurar]').forEach((bt) => bt.addEventListener('click', async () => {
+    const v = Number(bt.dataset.restaurar);
+    if (!confirm('Trazer a versão nº ' + v + ' de volta para a equipe?\n\n' +
+      'Ela vira a versão atual para todo mundo. A versão de agora vai para o histórico e pode ser restaurada depois.')) return;
+    bt.disabled = true; bt.textContent = 'restaurando…';
+    try {
+      const r = await fetch('/api/dados?restaurar=' + v, { method: 'PUT' });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const m = await r.json();
+      anotarEquipe(m);
+      await equipeBaixar();
+      recado('Versão nº ' + v + ' restaurada', 'Agora é a versão nº ' + m.versao + ' da equipe.');
+    } catch (e) {
+      bt.disabled = false; bt.textContent = 'Restaurar';
+      recado('Não consegui restaurar', e.message + '. A base da equipe continua como estava.', 'erro');
+    }
+  }));
 }
 
 liga('#fFonte', 'change', (e) => { estado.filtros.fonte = e.target.value; estado.limite = 50; renderComprar(); });

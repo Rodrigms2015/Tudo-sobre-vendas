@@ -11,8 +11,10 @@
  *
  *   GET  /api/dados              → situação da guarda, sem baixar o conteúdo
  *   GET  /api/dados?conteudo=1   → os bytes compactados
+ *   GET  /api/dados?historico=1  → as versões guardadas, da mais nova para a mais velha
  *   PUT  /api/dados?versaoBase=N → grava, se ninguém tiver gravado antes
  *   PUT  /api/dados?forcar=1     → grava por cima (o usuário confirmou)
+ *   PUT  /api/dados?restaurar=N  → traz a versão N de volta COMO VERSÃO NOVA
  *
  * A versão é um contador simples. O navegador manda a versão que ele tinha ao
  * carregar; se a guarda já estiver adiante, a resposta é 409 e a página avisa
@@ -24,6 +26,10 @@ import { lerSessao, USUARIOS } from '../comum/sessao.mjs';
 
 const CHAVE = 'pacote';
 const LIMITE_BYTES = 5 * 1024 * 1024;
+/* Quantas versões anteriores ficam guardadas. Dez cobre semanas de trabalho e
+   mantém o armazenamento previsível. */
+const VERSOES_GUARDADAS = 10;
+const chaveHistorico = (v) => 'historico/' + String(v).padStart(6, '0');
 
 const json = (corpo, status = 200) =>
   new Response(JSON.stringify(corpo), {
@@ -45,6 +51,46 @@ async function situacao(loja) {
   };
 }
 
+/** Copia a versão corrente para o histórico, com os metadados dela. */
+async function arquivarAtual(loja, atual) {
+  const bytes = await loja.get(CHAVE, { type: 'arrayBuffer' });
+  if (!bytes) return;
+  await loja.set(chaveHistorico(atual.versao), bytes, {
+    metadata: {
+      versao: atual.versao,
+      atualizadoPor: atual.atualizadoPor,
+      atualizadoEm: atual.atualizadoEm,
+      bytes: atual.bytes,
+    },
+  });
+}
+
+/** Mantém só as últimas `VERSOES_GUARDADAS`. */
+async function podarHistorico(loja, versaoAtual) {
+  const limite = versaoAtual - VERSOES_GUARDADAS;
+  if (limite <= 0) return;
+  const { blobs } = await loja.list({ prefix: 'historico/' });
+  await Promise.all(blobs
+    .filter((b) => Number(b.key.split('/')[1]) <= limite)
+    .map((b) => loja.delete(b.key)));
+}
+
+/** As versões guardadas, da mais nova para a mais velha. */
+async function listarHistorico(loja) {
+  const { blobs } = await loja.list({ prefix: 'historico/' });
+  const itens = await Promise.all(blobs.map(async (b) => {
+    const d = await loja.getMetadata(b.key);
+    const m = (d && d.metadata) || {};
+    return {
+      versao: Number(m.versao) || Number(b.key.split('/')[1]) || 0,
+      atualizadoPor: m.atualizadoPor || null,
+      atualizadoEm: m.atualizadoEm || null,
+      bytes: Number(m.bytes) || 0,
+    };
+  }));
+  return itens.sort((a, b) => b.versao - a.versao);
+}
+
 export default async (request) => {
   const usuario = await lerSessao(request.headers.get('cookie'));
   if (!usuario) return json({ erro: 'sessao-expirada' }, 401);
@@ -54,6 +100,18 @@ export default async (request) => {
 
   if (request.method === 'GET') {
     const atual = await situacao(loja);
+    if (url.searchParams.get('historico') === '1') {
+      return json({ atual, versoes: await listarHistorico(loja) });
+    }
+    /* Conteúdo de uma versão antiga, para conferir antes de restaurar. */
+    const pedida = Number(url.searchParams.get('versao'));
+    if (Number.isFinite(pedida) && pedida > 0 && pedida !== atual.versao) {
+      const bytes = await loja.get(chaveHistorico(pedida), { type: 'arrayBuffer' });
+      if (!bytes) return json({ erro: 'versao-nao-guardada', versao: pedida }, 404);
+      return new Response(bytes, {
+        headers: { 'Content-Type': 'application/octet-stream', 'Cache-Control': 'no-store', 'X-Versao': String(pedida) },
+      });
+    }
     if (url.searchParams.get('conteudo') !== '1') return json(atual);
     if (atual.versao === 0) return json({ ...atual, erro: 'guarda-vazia' }, 404);
 
@@ -71,6 +129,27 @@ export default async (request) => {
   }
 
   if (request.method === 'PUT') {
+    /* Restaurar NÃO apaga nada: a versão antiga volta como versão nova, então
+       a própria restauração pode ser desfeita. Histórico que some quando se
+       usa não é histórico. */
+    const restaurar = Number(url.searchParams.get('restaurar'));
+    if (Number.isFinite(restaurar) && restaurar > 0) {
+      const atual = await situacao(loja);
+      const bytes = await loja.get(chaveHistorico(restaurar), { type: 'arrayBuffer' });
+      if (!bytes) return json({ erro: 'versao-nao-guardada', versao: restaurar }, 404);
+      if (atual.versao > 0) await arquivarAtual(loja, atual);
+      const metadata = {
+        versao: atual.versao + 1,
+        atualizadoPor: USUARIOS[usuario].nome,
+        atualizadoEm: new Date().toISOString(),
+        bytes: bytes.byteLength,
+        restauradaDe: restaurar,
+      };
+      await loja.set(CHAVE, bytes, { metadata });
+      await podarHistorico(loja, metadata.versao);
+      return json(metadata);
+    }
+
     const corpo = await request.arrayBuffer();
     if (!corpo || corpo.byteLength === 0) return json({ erro: 'corpo-vazio' }, 400);
     if (corpo.byteLength > LIMITE_BYTES) return json({ erro: 'corpo-grande', limite: LIMITE_BYTES }, 413);
@@ -83,6 +162,11 @@ export default async (request) => {
       return json({ erro: 'conflito', ...atual }, 409);
     }
 
+    /* Antes de sobrescrever, a versão que está saindo vai para o histórico.
+       É o que permite voltar atrás: sem isto, uma publicação errada apaga a
+       anterior e não há como desfazer. */
+    if (atual.versao > 0) await arquivarAtual(loja, atual);
+
     const metadata = {
       versao: atual.versao + 1,
       atualizadoPor: USUARIOS[usuario].nome,
@@ -90,6 +174,7 @@ export default async (request) => {
       bytes: corpo.byteLength,
     };
     await loja.set(CHAVE, corpo, { metadata });
+    await podarHistorico(loja, metadata.versao);
     return json(metadata);
   }
 

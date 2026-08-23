@@ -1674,6 +1674,9 @@
 /* INICIO MOTOR LEITURA */
 /* FIM MOTOR LEITURA */
 
+/* INICIO MOTOR XLSX */
+/* FIM MOTOR XLSX */
+
 /* INICIO MOTOR REPOSICAO */
 /* FIM MOTOR REPOSICAO */
 
@@ -5648,6 +5651,10 @@ async function aplicarMovimentos(movimentos, nome, extra = '') {
 async function carregarArquivo(file) {
   const nome = file.name;
   let linhas;
+  /* Linhas que o gerador do .xlsx escreveu como bloco de texto dentro de uma
+     célula só. Não cabem na grade; são lidas pelo leitor de relatório em
+     texto mais adiante. Ver montarGrade em src/domain/dados/xlsx.js. */
+  let textoSoltoDoXlsx = [];
   try {
     if (/\.json$/i.test(nome)) {
       await aplicarPacote(JSON.parse(await file.text()));
@@ -5691,10 +5698,14 @@ async function carregarArquivo(file) {
     } else {
       const buf = await file.arrayBuffer();
       const cab = new Uint8Array(buf, 0, Math.min(8, buf.byteLength));
+      /* "PK" é a assinatura do ZIP, e todo .xlsx é um ZIP. */
       if (cab[0] === 0x50 && cab[1] === 0x4b) {
-        throw new Error('Este é um .xlsx (formato novo). Salve como "Excel 97-2003 (*.xls)" ou como CSV e envie de novo.');
+        const lido = montarGrade(await lerXlsx(buf));
+        linhas = lido.grade;
+        textoSoltoDoXlsx = lido.textoSolto;
+      } else {
+        linhas = lerPlanilha(lerOle(buf));
       }
-      linhas = lerPlanilha(lerOle(buf));
     }
     /* Os três arquivos entram pela mesma porta; o cabeçalho diz qual é qual. */
     const iTab = ehTabelaDeMarcas(linhas);
@@ -5740,8 +5751,19 @@ async function carregarArquivo(file) {
     const iMov = ehMovimentacao(linhas);
     if (iMov >= 0) {
       const movimentos = normalizarMovimentacao(linhas, iMov);
+      /* O .xlsx do Opus esconde alguns movimentos num bloco de texto, fora da
+         grade. São poucos (8 em 7.400 no arquivo de 21/08), e é justamente por
+         serem poucos que sumiriam sem ninguém notar. */
+      let doTexto = 0;
+      if (textoSoltoDoXlsx.length) {
+        const extra = movimentosDeTexto(textoSoltoDoXlsx);
+        doTexto = extra.movimentos.length;
+        for (const m of extra.movimentos) movimentos.push(m);
+      }
       estado.formatoMovimentos = 'planilha de movimentação';
-      await aplicarMovimentos(movimentos, nome);
+      await aplicarMovimentos(movimentos, nome,
+        doTexto ? ' ' + plural(doTexto, 'lançamento veio', 'lançamentos vieram') +
+          ' num bloco de texto do arquivo, fora das colunas; li à parte para não sumir.' : '');
       return;
     }
 

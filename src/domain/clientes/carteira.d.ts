@@ -9,8 +9,13 @@ export interface Cliente {
   ramo: string; vendedor: string;
 }
 export interface MediaFechados { media: number; mesesUsados: number }
-export interface Meta { meta: number; base: number; mesesUsados: number }
-export interface SemMeta { meta: null; motivo: string }
+/** `meta` nula significa sem base — `motivo` diz por quê. */
+export interface ResultadoMeta {
+  meta: number | null;
+  base?: number;
+  mesesUsados?: number;
+  motivo?: string;
+}
 export interface Situacao { situacao: string; rotulo: string; dias: number | null }
 export interface RotuloColuna { rotulo: string; parcial: boolean }
 export interface ResumoCarteira {
@@ -23,7 +28,7 @@ export function paraReal(texto: unknown): number | null;
 export function separarCodigoNome(texto: unknown): { codigo: string; nome: string } | null;
 export function lerLinhaCliente(celulas: unknown[], anoAtual: number): Cliente | null;
 export function mediaDosFechados(faturamento: Array<number | null>): MediaFechados | null;
-export function metaDoCliente(cliente: { faturamento: Array<number | null> }, multiplicador?: number): Meta | SemMeta;
+export function metaDoCliente(cliente: { faturamento: Array<number | null> }, multiplicador?: number): ResultadoMeta;
 export function situacaoDoCliente(cliente: { ultimaCompra: string | null; faturamento: Array<number | null> }, hojeIso: string): Situacao;
 export function mesDeReferencia(clientes: Array<{ ultimaCompra?: string | null }>): { ano: number; mes: number } | null;
 export function rotulosDasColunas(ref: { ano: number; mes: number } | null): RotuloColuna[];

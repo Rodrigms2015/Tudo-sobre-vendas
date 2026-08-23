@@ -32,4 +32,6 @@ export function metaDoCliente(cliente: { faturamento: Array<number | null> }, mu
 export function situacaoDoCliente(cliente: { ultimaCompra: string | null; faturamento: Array<number | null> }, hojeIso: string): Situacao;
 export function mesDeReferencia(clientes: Array<{ ultimaCompra?: string | null }>): { ano: number; mes: number } | null;
 export function rotulosDasColunas(ref: { ano: number; mes: number } | null): RotuloColuna[];
+export function ehRelatorioDeClientes(linhas: string[][]): number;
+export function lerCarteira(linhas: string[][], iCab: number, anoAtual: number): { clientes: Cliente[]; ignoradas: number };
 export function resumirCarteira(clientes: Array<{ faturamento: Array<number | null> }>, multiplicador?: number): ResumoCarteira;

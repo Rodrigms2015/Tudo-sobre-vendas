@@ -259,6 +259,47 @@ function rotulosDasColunas(ref) {
   return saida;
 }
 
+/**
+ * Reconhece o relatório de clientes pela marca que só ele tem: QUATRO colunas
+ * com o MESMO nome, "Faturamento". Nenhum outro relatório do Opus repete nome
+ * de coluna, e é por isso que a repetição serve de assinatura — mais confiável
+ * que o nome do arquivo, que qualquer um renomeia.
+ *
+ * @param {string[][]} linhas
+ * @returns {number} índice da linha de cabeçalho, ou -1
+ */
+function ehRelatorioDeClientes(linhas) {
+  const ls = linhas || [];
+  for (let i = 0; i < Math.min(ls.length, 25); i++) {
+    const cs = (ls[i] || []).map((c) => String(c === null || c === undefined ? '' : c).trim().toLowerCase());
+    const faturamentos = cs.filter((c) => c.startsWith('faturamento')).length;
+    const temCliente = cs.some((c) => c.startsWith('cliente'));
+    const temUltima = cs.some((c) => c.replace(/[\s.]/g, '') === 'dtucom');
+    if (faturamentos >= 2 && temCliente && temUltima) return i;
+  }
+  return -1;
+}
+
+/**
+ * Lê a carteira inteira. Devolve também quantas linhas ficaram de fora, para
+ * a tela poder dizer — linha descartada em silêncio é cliente que some.
+ *
+ * @param {string[][]} linhas
+ * @param {number} iCab
+ * @param {number} anoAtual
+ * @returns {{clientes: object[], ignoradas: number}}
+ */
+function lerCarteira(linhas, iCab, anoAtual) {
+  const ls = linhas || [];
+  const clientes = [];
+  let ignoradas = 0;
+  for (let i = iCab + 1; i < ls.length; i++) {
+    const c = lerLinhaCliente(ls[i], anoAtual);
+    if (c) clientes.push(c); else ignoradas++;
+  }
+  return { clientes, ignoradas };
+}
+
 /** Resumo da carteira, com as grandezas separadas — nunca misturadas. */
 function resumirCarteira(clientes, multiplicador = 1) {
   const lista = clientes || [];
@@ -295,5 +336,7 @@ export {
   situacaoDoCliente,
   mesDeReferencia,
   rotulosDasColunas,
+  ehRelatorioDeClientes,
+  lerCarteira,
   resumirCarteira,
 };

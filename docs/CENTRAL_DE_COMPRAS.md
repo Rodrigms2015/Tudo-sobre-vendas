@@ -786,7 +786,87 @@ Detalhes de operação, cadastro de usuários e como publicar de novo: `deploy-n
 
 ---
 
-## 8. Leitura do `.xls`
+## 7b. Clientes e metas — a carteira
+
+O terceiro relatório do Opus não fala de peça nenhuma: fala de quem compra. Entra pela mesma
+porta dos outros, é reconhecido pelo cabeçalho e vive **ao lado** do estoque — cada um
+funciona sem o outro, e qualquer um pode chegar primeiro.
+
+Motor em [`src/domain/clientes/carteira.js`](../src/domain/clientes/carteira.js), testado
+pelo vitest e injetado na página pelo gerador. Fonte única da verdade.
+
+### Como o relatório é reconhecido
+
+Pela marca que só ele tem: **quatro colunas com o mesmo nome, `Faturamento`**. Nenhum outro
+relatório do Opus repete nome de coluna. É mais confiável que o nome do arquivo, que qualquer
+um renomeia.
+
+### As quatro colunas não dizem de que mês são
+
+O relatório não declara o período em lugar nenhum — não há título nem rodapé com data. Duas
+coisas foram determinadas **por medição**, não por suposição:
+
+| Pergunta | O que a medição mostrou |
+|---|---|
+| Qual é a ordem? | Do mais recente para o mais antigo. A ordem inversa produz **27 casos impossíveis** — cliente faturando depois da própria última compra. |
+| A primeira coluna é o mês corrente ou o último fechado? | **Mês corrente.** Supor o último fechado zera a coluna do mês da última compra em **80 de 80** clientes conferidos. |
+
+O mês de referência sai da **data de compra mais recente do próprio arquivo**, não do nome do
+arquivo. Daí saem os rótulos das colunas (`agosto/26`, `julho/26`, …).
+
+### A regra que protege a meta
+
+O mês corrente é **parcial** — o arquivo de 21/08 tem 21 dias de agosto, não 31. Incluí-lo
+numa média de quatro meses derruba a média em cerca de um terço de um mês, e **a meta sai
+sistematicamente baixa**.
+
+Por isso a média usa **só os meses fechados**. O mês corrente aparece do lado, marcado como
+parcial, e nunca entra na conta. Medido no arquivo real de Passo Fundo:
+
+| Grandeza | Valor |
+|---|---:|
+| Clientes na carteira | 1.142 |
+| Com meta pela própria média | 95 |
+| Sem base nos meses fechados | 1.047 |
+| Meta somada (fator 1,00) | R$ 271.722,18 |
+| Faturado em agosto (**parcial**) | R$ 216.425,48 |
+| Compravam e pararam | 18 (R$ 16.050,34 de média mensal) |
+
+**Sem base não vira meta zero.** Meta zero seria lida como "meta batida"; a linha diz *sem
+base* e o motivo (`não faturou nada nos 3 meses fechados`).
+
+O multiplicador da meta é escolha de quem gerencia — 1,00 repete a média, 1,10 pede 10% de
+crescimento. A página não inventa crescimento sozinha, e o fator escolhido fica gravado junto
+com a carteira.
+
+### Situação: medida, nunca rótulo do ERP
+
+| Situação | Corte | Por quê |
+|---|---|---|
+| Ativo | até 45 dias | um mês comercial mais folga |
+| Esfriando | até 120 dias | um trimestre |
+| Dormindo | até 365 dias | um ano |
+| Sem comprar há mais de um ano | acima | outro tipo de trabalho |
+
+A distância é contra **hoje**, não contra a data do arquivo: a data da última compra é
+absoluta, e "há quantos dias" só é verdade se medido agora.
+
+`Vl U.Com` e `Faturamento` têm **bases diferentes** — a diferença é constante em vários
+clientes (17,50 em dois deles, 47,71 em outro), o que aponta imposto ou frete fora do
+faturamento. Por isso um nunca é usado para conferir o outro.
+
+Ano de dois dígitos vira 20YY **se isso não passar do ano que vem**; senão 19YY. Sem essa
+regra, `07/10/99` viraria 2099 e "há quantos dias não compra" ficaria negativo — e o relatório
+traz cliente que não compra desde os anos 90.
+
+### O que a aba mostra
+
+**Compravam e pararam** é a única lista que vira ligação hoje: tem meta (logo, faturou nos
+meses fechados) e está fora do prazo de compra. É ela que conta no selo da aba.
+
+---
+
+## 8. Leitura do `.xls` e do `.xlsx`
 
 O relatório sai em BIFF8 (Excel 97-2003), dentro de um contêiner OLE2. A página traz um
 leitor próprio dos dois formatos — cerca de 200 linhas — em vez de embutir um megabyte de
@@ -797,11 +877,40 @@ Detalhes que importam:
 
 - **`1.718` é mil setecentos e dezoito**, não 1,718. O separador de milhar brasileiro é
   tratado; um leitor ingênuo perde 1.717 unidades de disco de tacógrafo nesse único campo.
-- Planilha protegida por senha, `.xlsx` (que é ZIP, não OLE2) e cabeçalho irreconhecível
-  param com mensagem dizendo o que fazer, não com erro genérico.
+- Planilha protegida por senha e cabeçalho irreconhecível param com mensagem dizendo o que
+  fazer, não com erro genérico.
 - `.csv` e `.txt` também são aceitos, com detecção de `;` ou `,`.
 - O cabeçalho é procurado nas 25 primeiras linhas e os nomes das colunas são tolerantes a
   variação (`Saldo`, `Estoque`, `Qtd`, `Quantidade` resolvem o mesmo campo).
+
+### O `.xlsx`, lido direto
+
+Antes a página mandava reexportar como "Excel 97-2003". Pedir para alguém mudar o jeito de
+tirar o relatório é empurrar o custo do software para quem usa. Um `.xlsx` é um ZIP com XML
+dentro, e o navegador já sabe as duas coisas (`DecompressionStream` + `DOMParser`) — nenhuma
+dependência entrou no projeto. Motor em
+[`src/domain/dados/xlsx.js`](../src/domain/dados/xlsx.js).
+
+O relatório de movimentação em `.xlsx` **não é uma planilha**: é o relatório de texto do Opus
+jogado dentro de um `.xlsx`. Cada campo ocupa uma faixa de colunas e o valor cai numa coluna
+ou na vizinha, conforme o alinhamento. Três coisas quebravam em silêncio, medidas no arquivo
+de Passo Fundo de 21/08:
+
+| O que acontece | Quanto | O que dá errado se ignorar |
+|---|---:|---|
+| Linhas começam na coluna A em vez de B | 7.714 de 7.832 | ler por letra fixa põe `NF00023202` no lugar do tipo de movimento |
+| Descrição na coluna 8 em vez da 9 | 2.521 | encaixar "na última coluna que cabe" cola a descrição no código do produto |
+| Movimentos dentro de uma célula só, como bloco de texto | 8 | somem — e é por serem poucos que ninguém notaria |
+
+Por isso cada célula vai para a referência de cabeçalho **mais próxima**, depois de corrigir o
+deslocamento da linha; e o bloco de texto passa pelo leitor de relatório em texto, com a tela
+dizendo quantos vieram assim.
+
+Data em `.xlsx` é número. **Quem decide se aquele número é data é o formato da célula**, não o
+valor — `0000000000` é código de produto, não data.
+
+Resultado no arquivo real: **7.398 lançamentos de 05/01/2026 a 20/08/2026**, 7.390 da grade e
+8 do bloco de texto.
 
 ---
 

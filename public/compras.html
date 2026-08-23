@@ -1073,6 +1073,7 @@
     <button class="aba" role="tab" data-vista="comprar" aria-controls="vista-comprar" id="aba-comprar" aria-selected="false" title="Itens que passam nos filtros da lista de compra agora">Comprar <span class="selo" id="seloComprar">0</span></button>
     <button class="aba" role="tab" data-vista="oportunidades" aria-controls="vista-oportunidades" id="aba-oportunidades" aria-selected="false" title="Itens com saldo alto e giro baixo — o que os vendedores têm para girar">Oportunidades <span class="selo" id="seloOport">0</span></button>
     <button class="aba" role="tab" data-vista="demanda" aria-controls="vista-demanda" id="aba-demanda" aria-selected="false" title="Itens zerados que tiveram venda comprovada — a compra que não pode esperar">Demanda <span class="selo" id="seloDemanda">0</span></button>
+    <button class="aba" role="tab" data-vista="clientes" aria-controls="vista-clientes" id="aba-clientes" aria-selected="false" title="A carteira: quem comprava e parou, e a meta de cada um pela própria média">Clientes <span class="selo" id="seloClientes">0</span></button>
     <button class="aba" role="tab" data-vista="rede" aria-controls="vista-rede" id="aba-rede" aria-selected="false" title="Comparação com as filiais irmãs: curva, quantidade e o que pedir de abastecimento">Rede <span class="selo" id="seloRede">0</span></button>
     <button class="aba" role="tab" data-vista="dados" aria-controls="vista-dados" id="aba-dados" aria-selected="false" title="O que está carregado, o que está gravado e a qualidade do cadastro">Situação</button>
   </div>
@@ -1084,11 +1085,12 @@
   <section id="semDados" class="secao">
     <div class="vazio" id="zonaSolta">
       <div class="sobrancelha">Arraste um arquivo para qualquer lugar da tela</div>
-      <h3>Dois relatórios do Opus, na ordem que você quiser</h3>
+      <h3>Os relatórios do Opus, na ordem que você quiser</h3>
       <p>
-        Aceita <b>.xls</b>, <b>.pdf</b>, <b>.csv</b> e <b>.txt</b>, e reconhece sozinha qual arquivo é qual —
-        o estoque sai em Excel, a venda sai em PDF, e os dois entram pelo mesmo lugar. A leitura
-        acontece <b>dentro do seu navegador</b>: o arquivo em si nunca é enviado.
+        Aceita <b>.xls</b>, <b>.xlsx</b>, <b>.pdf</b>, <b>.csv</b> e <b>.txt</b>, e reconhece sozinha qual
+        arquivo é qual pelo cabeçalho: <b>estoque</b>, <b>movimentação de produto</b> e <b>relação de
+        clientes</b> entram todos pelo mesmo lugar, do jeito que saem do sistema. A leitura acontece
+        <b>dentro do seu navegador</b>: o arquivo em si nunca é enviado.
       </p>
       <details class="ajuda" style="max-width:640px;margin:4px auto 0;text-align:left">
         <summary>Para onde vão os dados</summary>
@@ -1485,6 +1487,78 @@
           <thead><tr><th>Tipo</th><th>Código</th><th class="dir">Lançamentos</th><th class="dir">Unidades</th><th>Entra na conta?</th></tr></thead>
           <tbody id="corpoTr"></tbody>
         </table></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── CLIENTES ────────────────────────────────────────────── -->
+  <section class="vista" id="vista-clientes" role="tabpanel" aria-labelledby="aba-clientes" tabindex="0" hidden>
+    <div id="clientesVazio" class="secao oculto">
+      <div class="vazio">
+        <div class="sobrancelha">Falta o relatório de clientes</div>
+        <h3>A meta de cada cliente sai da média dele, não de um número redondo</h3>
+        <p>
+          Suba a <b>relação de clientes</b> do Opus — a que traz as quatro colunas de faturamento e a
+          data da última compra. A página lê o arquivo <b>do jeito que sai do sistema</b>, calcula a
+          média dos meses <b>fechados</b> de cada cliente e mostra quem comprava e parou.
+        </p>
+        <p class="nota">
+          O mês corrente não entra na média: ele ainda não acabou, e incluí-lo derruba a meta de todo
+          mundo. Ele aparece do lado, marcado como parcial.
+        </p>
+        <button class="bt bt-forte" id="btCarregarClientes" type="button">Carregar relação de clientes</button>
+      </div>
+    </div>
+    <div id="clientesConteudo">
+      <div class="secao"><div class="placas" id="placasClientes"></div></div>
+      <div class="secao">
+        <div class="secao-topo">
+          <h2>Carteira</h2>
+          <span class="nota" id="notaClientes"></span>
+        </div>
+        <div class="filtros">
+          <div class="campo" style="flex:1 1 260px">
+            <label for="fClienteBusca">Buscar</label>
+            <input id="fClienteBusca" type="search" placeholder="nome ou código do cliente" />
+          </div>
+          <div class="campo">
+            <label for="fClienteSituacao">Situação</label>
+            <select id="fClienteSituacao">
+              <option value="">Todas</option>
+              <option value="PARADO">Comprava e parou</option>
+              <option value="ATIVO">Ativo</option>
+              <option value="ESFRIANDO">Esfriando</option>
+              <option value="DORMINDO">Dormindo</option>
+              <option value="PERDIDO">Sem comprar há mais de um ano</option>
+              <option value="SEM_DATA">Sem data de compra</option>
+            </select>
+          </div>
+          <div class="campo">
+            <label for="fClienteVendedor">Vendedor</label>
+            <select id="fClienteVendedor"><option value="">Todos</option></select>
+          </div>
+          <div class="campo">
+            <label for="fMetaFator">Meta = média fechada &times;</label>
+            <select id="fMetaFator">
+              <option value="1">1,00 — repetir a média</option>
+              <option value="1.05">1,05 — crescer 5%</option>
+              <option value="1.1">1,10 — crescer 10%</option>
+              <option value="1.2">1,20 — crescer 20%</option>
+              <option value="0.9">0,90 — 10% abaixo</option>
+            </select>
+          </div>
+        </div>
+        <div class="rolo" style="margin-top:12px">
+          <table>
+            <thead><tr id="cabClientes"></tr></thead>
+            <tbody id="corpoClientes"></tbody>
+          </table>
+        </div>
+        <div style="margin-top:12px;display:flex;gap:9px;flex-wrap:wrap;align-items:center">
+          <button class="bt" id="btMaisClientes" type="button" hidden>Mostrar mais</button>
+          <button class="bt" id="btCsvClientes" type="button">Baixar planilha da carteira</button>
+          <button class="bt" id="btTextoClientes" type="button">Texto para o vendedor</button>
+        </div>
       </div>
     </div>
   </section>
@@ -2103,6 +2177,337 @@ function montarGrade(linhas) {
 }
 
 /* FIM MOTOR XLSX */
+
+/* INICIO MOTOR CARTEIRA */
+/**
+ * Carteira de clientes e metas — filial 37, Passo Fundo.
+ *
+ * FONTE ÚNICA DA VERDADE, no mesmo esquema dos outros motores: testado pelo
+ * vitest E injetado na página pelo gerador. JavaScript puro, sem import.
+ *
+ * ────────────────────────────────────────────────────────────────────────
+ * O QUE O RELATÓRIO DE CLIENTES TRAZ — E O QUE ELE NÃO DIZ
+ *
+ * Quinze colunas: `Cliente Nome` (código e nome grudados), Tipo, Fi, Prom.,
+ * Repr, Frot., Potencial, **quatro colunas chamadas todas de "Faturamento"**,
+ * Dt U.Com, Vl U.Com, Ram, Vend.
+ *
+ * As quatro colunas de faturamento NÃO dizem de que mês são. O período foi
+ * determinado por medição, não por suposição:
+ *
+ *   1. A ordem é do mais recente para o mais antigo. Supor o contrário produz
+ *      27 casos impossíveis — cliente faturando depois da própria última
+ *      compra.
+ *   2. A primeira coluna é o MÊS CORRENTE, não o último fechado. Supor o
+ *      último fechado zera a coluna do mês da última compra em 80 de 80
+ *      clientes conferidos.
+ *
+ * `Vl U.Com` e `Faturamento` têm BASES DIFERENTES: a diferença é constante em
+ * vários clientes (17,50 em dois deles, 47,71 em outro), o que aponta imposto
+ * ou frete fora do faturamento. Por isso um nunca é usado para conferir o
+ * outro, e nenhum dos dois é convertido no outro.
+ *
+ * ────────────────────────────────────────────────────────────────────────
+ * A REGRA QUE PROTEGE A META
+ *
+ * O mês corrente é PARCIAL — o arquivo de 21/08 tem 21 dias de agosto, não 31.
+ * Incluí-lo numa média de quatro meses derruba a média em cerca de um terço de
+ * um mês, e a meta sai sistematicamente baixa.
+ *
+ * Por isso **a média usa só os meses FECHADOS**. O mês corrente aparece do
+ * lado, marcado como parcial, e nunca entra na conta.
+ */
+
+/** Meses fechados que a média usa. As colunas são 4; a primeira é a corrente. */
+const MESES_FECHADOS = 3;
+
+const NOMES_MES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
+  'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+
+/**
+ * Ano de dois dígitos para ano cheio.
+ *
+ * O relatório traz cliente que não compra desde os anos 90. Mapear tudo para
+ * 20xx transforma `09/09/05` em 2005 (certo) mas `07/10/99` em 2099 — cliente
+ * do futuro, e a conta de "há quantos dias não compra" vira negativa.
+ *
+ * Regra: 20YY se isso não passar do ano que vem; senão 19YY.
+ *
+ * @param {number} dd dois dígitos
+ * @param {number} anoAtual
+ * @returns {number}
+ */
+function anoDeDoisDigitos(dd, anoAtual) {
+  const cheio = 2000 + Number(dd);
+  return cheio <= Number(anoAtual) + 1 ? cheio : 1900 + Number(dd);
+}
+
+/**
+ * Valor em real brasileiro. `null` para ausente ou ilegível — **nunca zero**.
+ * Aqui zero é faturamento real (cliente que não comprou no mês), e confundir
+ * os dois com "não sei" estraga toda média.
+ *
+ * @param {unknown} texto
+ * @returns {number|null}
+ */
+function paraReal(texto) {
+  if (typeof texto === 'number') return Number.isFinite(texto) ? texto : null;
+  const t = String(texto === null || texto === undefined ? '' : texto).trim();
+  if (!t || /^-+$/.test(t) || /^_+$/.test(t)) return null;
+  if (!/^-?[\d.,]+$/.test(t)) return null;
+  const n = Number(t.replace(/\./g, '').replace(',', '.'));
+  return Number.isFinite(n) ? n : null;
+}
+
+/**
+ * Separa código e nome, que vêm grudados na primeira coluna:
+ * `'800677 ALCEU FOPPA & CIA LTDA        '`.
+ *
+ * @param {unknown} texto
+ * @returns {{codigo: string, nome: string}|null}
+ */
+function separarCodigoNome(texto) {
+  const t = String(texto === null || texto === undefined ? '' : texto).trim();
+  const m = t.match(/^(\d{4,6})\s+(.+)$/);
+  if (!m) return null;
+  return { codigo: m[1], nome: m[2].trim() };
+}
+
+/**
+ * Uma linha do relatório vira cliente. Devolve `null` para cabeçalho,
+ * separador e qualquer linha sem código — nunca um cliente pela metade.
+ *
+ * @param {Array<unknown>} celulas
+ * @param {number} anoAtual
+ * @returns {object|null}
+ */
+function lerLinhaCliente(celulas, anoAtual) {
+  const c = celulas || [];
+  const id = separarCodigoNome(c[0]);
+  if (!id) return null;
+
+  const data = String(c[11] === null || c[11] === undefined ? '' : c[11]).trim();
+  const md = data.match(/^(\d{2})\/(\d{2})\/(\d{2})$/);
+  let ultimaCompra = null;
+  if (md) {
+    const ano = anoDeDoisDigitos(md[3], anoAtual);
+    const mes = Number(md[2]);
+    const dia = Number(md[1]);
+    if (mes >= 1 && mes <= 12 && dia >= 1 && dia <= 31) {
+      const d = new Date(Date.UTC(ano, mes - 1, dia));
+      if (d.getUTCMonth() === mes - 1 && d.getUTCDate() === dia) {
+        ultimaCompra = d.toISOString().slice(0, 10);
+      }
+    }
+  }
+
+  const texto = (v) => String(v === null || v === undefined ? '' : v).trim();
+  return {
+    codigo: id.codigo,
+    nome: id.nome,
+    tipo: texto(c[1]).toUpperCase(),
+    filial: texto(c[2]),
+    promotor: texto(c[3]),
+    representante: texto(c[4]),
+    frota: paraReal(c[5]),
+    potencial: paraReal(c[6]),
+    /* Índice 0 é o mês CORRENTE (parcial); 1, 2 e 3 são os fechados. */
+    faturamento: [paraReal(c[7]), paraReal(c[8]), paraReal(c[9]), paraReal(c[10])],
+    ultimaCompra,
+    valorUltimaCompra: paraReal(c[12]),
+    ramo: texto(c[13]),
+    vendedor: texto(c[14]),
+  };
+}
+
+/**
+ * Média dos meses FECHADOS. O mês corrente fica de fora por ser parcial.
+ *
+ * Devolve `null` quando nenhum mês fechado pôde ser lido — sem base não há
+ * média, e média inventada vira meta inventada.
+ *
+ * @param {Array<number|null>} faturamento
+ * @returns {{media: number, mesesUsados: number}|null}
+ */
+function mediaDosFechados(faturamento) {
+  const f = faturamento || [];
+  const fechados = [];
+  for (let i = 1; i <= MESES_FECHADOS; i++) {
+    if (f[i] !== null && f[i] !== undefined) fechados.push(f[i]);
+  }
+  if (!fechados.length) return null;
+  const soma = fechados.reduce((a, b) => a + b, 0);
+  return { media: soma / fechados.length, mesesUsados: fechados.length };
+}
+
+/**
+ * A meta do cliente.
+ *
+ * Base: a média dos meses fechados, multiplicada por um fator que quem
+ * gerencia escolhe. Sem média não há meta — devolve `null` com o motivo, em
+ * vez de zero, porque zero seria lido como "meta batida".
+ *
+ * @param {{faturamento: Array<number|null>}} cliente
+ * @param {number} multiplicador
+ * @returns {{meta: number, base: number, mesesUsados: number}|{meta: null, motivo: string}}
+ */
+function metaDoCliente(cliente, multiplicador = 1) {
+  const m = mediaDosFechados(cliente && cliente.faturamento);
+  if (!m) return { meta: null, motivo: 'sem faturamento lido nos meses fechados' };
+  if (m.media <= 0) {
+    return { meta: null, motivo: 'não faturou nada nos ' + m.mesesUsados + ' meses fechados' };
+  }
+  const fator = Number(multiplicador);
+  if (!Number.isFinite(fator) || fator <= 0) return { meta: null, motivo: 'multiplicador inválido' };
+  return { meta: m.media * fator, base: m.media, mesesUsados: m.mesesUsados };
+}
+
+/**
+ * Situação do cliente, pelo que foi medido — nunca por rótulo do ERP.
+ *
+ * `dias` é a distância até a última compra. Os cortes são de calendário
+ * comercial (um mês, um trimestre, um ano), e cada um tem nome próprio para
+ * que a tela nunca dependa só de cor.
+ *
+ * @param {{ultimaCompra: string|null, faturamento: Array<number|null>}} cliente
+ * @param {string} hojeIso
+ * @returns {{situacao: string, rotulo: string, dias: number|null}}
+ */
+function situacaoDoCliente(cliente, hojeIso) {
+  const f = (cliente && cliente.faturamento) || [];
+  const comprouNoPeriodo = f.some((v) => v !== null && v !== undefined && v > 0);
+  if (!cliente || !cliente.ultimaCompra) {
+    return {
+      situacao: comprouNoPeriodo ? 'ATIVO' : 'SEM_DATA',
+      rotulo: comprouNoPeriodo ? 'ativo' : 'sem data de compra',
+      dias: null,
+    };
+  }
+  const dias = Math.round(
+    (Date.parse(hojeIso + 'T00:00:00Z') - Date.parse(cliente.ultimaCompra + 'T00:00:00Z')) / 86400000,
+  );
+  if (dias < 0) return { situacao: 'SEM_DATA', rotulo: 'data à frente do arquivo', dias };
+  if (dias <= 45) return { situacao: 'ATIVO', rotulo: 'ativo', dias };
+  if (dias <= 120) return { situacao: 'ESFRIANDO', rotulo: 'esfriando', dias };
+  if (dias <= 365) return { situacao: 'DORMINDO', rotulo: 'dormindo', dias };
+  return { situacao: 'PERDIDO', rotulo: 'sem comprar há mais de um ano', dias };
+}
+
+/**
+ * Mês de referência do arquivo, tirado do PRÓPRIO conteúdo.
+ *
+ * O relatório não declara o período em lugar nenhum — não há título nem
+ * rodapé com data. O nome do arquivo traz, mas depender do nome quebra no dia
+ * em que alguém renomear. A data de compra mais recente do arquivo cai dentro
+ * do mês corrente, e é dela que o mês sai.
+ *
+ * @param {Array<object>} clientes
+ * @returns {{ano: number, mes: number}|null}
+ */
+function mesDeReferencia(clientes) {
+  let melhor = null;
+  for (const c of clientes || []) {
+    if (!c || !c.ultimaCompra) continue;
+    if (!melhor || c.ultimaCompra > melhor) melhor = c.ultimaCompra;
+  }
+  if (!melhor) return null;
+  return { ano: Number(melhor.slice(0, 4)), mes: Number(melhor.slice(5, 7)) };
+}
+
+/**
+ * Rótulo de cada uma das quatro colunas, a partir do mês de referência.
+ * A primeira vem marcada como parcial.
+ *
+ * @param {{ano: number, mes: number}|null} ref
+ * @returns {Array<{rotulo: string, parcial: boolean}>}
+ */
+function rotulosDasColunas(ref) {
+  if (!ref) {
+    return [
+      { rotulo: 'mês corrente', parcial: true },
+      { rotulo: 'mês anterior', parcial: false },
+      { rotulo: '2 meses atrás', parcial: false },
+      { rotulo: '3 meses atrás', parcial: false },
+    ];
+  }
+  const saida = [];
+  for (let i = 0; i < 4; i++) {
+    let m = ref.mes - i;
+    let a = ref.ano;
+    while (m <= 0) { m += 12; a -= 1; }
+    saida.push({ rotulo: NOMES_MES[m - 1] + '/' + String(a).slice(2), parcial: i === 0 });
+  }
+  return saida;
+}
+
+/**
+ * Reconhece o relatório de clientes pela marca que só ele tem: QUATRO colunas
+ * com o MESMO nome, "Faturamento". Nenhum outro relatório do Opus repete nome
+ * de coluna, e é por isso que a repetição serve de assinatura — mais confiável
+ * que o nome do arquivo, que qualquer um renomeia.
+ *
+ * @param {string[][]} linhas
+ * @returns {number} índice da linha de cabeçalho, ou -1
+ */
+function ehRelatorioDeClientes(linhas) {
+  const ls = linhas || [];
+  for (let i = 0; i < Math.min(ls.length, 25); i++) {
+    const cs = (ls[i] || []).map((c) => String(c === null || c === undefined ? '' : c).trim().toLowerCase());
+    const faturamentos = cs.filter((c) => c.startsWith('faturamento')).length;
+    const temCliente = cs.some((c) => c.startsWith('cliente'));
+    const temUltima = cs.some((c) => c.replace(/[\s.]/g, '') === 'dtucom');
+    if (faturamentos >= 2 && temCliente && temUltima) return i;
+  }
+  return -1;
+}
+
+/**
+ * Lê a carteira inteira. Devolve também quantas linhas ficaram de fora, para
+ * a tela poder dizer — linha descartada em silêncio é cliente que some.
+ *
+ * @param {string[][]} linhas
+ * @param {number} iCab
+ * @param {number} anoAtual
+ * @returns {{clientes: object[], ignoradas: number}}
+ */
+function lerCarteira(linhas, iCab, anoAtual) {
+  const ls = linhas || [];
+  const clientes = [];
+  let ignoradas = 0;
+  for (let i = iCab + 1; i < ls.length; i++) {
+    const c = lerLinhaCliente(ls[i], anoAtual);
+    if (c) clientes.push(c); else ignoradas++;
+  }
+  return { clientes, ignoradas };
+}
+
+/** Resumo da carteira, com as grandezas separadas — nunca misturadas. */
+function resumirCarteira(clientes, multiplicador = 1) {
+  const lista = clientes || [];
+  let comMeta = 0, somaMeta = 0, somaMedia = 0, semBase = 0, somaParcial = 0;
+  for (const c of lista) {
+    const m = metaDoCliente(c, multiplicador);
+    if (m.meta === null) { semBase++; continue; }
+    comMeta++;
+    somaMeta += m.meta;
+    somaMedia += m.base;
+    const parcial = c.faturamento && c.faturamento[0];
+    if (parcial !== null && parcial !== undefined) somaParcial += parcial;
+  }
+  return {
+    clientes: lista.length,
+    comMeta,
+    semBase,
+    somaMeta,
+    somaMedia,
+    /* Faturamento do mês corrente, que é PARCIAL. Nunca comparado com a meta
+       cheia sem dizer que o mês ainda não acabou. */
+    faturadoNoMesParcial: somaParcial,
+  };
+}
+
+
+/* FIM MOTOR CARTEIRA */
 
 /* INICIO MOTOR REPOSICAO */
 /**
@@ -4651,6 +5056,9 @@ const guardarMovimentos = (nome) => gravarVerificado(
   { id: '__movimentos', nome, em: new Date().toISOString(), movimentos: estado.movimentos },
   (r) => (r.movimentos || []).length);
 const guardarRede = () => comLoja('readwrite', (l) => l.put({ id: '__rede', filiais: estado.rede }));
+const guardarClientes = (nome) => gravarVerificado(
+  { id: '__clientes', nome, em: new Date().toISOString(), clientes: estado.clientes, metaFator: estado.metaFator },
+  (r) => (r.clientes || []).length);
 const lerEnvios = () => comLoja('readonly', (l) => l.getAll());
 const removerEnvio = (id) => comLoja('readwrite', (l) => l.delete(id));
 const limparEnvios = () => comLoja('readwrite', (l) => l.clear());
@@ -4686,6 +5094,16 @@ const estado = {
   gravacao: { ok: null, em: null, erro: null },
   nomeMovimentos: null,
   emMovimentos: null,
+  /* Carteira de clientes. Vive ao lado do estoque, não dentro dele: são dois
+     relatórios diferentes, e um funciona sem o outro. */
+  clientes: null,
+  nomeClientes: null,
+  emClientes: null,
+  /* Multiplicador da meta. 1 = repetir a média dos meses fechados. Quem
+     gerencia escolhe; a página não inventa crescimento. */
+  metaFator: 1,
+  filtrosClientes: { busca: '', situacao: '', vendedor: '' },
+  limiteClientes: 50,
   bancoOk: true,
 };
 
@@ -4718,6 +5136,7 @@ const emPecas = (q) => plural(q, 'peça', 'peças');
 const emUnidades = (q) => plural(q, 'unidade', 'unidades');
 const emItens = (q) => plural(q, 'item', 'itens');
 const emFiliais = (q) => plural(q, 'filial irmã', 'filiais irmãs');
+const emClientes = (q) => plural(q, 'cliente', 'clientes');
 const dataBr = (iso) => new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 const horaBr = (iso) => new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
@@ -6481,6 +6900,184 @@ function renderDados() {
     '</tbody></table></div>';
 }
 
+/* ─── 20. Carteira de clientes ───────────────────────────────────────
+   Segundo relatório do Opus que não fala de peça nenhuma: fala de quem
+   compra. Entra pela mesma porta dos outros e vive ao lado do estoque — um
+   funciona sem o outro.
+
+   O motor está em src/domain/clientes/carteira.js, testado pelo vitest e
+   injetado no topo deste arquivo. Aqui só há tela. */
+
+const dinheiroBr = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const rs = (v) => (v === null || v === undefined ? '—' : 'R$ ' + dinheiroBr.format(v));
+const hojeIso = () => new Date().toISOString().slice(0, 10);
+
+/* Quem comprava e parou: tem meta (logo, faturou nos meses fechados) e está
+   fora do prazo de compra. É a única lista da tela que vira ligação hoje —
+   por isso é ela que conta no selo da aba. */
+function clienteParou(c, hoje, fator) {
+  const sit = situacaoDoCliente(c, hoje);
+  if (sit.situacao !== 'ESFRIANDO' && sit.situacao !== 'DORMINDO') return false;
+  return metaDoCliente(c, fator).meta !== null;
+}
+
+function clientesFiltrados() {
+  const lista = estado.clientes || [];
+  const f = estado.filtrosClientes;
+  const hoje = hojeIso();
+  const busca = chave(f.busca);
+  return lista.filter((c) => {
+    if (busca && !chave(c.nome + ' ' + c.codigo).includes(busca)) return false;
+    if (f.vendedor && c.vendedor !== f.vendedor) return false;
+    if (!f.situacao) return true;
+    if (f.situacao === 'PARADO') return clienteParou(c, hoje, estado.metaFator);
+    return situacaoDoCliente(c, hoje).situacao === f.situacao;
+  });
+}
+
+/* Ordem: quem tem mais dinheiro parado em cima. Dentro da carteira toda, a
+   média fechada é o que melhor mede o tamanho do cliente. */
+const porTamanho = (a, b) => {
+  const ma = mediaDosFechados(a.faturamento);
+  const mb = mediaDosFechados(b.faturamento);
+  return (mb ? mb.media : -1) - (ma ? ma.media : -1);
+};
+
+const TOM_SITUACAO = { ATIVO: 'saudavel', ESFRIANDO: 'atencao', DORMINDO: 'critico', PERDIDO: 'neutro', SEM_DATA: 'neutro' };
+
+function renderClientes() {
+  const temCarteira = !!(estado.clientes && estado.clientes.length);
+  $('#clientesVazio').classList.toggle('oculto', temCarteira);
+  $('#clientesConteudo').classList.toggle('oculto', !temCarteira);
+  if (!temCarteira) return;
+
+  const todos = estado.clientes;
+  const hoje = hojeIso();
+  const fator = estado.metaFator;
+  const ref = mesDeReferencia(todos);
+  const rotulos = rotulosDasColunas(ref);
+  const resumo = resumirCarteira(todos, fator);
+  const pararam = todos.filter((c) => clienteParou(c, hoje, fator));
+  const somaParada = pararam.reduce((a, c) => a + (mediaDosFechados(c.faturamento) || { media: 0 }).media, 0);
+
+  const fechados = rotulos.slice(1).map((r) => r.rotulo).join(', ');
+  $('#placasClientes').innerHTML = [
+    placa({
+      rotulo: 'Clientes na carteira', valor: n(resumo.clientes),
+      rodape: emClientes(resumo.comMeta) + ' com meta pela própria média · ' +
+        n(resumo.semBase) + ' sem base nos meses fechados',
+      tom: 'neutro',
+    }),
+    placa({
+      rotulo: 'Meta somada do mês', valor: rs(resumo.somaMeta),
+      rodape: 'Média de ' + esc(fechados) + ' × ' + dinheiroBr.format(fator).replace(',00', '') +
+        '. Quem não faturou nesses meses não entra — não vira meta zero.',
+      tom: 'neutro',
+    }),
+    placa({
+      rotulo: 'Faturado em ' + esc(rotulos[0].rotulo), valor: rs(resumo.faturadoNoMesParcial),
+      rodape: '<b>O mês ainda não acabou.</b> Este número cresce até o fim do mês; ' +
+        'comparar com a meta cheia hoje é comparar mês parcial com mês inteiro.',
+      tom: 'atencao',
+    }),
+    placa({
+      rotulo: 'Compravam e pararam', valor: n(pararam.length),
+      rodape: pararam.length
+        ? rs(somaParada) + ' de média mensal parada. Fora do prazo de compra e com histórico nos meses fechados.'
+        : 'Ninguém com histórico está fora do prazo de compra.',
+      tom: pararam.length ? 'critico' : 'saudavel',
+    }),
+  ].join('');
+
+  $('#notaClientes').textContent = 'Arquivo ' + (estado.nomeClientes || 'sem nome') +
+    (estado.emClientes ? ' · lido em ' + dataBr(estado.emClientes) : '') +
+    ' · situação medida contra hoje, ' + dataBr(hoje) + '.';
+
+  /* Vendedores do próprio arquivo, nunca uma lista fixa. */
+  const sel = $('#fClienteVendedor');
+  const vendedores = [...new Set(todos.map((c) => c.vendedor).filter(Boolean))].sort();
+  if (sel.options.length !== vendedores.length + 1) {
+    sel.innerHTML = '<option value="">Todos</option>' +
+      vendedores.map((v) => '<option value="' + esc(v) + '">' + esc(v) + '</option>').join('');
+  }
+  sel.value = estado.filtrosClientes.vendedor;
+
+  $('#cabClientes').innerHTML =
+    '<th>Cliente</th><th>Situação</th><th class="dir">Última compra</th>' +
+    rotulos.map((r) => '<th class="dir">' + esc(r.rotulo) + (r.parcial ? '<br><span style="font-weight:400;color:var(--tinta-3)">parcial</span>' : '') + '</th>').join('') +
+    '<th class="dir">Média fechada</th><th class="dir">Meta</th><th class="dir">Falta</th>';
+
+  const lista = clientesFiltrados().sort(porTamanho);
+  const mostrados = lista.slice(0, estado.limiteClientes);
+  $('#corpoClientes').innerHTML = mostrados.length ? mostrados.map((c) => {
+    const sit = situacaoDoCliente(c, hoje);
+    const m = metaDoCliente(c, fator);
+    const media = mediaDosFechados(c.faturamento);
+    const parcial = c.faturamento[0];
+    const falta = m.meta === null || parcial === null ? null : m.meta - parcial;
+    return '<tr>' +
+      '<td><b style="font-weight:600">' + esc(c.nome) + '</b>' +
+        '<div class="num" style="font-size:12px;color:var(--tinta-3)">' + esc(c.codigo) +
+        (c.vendedor ? ' · vendedor ' + esc(c.vendedor) : '') + '</div></td>' +
+      '<td><span class="etiqueta" data-tom="' + (TOM_SITUACAO[sit.situacao] || 'neutro') + '">' + esc(sit.rotulo) + '</span></td>' +
+      '<td class="dir num">' + (c.ultimaCompra ? dataBr(c.ultimaCompra) +
+        '<div style="font-size:12px;color:var(--tinta-3)">' + esc(haDias(sit.dias)) + '</div>' : '—') + '</td>' +
+      c.faturamento.map((v) => '<td class="dir num">' + rs(v) + '</td>').join('') +
+      '<td class="dir num">' + (media ? rs(media.media) : '—') + '</td>' +
+      '<td class="dir num">' + (m.meta === null
+        ? '<span style="color:var(--tinta-3)">sem base</span><div style="font-size:12px;color:var(--tinta-3)">' + esc(m.motivo) + '</div>'
+        : '<b>' + rs(m.meta) + '</b>') + '</td>' +
+      '<td class="dir num">' + (falta === null ? '—' : falta <= 0
+        ? '<span style="color:var(--saudavel)">meta batida</span>'
+        : rs(falta)) + '</td>' +
+      '</tr>';
+  }).join('') : '<tr><td colspan="10" style="padding:14px;color:var(--tinta-2)">' +
+    'Nenhum cliente com esses filtros. Tire a busca ou volte a situação para “Todas”.</td></tr>';
+
+  $('#btMaisClientes').hidden = lista.length <= mostrados.length;
+  $('#btMaisClientes').textContent = 'Mostrar mais ' + n(Math.min(50, lista.length - mostrados.length)) +
+    ' de ' + n(lista.length - mostrados.length) + ' restantes';
+}
+
+function csvDaCarteira(lista) {
+  const hoje = hojeIso();
+  const rotulos = rotulosDasColunas(mesDeReferencia(estado.clientes || []));
+  const valor = (v) => (v === null || v === undefined ? '' : v.toFixed(2).replace('.', ','));
+  return paraCsv(
+    ['Codigo', 'Cliente', 'Tipo', 'Vendedor', 'Ramo', 'Situacao', 'Dias sem comprar', 'Ultima compra']
+      .concat(rotulos.map((r, i) => r.rotulo + (i === 0 ? ' (parcial)' : '')))
+      .concat(['Media fechada', 'Meta', 'Base da meta', 'Falta']),
+    lista.map((c) => {
+      const sit = situacaoDoCliente(c, hoje);
+      const m = metaDoCliente(c, estado.metaFator);
+      const media = mediaDosFechados(c.faturamento);
+      const parcial = c.faturamento[0];
+      const falta = m.meta === null || parcial === null ? null : m.meta - parcial;
+      return [c.codigo, c.nome, c.tipo, c.vendedor, c.ramo, sit.rotulo,
+        sit.dias === null ? '' : sit.dias,
+        c.ultimaCompra ? dataBr(c.ultimaCompra) : '']
+        .concat(c.faturamento.map(valor))
+        .concat([valor(media ? media.media : null), valor(m.meta),
+          m.meta === null ? m.motivo : 'media de ' + m.mesesUsados + ' meses fechados x ' + estado.metaFator,
+          valor(falta)]);
+    }));
+}
+
+function textoDaCarteira(lista) {
+  const hoje = hojeIso();
+  const linhas = lista.slice(0, 40).map((c) => {
+    const sit = situacaoDoCliente(c, hoje);
+    const m = metaDoCliente(c, estado.metaFator);
+    return '• ' + c.nome + ' (' + c.codigo + ') — ' + sit.rotulo +
+      (c.ultimaCompra ? ', última compra ' + dataBr(c.ultimaCompra) : '') +
+      (m.meta === null ? ', sem base para meta (' + m.motivo + ')' : ', meta ' + rs(m.meta));
+  });
+  return 'Carteira — ' + emClientes(lista.length) +
+    (lista.length > 40 ? ' (os 40 maiores abaixo)' : '') + '\n' +
+    'Meta = média dos meses fechados × ' + estado.metaFator + '. O mês corrente não entra na média.\n\n' +
+    linhas.join('\n');
+}
+
 /* ─── 20. Exportação ─────────────────────────────────────────────── */
 
 /**
@@ -6787,6 +7384,39 @@ async function carregarArquivo(file) {
           oQue + ' valem nesta tela, mas nao consegui gravar (' + erroGrav + ').', 'erro');
       }
       trocarVista('marcas');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    const iClientes = ehRelatorioDeClientes(linhas);
+    if (iClientes >= 0) {
+      const lido = lerCarteira(linhas, iClientes, new Date().getFullYear());
+      if (!lido.clientes.length) {
+        throw new Error('Li ' + n(linhas.length) + ' linhas na relação de clientes, mas nenhuma tinha código e nome ' +
+          'na primeira coluna. Confira se é a relação de clientes do Opus, com as quatro colunas de faturamento.');
+      }
+      estado.clientes = lido.clientes;
+      estado.nomeClientes = nome;
+      estado.emClientes = new Date().toISOString();
+      let erroGrav = null;
+      try { await guardarClientes(nome); }
+      catch (err) { erroGrav = err.message || String(err); estado.gravacao = { ok: false, em: null, erro: erroGrav }; }
+      invalidarVistas();
+      renderTudo();
+      equipeAgendarEnvio();
+      const ref = mesDeReferencia(estado.clientes);
+      const rotulos = rotulosDasColunas(ref);
+      const resumo = resumirCarteira(estado.clientes, estado.metaFator);
+      const comum = emClientes(resumo.clientes) + '. Meta somada ' + rs(resumo.somaMeta) +
+        ', pela média de ' + rotulos.slice(1).map((r) => r.rotulo).join(', ') + '. ' +
+        n(resumo.semBase) + ' sem base nos meses fechados — esses aparecem sem meta, não com meta zero.' +
+        (lido.ignoradas ? ' Deixei de fora ' + n(lido.ignoradas) + ' linhas sem código de cliente (cabeçalho, traços e rodapé).' : '');
+      if (erroGrav) {
+        recado('Carteira carregada, mas NÃO gravada', comum + ' Não consegui gravar (' + erroGrav + ').', 'erro');
+      } else {
+        recado('Carteira carregada e gravada', comum);
+      }
+      trocarVista('clientes');
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
@@ -7178,6 +7808,7 @@ const RENDER_DA_VISTA = {
   oportunidades: () => renderOportunidades(),
   demanda: () => renderDemanda(),
   rede: () => renderRede(),
+  clientes: () => renderClientes(),
   dados: () => { renderDados(); renderConferir(); },
 };
 
@@ -7214,6 +7845,9 @@ function atualizarSelos() {
   $('#seloHoje').textContent = plano ? n(plano.blocos.length) : '0';
   $('#seloComprar').textContent = n(filtrar().length);
   $('#seloOport').textContent = n(L.filter((i) => i.situacao === 'EXCESSO').length);
+
+  atualizarSeloClientes();
+
   const R = analisarRede();
   $('#seloRede').textContent = R ? n(R.faltaAB.length) : '0';
 
@@ -7227,13 +7861,33 @@ function atualizarSelos() {
     : '0';
 }
 
+/* Fora de `atualizarSelos` porque a carteira aparece mesmo sem estoque, e o
+   resto da contagem depende do estoque estar carregado. */
+function atualizarSeloClientes() {
+  const carteira = estado.clientes || [];
+  if (!carteira.length) { $('#seloClientes').textContent = '0'; return; }
+  const hoje = hojeIso();
+  $('#seloClientes').textContent = n(carteira.filter((c) => clienteParou(c, hoje, estado.metaFator)).length);
+}
+
 function renderTudo() {
-  const temDados = itens().length > 0;
-  $('#semDados').classList.toggle('oculto', temDados);
-  $$('.vista').forEach((v) => { if (temDados) v.classList.remove('oculto'); else v.classList.add('oculto'); });
+  const temEstoque = itens().length > 0;
+  /* A carteira não depende do estoque: são dois relatórios do Opus, e
+     qualquer um pode chegar primeiro. Esconder a aba Clientes porque falta
+     estoque seria esconder dado que já está carregado. */
+  const temCarteira = !!(estado.clientes && estado.clientes.length);
+  $('#semDados').classList.toggle('oculto', temEstoque || temCarteira);
+  $$('.vista').forEach((v) => {
+    v.classList.toggle('oculto', !(v.id === 'vista-clientes' ? temCarteira : temEstoque));
+  });
   renderEstado();
-  if (!temDados) {
+  if (!temEstoque) {
     $('#seloComprar').textContent = '0'; $('#seloOport').textContent = '0';
+    atualizarSeloClientes();
+    if (temCarteira) {
+      vistasSujas.add('clientes');
+      if (vistaAtiva() !== 'clientes') trocarVista('clientes'); else renderVista('clientes');
+    }
     atualizarCarrinho(); return;
   }
   montarSelects();
@@ -7314,6 +7968,43 @@ $$('thead th.ord').forEach((th) => th.addEventListener('click', () => {
 }));
 
 liga('#btMovimentacao', 'click', () => $('#arquivo').click());
+
+/* ── Carteira de clientes ─────────────────────────────────────────── */
+liga('#btCarregarClientes', 'click', () => $('#arquivo').click());
+liga('#fClienteBusca', 'input', (e) => {
+  estado.filtrosClientes.busca = e.target.value;
+  estado.limiteClientes = 50;
+  renderClientes();
+});
+['fClienteSituacao', 'fClienteVendedor'].forEach((id) =>
+  liga('#' + id, 'change', (e) => {
+    estado.filtrosClientes[id === 'fClienteSituacao' ? 'situacao' : 'vendedor'] = e.target.value;
+    estado.limiteClientes = 50;
+    renderClientes();
+  }));
+liga('#fMetaFator', 'change', async (e) => {
+  estado.metaFator = Number(e.target.value) || 1;
+  renderClientes();
+  atualizarSelos();
+  /* O multiplicador é decisão de quem gerencia: fica gravado junto com a
+     carteira, senão volta a 1 na próxima abertura. */
+  try { if (estado.clientes) await guardarClientes(estado.nomeClientes || 'carteira'); }
+  catch (err) { estado.gravacao = { ok: false, em: null, erro: err.message || String(err) }; }
+  equipeAgendarEnvio();
+});
+liga('#btMaisClientes', 'click', () => { estado.limiteClientes += 50; renderClientes(); });
+liga('#btCsvClientes', 'click', () => {
+  const lista = clientesFiltrados().sort(porTamanho);
+  if (!lista.length) { recado('Nenhum cliente na lista', 'Tire os filtros antes de baixar.', 'erro'); return; }
+  baixar('carteira-clientes.csv', csvDaCarteira(lista), 'text/csv');
+});
+liga('#btTextoClientes', 'click', () => {
+  const lista = clientesFiltrados().sort(porTamanho);
+  if (!lista.length) { recado('Nenhum cliente na lista', 'Tire os filtros antes de gerar o texto.', 'erro'); return; }
+  abrirModal('Carteira para o vendedor',
+    'Meta pela média dos meses fechados de cada cliente. O mês corrente não entra na média.',
+    textoDaCarteira(lista), csvDaCarteira(lista), 'carteira-clientes.csv');
+});
 liga('#btCsvFilial', 'click', () => {
   const lista = itens().filter((i) => i.demandaUsada && i.demandaUsada.fora > 0)
     .sort((a, b) => b.demandaUsada.fora - a.demandaUsada.fora);
@@ -7411,6 +8102,10 @@ function pacoteDeDados() {
     nomeTabelaMarcas: estado.nomeTabelaMarcas,
     quantidades: estado.quantidades,
     rede: estado.rede,
+    clientes: estado.clientes,
+    nomeClientes: estado.nomeClientes,
+    emClientes: estado.emClientes,
+    metaFator: estado.metaFator,
     diasCobertura: estado.diasCobertura,
     resumo: {
       itens: e ? e.itens.length : 0,
@@ -7435,6 +8130,10 @@ async function aplicarPacote(pacote) {
   estado.nomeTabelaMarcas = pacote.nomeTabelaMarcas || null;
   estado.quantidades = pacote.quantidades || {};
   estado.rede = pacote.rede || {};
+  estado.clientes = pacote.clientes || null;
+  estado.nomeClientes = pacote.nomeClientes || null;
+  estado.emClientes = pacote.emClientes || null;
+  if (pacote.metaFator) estado.metaFator = pacote.metaFator;
   invalidarRede();
   if (pacote.diasCobertura) estado.diasCobertura = pacote.diasCobertura;
   estado.marcados.clear();
@@ -7442,6 +8141,7 @@ async function aplicarPacote(pacote) {
     for (const env of estado.envios) await guardarEnvio(env);
     if (estado.movimentos) await guardarMovimentos(estado.nomeMovimentos || 'pacote');
     if (estado.tabelaMarcas) await guardarTabelaMarcas(estado.nomeTabelaMarcas || 'pacote');
+    if (estado.clientes) await guardarClientes(estado.nomeClientes || 'pacote');
     await guardarMapaMarcas();
     await guardarQuantidades();
     await guardarRede();
@@ -8553,6 +9253,13 @@ $('#logo').src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAOAAAAB4CAIAAABk
     const tab = guardados.find((e) => e.id === '__tabelaMarcas');
     const rede = guardados.find((e) => e.id === '__rede');
     if (rede) estado.rede = rede.filiais || {};
+    const carteira = guardados.find((e) => e.id === '__clientes');
+    if (carteira) {
+      estado.clientes = carteira.clientes || null;
+      estado.nomeClientes = carteira.nome || null;
+      estado.emClientes = carteira.em || null;
+      if (carteira.metaFator) estado.metaFator = carteira.metaFator;
+    }
     const eq = guardados.find((e) => e.id === '__equipe');
     if (eq) equipe.versao = Number(eq.versao) || 0;
     if (tab) {

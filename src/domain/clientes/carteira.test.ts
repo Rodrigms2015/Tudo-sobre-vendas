@@ -7,6 +7,8 @@
 
 import { describe, expect, it } from 'vitest';
 import {
+  ehRelatorioDeClientes,
+  lerCarteira,
   anoDeDoisDigitos,
   lerLinhaCliente,
   mediaDosFechados,
@@ -197,5 +199,53 @@ describe('o resumo separa as grandezas', () => {
     const r = resumirCarteira([{ faturamento: [100, 300, 300, 300] }], 1);
     expect(r.faturadoNoMesParcial).toBeCloseTo(100, 2);
     expect(r.somaMeta).not.toBeCloseTo(r.faturadoNoMesParcial, 2);
+  });
+});
+
+describe('reconhecer o relatório de clientes no meio dos outros', () => {
+  /* Cabeçalho e duas primeiras linhas do CLIENTE_PASSO_FUNDO_21082026. */
+  const CABECALHO = ['Cliente       N o m e                ', 'Tipo', 'Fi', 'Prom.', 'Repr',
+    'Frot.', 'Potencial  ', 'Faturamento', 'Faturamento', 'Faturamento', 'Faturamento',
+    'Dt U.Com', '    Vl U.Com', 'Ram', 'Vend'];
+  const TRACOS = CABECALHO.map(() => '-----');
+  const ALCEU = ['800677 ALCEU FOPPA & CIA LTDA        ', 'ALVO', '37', '3702 ', '3702', '    0',
+    '  40.000,00', '   3.912,75', '     611,00', '       0,00', '   3.386,39', '10/08/26',
+    '    3.912,75', '100', '0345'];
+
+  it('acha o cabeçalho pelas quatro colunas com o mesmo nome', () => {
+    expect(ehRelatorioDeClientes([CABECALHO, TRACOS, ALCEU])).toBe(0);
+  });
+
+  it('não confunde com o relatório de movimentação', () => {
+    expect(ehRelatorioDeClientes([['FI', 'Alm', 'Produto', 'Descricao', 'Data', 'Documento', 'TR', 'TP', 'Quantidade']])).toBe(-1);
+  });
+
+  it('não confunde com o estoque', () => {
+    expect(ehRelatorioDeClientes([['Cod Interno', 'Produto', 'Grupo', 'Descricao', 'Curva', 'Saldo']])).toBe(-1);
+  });
+});
+
+describe('ler a carteira inteira', () => {
+  const CABECALHO = ['Cliente       N o m e                ', 'Tipo', 'Fi', 'Prom.', 'Repr',
+    'Frot.', 'Potencial  ', 'Faturamento', 'Faturamento', 'Faturamento', 'Faturamento',
+    'Dt U.Com', '    Vl U.Com', 'Ram', 'Vend'];
+  const TRACOS = CABECALHO.map(() => '-----');
+  const ALCEU = ['800677 ALCEU FOPPA & CIA LTDA        ', 'ALVO', '37', '3702 ', '3702', '    0',
+    '  40.000,00', '   3.912,75', '     611,00', '       0,00', '   3.386,39', '10/08/26',
+    '    3.912,75', '100', '0345'];
+
+  it('lê os clientes e conta o que ficou de fora', () => {
+    const r = lerCarteira([CABECALHO, TRACOS, ALCEU, []], 0, 2026);
+    expect(r.clientes).toHaveLength(1);
+    expect(r.clientes[0].nome).toBe('ALCEU FOPPA & CIA LTDA');
+    /* A linha de tracinhos e a linha vazia. Contadas, não escondidas. */
+    expect(r.ignoradas).toBe(2);
+  });
+
+  it('a meta sai da média dos meses fechados, sem o mês corrente', () => {
+    const [c] = lerCarteira([CABECALHO, TRACOS, ALCEU], 0, 2026).clientes;
+    /* (611,00 + 0,00 + 3.386,39) / 3 = 1.332,46. Com o mês corrente entraria
+       3.912,75 na conta e a média subiria para 1.977,53. */
+    expect(metaDoCliente(c, 1).meta).toBeCloseTo(1332.46, 2);
   });
 });

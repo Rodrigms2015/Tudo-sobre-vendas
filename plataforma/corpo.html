@@ -1064,6 +1064,7 @@
     <button class="aba" role="tab" data-vista="comprar" aria-controls="vista-comprar" id="aba-comprar" aria-selected="false" title="Itens que passam nos filtros da lista de compra agora">Comprar <span class="selo" id="seloComprar">0</span></button>
     <button class="aba" role="tab" data-vista="oportunidades" aria-controls="vista-oportunidades" id="aba-oportunidades" aria-selected="false" title="Itens com saldo alto e giro baixo — o que os vendedores têm para girar">Oportunidades <span class="selo" id="seloOport">0</span></button>
     <button class="aba" role="tab" data-vista="demanda" aria-controls="vista-demanda" id="aba-demanda" aria-selected="false" title="Itens zerados que tiveram venda comprovada — a compra que não pode esperar">Demanda <span class="selo" id="seloDemanda">0</span></button>
+    <button class="aba" role="tab" data-vista="clientes" aria-controls="vista-clientes" id="aba-clientes" aria-selected="false" title="A carteira: quem comprava e parou, e a meta de cada um pela própria média">Clientes <span class="selo" id="seloClientes">0</span></button>
     <button class="aba" role="tab" data-vista="rede" aria-controls="vista-rede" id="aba-rede" aria-selected="false" title="Comparação com as filiais irmãs: curva, quantidade e o que pedir de abastecimento">Rede <span class="selo" id="seloRede">0</span></button>
     <button class="aba" role="tab" data-vista="dados" aria-controls="vista-dados" id="aba-dados" aria-selected="false" title="O que está carregado, o que está gravado e a qualidade do cadastro">Situação</button>
   </div>
@@ -1075,11 +1076,12 @@
   <section id="semDados" class="secao">
     <div class="vazio" id="zonaSolta">
       <div class="sobrancelha">Arraste um arquivo para qualquer lugar da tela</div>
-      <h3>Dois relatórios do Opus, na ordem que você quiser</h3>
+      <h3>Os relatórios do Opus, na ordem que você quiser</h3>
       <p>
-        Aceita <b>.xls</b>, <b>.pdf</b>, <b>.csv</b> e <b>.txt</b>, e reconhece sozinha qual arquivo é qual —
-        o estoque sai em Excel, a venda sai em PDF, e os dois entram pelo mesmo lugar. A leitura
-        acontece <b>dentro do seu navegador</b>: o arquivo em si nunca é enviado.
+        Aceita <b>.xls</b>, <b>.xlsx</b>, <b>.pdf</b>, <b>.csv</b> e <b>.txt</b>, e reconhece sozinha qual
+        arquivo é qual pelo cabeçalho: <b>estoque</b>, <b>movimentação de produto</b> e <b>relação de
+        clientes</b> entram todos pelo mesmo lugar, do jeito que saem do sistema. A leitura acontece
+        <b>dentro do seu navegador</b>: o arquivo em si nunca é enviado.
       </p>
       <details class="ajuda" style="max-width:640px;margin:4px auto 0;text-align:left">
         <summary>Para onde vão os dados</summary>
@@ -1480,6 +1482,78 @@
     </div>
   </section>
 
+  <!-- ── CLIENTES ────────────────────────────────────────────── -->
+  <section class="vista" id="vista-clientes" role="tabpanel" aria-labelledby="aba-clientes" tabindex="0" hidden>
+    <div id="clientesVazio" class="secao oculto">
+      <div class="vazio">
+        <div class="sobrancelha">Falta o relatório de clientes</div>
+        <h3>A meta de cada cliente sai da média dele, não de um número redondo</h3>
+        <p>
+          Suba a <b>relação de clientes</b> do Opus — a que traz as quatro colunas de faturamento e a
+          data da última compra. A página lê o arquivo <b>do jeito que sai do sistema</b>, calcula a
+          média dos meses <b>fechados</b> de cada cliente e mostra quem comprava e parou.
+        </p>
+        <p class="nota">
+          O mês corrente não entra na média: ele ainda não acabou, e incluí-lo derruba a meta de todo
+          mundo. Ele aparece do lado, marcado como parcial.
+        </p>
+        <button class="bt bt-forte" id="btCarregarClientes" type="button">Carregar relação de clientes</button>
+      </div>
+    </div>
+    <div id="clientesConteudo">
+      <div class="secao"><div class="placas" id="placasClientes"></div></div>
+      <div class="secao">
+        <div class="secao-topo">
+          <h2>Carteira</h2>
+          <span class="nota" id="notaClientes"></span>
+        </div>
+        <div class="filtros">
+          <div class="campo" style="flex:1 1 260px">
+            <label for="fClienteBusca">Buscar</label>
+            <input id="fClienteBusca" type="search" placeholder="nome ou código do cliente" />
+          </div>
+          <div class="campo">
+            <label for="fClienteSituacao">Situação</label>
+            <select id="fClienteSituacao">
+              <option value="">Todas</option>
+              <option value="PARADO">Comprava e parou</option>
+              <option value="ATIVO">Ativo</option>
+              <option value="ESFRIANDO">Esfriando</option>
+              <option value="DORMINDO">Dormindo</option>
+              <option value="PERDIDO">Sem comprar há mais de um ano</option>
+              <option value="SEM_DATA">Sem data de compra</option>
+            </select>
+          </div>
+          <div class="campo">
+            <label for="fClienteVendedor">Vendedor</label>
+            <select id="fClienteVendedor"><option value="">Todos</option></select>
+          </div>
+          <div class="campo">
+            <label for="fMetaFator">Meta = média fechada &times;</label>
+            <select id="fMetaFator">
+              <option value="1">1,00 — repetir a média</option>
+              <option value="1.05">1,05 — crescer 5%</option>
+              <option value="1.1">1,10 — crescer 10%</option>
+              <option value="1.2">1,20 — crescer 20%</option>
+              <option value="0.9">0,90 — 10% abaixo</option>
+            </select>
+          </div>
+        </div>
+        <div class="rolo" style="margin-top:12px">
+          <table>
+            <thead><tr id="cabClientes"></tr></thead>
+            <tbody id="corpoClientes"></tbody>
+          </table>
+        </div>
+        <div style="margin-top:12px;display:flex;gap:9px;flex-wrap:wrap;align-items:center">
+          <button class="bt" id="btMaisClientes" type="button" hidden>Mostrar mais</button>
+          <button class="bt" id="btCsvClientes" type="button">Baixar planilha da carteira</button>
+          <button class="bt" id="btTextoClientes" type="button">Texto para o vendedor</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- ── REDE ────────────────────────────────────────────────── -->
   <section class="vista" id="vista-rede" role="tabpanel" aria-labelledby="aba-rede" tabindex="0" hidden>
     <div class="secao">
@@ -1676,6 +1750,9 @@
 
 /* INICIO MOTOR XLSX */
 /* FIM MOTOR XLSX */
+
+/* INICIO MOTOR CARTEIRA */
+/* FIM MOTOR CARTEIRA */
 
 /* INICIO MOTOR REPOSICAO */
 /* FIM MOTOR REPOSICAO */
@@ -3608,6 +3685,9 @@ const guardarMovimentos = (nome) => gravarVerificado(
   { id: '__movimentos', nome, em: new Date().toISOString(), movimentos: estado.movimentos },
   (r) => (r.movimentos || []).length);
 const guardarRede = () => comLoja('readwrite', (l) => l.put({ id: '__rede', filiais: estado.rede }));
+const guardarClientes = (nome) => gravarVerificado(
+  { id: '__clientes', nome, em: new Date().toISOString(), clientes: estado.clientes, metaFator: estado.metaFator },
+  (r) => (r.clientes || []).length);
 const lerEnvios = () => comLoja('readonly', (l) => l.getAll());
 const removerEnvio = (id) => comLoja('readwrite', (l) => l.delete(id));
 const limparEnvios = () => comLoja('readwrite', (l) => l.clear());
@@ -3643,6 +3723,16 @@ const estado = {
   gravacao: { ok: null, em: null, erro: null },
   nomeMovimentos: null,
   emMovimentos: null,
+  /* Carteira de clientes. Vive ao lado do estoque, não dentro dele: são dois
+     relatórios diferentes, e um funciona sem o outro. */
+  clientes: null,
+  nomeClientes: null,
+  emClientes: null,
+  /* Multiplicador da meta. 1 = repetir a média dos meses fechados. Quem
+     gerencia escolhe; a página não inventa crescimento. */
+  metaFator: 1,
+  filtrosClientes: { busca: '', situacao: '', vendedor: '' },
+  limiteClientes: 50,
   bancoOk: true,
 };
 
@@ -3675,6 +3765,7 @@ const emPecas = (q) => plural(q, 'peça', 'peças');
 const emUnidades = (q) => plural(q, 'unidade', 'unidades');
 const emItens = (q) => plural(q, 'item', 'itens');
 const emFiliais = (q) => plural(q, 'filial irmã', 'filiais irmãs');
+const emClientes = (q) => plural(q, 'cliente', 'clientes');
 const dataBr = (iso) => new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 const horaBr = (iso) => new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
@@ -5438,6 +5529,184 @@ function renderDados() {
     '</tbody></table></div>';
 }
 
+/* ─── 20. Carteira de clientes ───────────────────────────────────────
+   Segundo relatório do Opus que não fala de peça nenhuma: fala de quem
+   compra. Entra pela mesma porta dos outros e vive ao lado do estoque — um
+   funciona sem o outro.
+
+   O motor está em src/domain/clientes/carteira.js, testado pelo vitest e
+   injetado no topo deste arquivo. Aqui só há tela. */
+
+const dinheiroBr = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const rs = (v) => (v === null || v === undefined ? '—' : 'R$ ' + dinheiroBr.format(v));
+const hojeIso = () => new Date().toISOString().slice(0, 10);
+
+/* Quem comprava e parou: tem meta (logo, faturou nos meses fechados) e está
+   fora do prazo de compra. É a única lista da tela que vira ligação hoje —
+   por isso é ela que conta no selo da aba. */
+function clienteParou(c, hoje, fator) {
+  const sit = situacaoDoCliente(c, hoje);
+  if (sit.situacao !== 'ESFRIANDO' && sit.situacao !== 'DORMINDO') return false;
+  return metaDoCliente(c, fator).meta !== null;
+}
+
+function clientesFiltrados() {
+  const lista = estado.clientes || [];
+  const f = estado.filtrosClientes;
+  const hoje = hojeIso();
+  const busca = chave(f.busca);
+  return lista.filter((c) => {
+    if (busca && !chave(c.nome + ' ' + c.codigo).includes(busca)) return false;
+    if (f.vendedor && c.vendedor !== f.vendedor) return false;
+    if (!f.situacao) return true;
+    if (f.situacao === 'PARADO') return clienteParou(c, hoje, estado.metaFator);
+    return situacaoDoCliente(c, hoje).situacao === f.situacao;
+  });
+}
+
+/* Ordem: quem tem mais dinheiro parado em cima. Dentro da carteira toda, a
+   média fechada é o que melhor mede o tamanho do cliente. */
+const porTamanho = (a, b) => {
+  const ma = mediaDosFechados(a.faturamento);
+  const mb = mediaDosFechados(b.faturamento);
+  return (mb ? mb.media : -1) - (ma ? ma.media : -1);
+};
+
+const TOM_SITUACAO = { ATIVO: 'saudavel', ESFRIANDO: 'atencao', DORMINDO: 'critico', PERDIDO: 'neutro', SEM_DATA: 'neutro' };
+
+function renderClientes() {
+  const temCarteira = !!(estado.clientes && estado.clientes.length);
+  $('#clientesVazio').classList.toggle('oculto', temCarteira);
+  $('#clientesConteudo').classList.toggle('oculto', !temCarteira);
+  if (!temCarteira) return;
+
+  const todos = estado.clientes;
+  const hoje = hojeIso();
+  const fator = estado.metaFator;
+  const ref = mesDeReferencia(todos);
+  const rotulos = rotulosDasColunas(ref);
+  const resumo = resumirCarteira(todos, fator);
+  const pararam = todos.filter((c) => clienteParou(c, hoje, fator));
+  const somaParada = pararam.reduce((a, c) => a + (mediaDosFechados(c.faturamento) || { media: 0 }).media, 0);
+
+  const fechados = rotulos.slice(1).map((r) => r.rotulo).join(', ');
+  $('#placasClientes').innerHTML = [
+    placa({
+      rotulo: 'Clientes na carteira', valor: n(resumo.clientes),
+      rodape: emClientes(resumo.comMeta) + ' com meta pela própria média · ' +
+        n(resumo.semBase) + ' sem base nos meses fechados',
+      tom: 'neutro',
+    }),
+    placa({
+      rotulo: 'Meta somada do mês', valor: rs(resumo.somaMeta),
+      rodape: 'Média de ' + esc(fechados) + ' × ' + dinheiroBr.format(fator).replace(',00', '') +
+        '. Quem não faturou nesses meses não entra — não vira meta zero.',
+      tom: 'neutro',
+    }),
+    placa({
+      rotulo: 'Faturado em ' + esc(rotulos[0].rotulo), valor: rs(resumo.faturadoNoMesParcial),
+      rodape: '<b>O mês ainda não acabou.</b> Este número cresce até o fim do mês; ' +
+        'comparar com a meta cheia hoje é comparar mês parcial com mês inteiro.',
+      tom: 'atencao',
+    }),
+    placa({
+      rotulo: 'Compravam e pararam', valor: n(pararam.length),
+      rodape: pararam.length
+        ? rs(somaParada) + ' de média mensal parada. Fora do prazo de compra e com histórico nos meses fechados.'
+        : 'Ninguém com histórico está fora do prazo de compra.',
+      tom: pararam.length ? 'critico' : 'saudavel',
+    }),
+  ].join('');
+
+  $('#notaClientes').textContent = 'Arquivo ' + (estado.nomeClientes || 'sem nome') +
+    (estado.emClientes ? ' · lido em ' + dataBr(estado.emClientes) : '') +
+    ' · situação medida contra hoje, ' + dataBr(hoje) + '.';
+
+  /* Vendedores do próprio arquivo, nunca uma lista fixa. */
+  const sel = $('#fClienteVendedor');
+  const vendedores = [...new Set(todos.map((c) => c.vendedor).filter(Boolean))].sort();
+  if (sel.options.length !== vendedores.length + 1) {
+    sel.innerHTML = '<option value="">Todos</option>' +
+      vendedores.map((v) => '<option value="' + esc(v) + '">' + esc(v) + '</option>').join('');
+  }
+  sel.value = estado.filtrosClientes.vendedor;
+
+  $('#cabClientes').innerHTML =
+    '<th>Cliente</th><th>Situação</th><th class="dir">Última compra</th>' +
+    rotulos.map((r) => '<th class="dir">' + esc(r.rotulo) + (r.parcial ? '<br><span style="font-weight:400;color:var(--tinta-3)">parcial</span>' : '') + '</th>').join('') +
+    '<th class="dir">Média fechada</th><th class="dir">Meta</th><th class="dir">Falta</th>';
+
+  const lista = clientesFiltrados().sort(porTamanho);
+  const mostrados = lista.slice(0, estado.limiteClientes);
+  $('#corpoClientes').innerHTML = mostrados.length ? mostrados.map((c) => {
+    const sit = situacaoDoCliente(c, hoje);
+    const m = metaDoCliente(c, fator);
+    const media = mediaDosFechados(c.faturamento);
+    const parcial = c.faturamento[0];
+    const falta = m.meta === null || parcial === null ? null : m.meta - parcial;
+    return '<tr>' +
+      '<td><b style="font-weight:600">' + esc(c.nome) + '</b>' +
+        '<div class="num" style="font-size:12px;color:var(--tinta-3)">' + esc(c.codigo) +
+        (c.vendedor ? ' · vendedor ' + esc(c.vendedor) : '') + '</div></td>' +
+      '<td><span class="etiqueta" data-tom="' + (TOM_SITUACAO[sit.situacao] || 'neutro') + '">' + esc(sit.rotulo) + '</span></td>' +
+      '<td class="dir num">' + (c.ultimaCompra ? dataBr(c.ultimaCompra) +
+        '<div style="font-size:12px;color:var(--tinta-3)">' + esc(haDias(sit.dias)) + '</div>' : '—') + '</td>' +
+      c.faturamento.map((v) => '<td class="dir num">' + rs(v) + '</td>').join('') +
+      '<td class="dir num">' + (media ? rs(media.media) : '—') + '</td>' +
+      '<td class="dir num">' + (m.meta === null
+        ? '<span style="color:var(--tinta-3)">sem base</span><div style="font-size:12px;color:var(--tinta-3)">' + esc(m.motivo) + '</div>'
+        : '<b>' + rs(m.meta) + '</b>') + '</td>' +
+      '<td class="dir num">' + (falta === null ? '—' : falta <= 0
+        ? '<span style="color:var(--saudavel)">meta batida</span>'
+        : rs(falta)) + '</td>' +
+      '</tr>';
+  }).join('') : '<tr><td colspan="10" style="padding:14px;color:var(--tinta-2)">' +
+    'Nenhum cliente com esses filtros. Tire a busca ou volte a situação para “Todas”.</td></tr>';
+
+  $('#btMaisClientes').hidden = lista.length <= mostrados.length;
+  $('#btMaisClientes').textContent = 'Mostrar mais ' + n(Math.min(50, lista.length - mostrados.length)) +
+    ' de ' + n(lista.length - mostrados.length) + ' restantes';
+}
+
+function csvDaCarteira(lista) {
+  const hoje = hojeIso();
+  const rotulos = rotulosDasColunas(mesDeReferencia(estado.clientes || []));
+  const valor = (v) => (v === null || v === undefined ? '' : v.toFixed(2).replace('.', ','));
+  return paraCsv(
+    ['Codigo', 'Cliente', 'Tipo', 'Vendedor', 'Ramo', 'Situacao', 'Dias sem comprar', 'Ultima compra']
+      .concat(rotulos.map((r, i) => r.rotulo + (i === 0 ? ' (parcial)' : '')))
+      .concat(['Media fechada', 'Meta', 'Base da meta', 'Falta']),
+    lista.map((c) => {
+      const sit = situacaoDoCliente(c, hoje);
+      const m = metaDoCliente(c, estado.metaFator);
+      const media = mediaDosFechados(c.faturamento);
+      const parcial = c.faturamento[0];
+      const falta = m.meta === null || parcial === null ? null : m.meta - parcial;
+      return [c.codigo, c.nome, c.tipo, c.vendedor, c.ramo, sit.rotulo,
+        sit.dias === null ? '' : sit.dias,
+        c.ultimaCompra ? dataBr(c.ultimaCompra) : '']
+        .concat(c.faturamento.map(valor))
+        .concat([valor(media ? media.media : null), valor(m.meta),
+          m.meta === null ? m.motivo : 'media de ' + m.mesesUsados + ' meses fechados x ' + estado.metaFator,
+          valor(falta)]);
+    }));
+}
+
+function textoDaCarteira(lista) {
+  const hoje = hojeIso();
+  const linhas = lista.slice(0, 40).map((c) => {
+    const sit = situacaoDoCliente(c, hoje);
+    const m = metaDoCliente(c, estado.metaFator);
+    return '• ' + c.nome + ' (' + c.codigo + ') — ' + sit.rotulo +
+      (c.ultimaCompra ? ', última compra ' + dataBr(c.ultimaCompra) : '') +
+      (m.meta === null ? ', sem base para meta (' + m.motivo + ')' : ', meta ' + rs(m.meta));
+  });
+  return 'Carteira — ' + emClientes(lista.length) +
+    (lista.length > 40 ? ' (os 40 maiores abaixo)' : '') + '\n' +
+    'Meta = média dos meses fechados × ' + estado.metaFator + '. O mês corrente não entra na média.\n\n' +
+    linhas.join('\n');
+}
+
 /* ─── 20. Exportação ─────────────────────────────────────────────── */
 
 /**
@@ -5744,6 +6013,39 @@ async function carregarArquivo(file) {
           oQue + ' valem nesta tela, mas nao consegui gravar (' + erroGrav + ').', 'erro');
       }
       trocarVista('marcas');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    const iClientes = ehRelatorioDeClientes(linhas);
+    if (iClientes >= 0) {
+      const lido = lerCarteira(linhas, iClientes, new Date().getFullYear());
+      if (!lido.clientes.length) {
+        throw new Error('Li ' + n(linhas.length) + ' linhas na relação de clientes, mas nenhuma tinha código e nome ' +
+          'na primeira coluna. Confira se é a relação de clientes do Opus, com as quatro colunas de faturamento.');
+      }
+      estado.clientes = lido.clientes;
+      estado.nomeClientes = nome;
+      estado.emClientes = new Date().toISOString();
+      let erroGrav = null;
+      try { await guardarClientes(nome); }
+      catch (err) { erroGrav = err.message || String(err); estado.gravacao = { ok: false, em: null, erro: erroGrav }; }
+      invalidarVistas();
+      renderTudo();
+      equipeAgendarEnvio();
+      const ref = mesDeReferencia(estado.clientes);
+      const rotulos = rotulosDasColunas(ref);
+      const resumo = resumirCarteira(estado.clientes, estado.metaFator);
+      const comum = emClientes(resumo.clientes) + '. Meta somada ' + rs(resumo.somaMeta) +
+        ', pela média de ' + rotulos.slice(1).map((r) => r.rotulo).join(', ') + '. ' +
+        n(resumo.semBase) + ' sem base nos meses fechados — esses aparecem sem meta, não com meta zero.' +
+        (lido.ignoradas ? ' Deixei de fora ' + n(lido.ignoradas) + ' linhas sem código de cliente (cabeçalho, traços e rodapé).' : '');
+      if (erroGrav) {
+        recado('Carteira carregada, mas NÃO gravada', comum + ' Não consegui gravar (' + erroGrav + ').', 'erro');
+      } else {
+        recado('Carteira carregada e gravada', comum);
+      }
+      trocarVista('clientes');
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
@@ -6135,6 +6437,7 @@ const RENDER_DA_VISTA = {
   oportunidades: () => renderOportunidades(),
   demanda: () => renderDemanda(),
   rede: () => renderRede(),
+  clientes: () => renderClientes(),
   dados: () => { renderDados(); renderConferir(); },
 };
 
@@ -6171,6 +6474,9 @@ function atualizarSelos() {
   $('#seloHoje').textContent = plano ? n(plano.blocos.length) : '0';
   $('#seloComprar').textContent = n(filtrar().length);
   $('#seloOport').textContent = n(L.filter((i) => i.situacao === 'EXCESSO').length);
+
+  atualizarSeloClientes();
+
   const R = analisarRede();
   $('#seloRede').textContent = R ? n(R.faltaAB.length) : '0';
 
@@ -6184,13 +6490,33 @@ function atualizarSelos() {
     : '0';
 }
 
+/* Fora de `atualizarSelos` porque a carteira aparece mesmo sem estoque, e o
+   resto da contagem depende do estoque estar carregado. */
+function atualizarSeloClientes() {
+  const carteira = estado.clientes || [];
+  if (!carteira.length) { $('#seloClientes').textContent = '0'; return; }
+  const hoje = hojeIso();
+  $('#seloClientes').textContent = n(carteira.filter((c) => clienteParou(c, hoje, estado.metaFator)).length);
+}
+
 function renderTudo() {
-  const temDados = itens().length > 0;
-  $('#semDados').classList.toggle('oculto', temDados);
-  $$('.vista').forEach((v) => { if (temDados) v.classList.remove('oculto'); else v.classList.add('oculto'); });
+  const temEstoque = itens().length > 0;
+  /* A carteira não depende do estoque: são dois relatórios do Opus, e
+     qualquer um pode chegar primeiro. Esconder a aba Clientes porque falta
+     estoque seria esconder dado que já está carregado. */
+  const temCarteira = !!(estado.clientes && estado.clientes.length);
+  $('#semDados').classList.toggle('oculto', temEstoque || temCarteira);
+  $$('.vista').forEach((v) => {
+    v.classList.toggle('oculto', !(v.id === 'vista-clientes' ? temCarteira : temEstoque));
+  });
   renderEstado();
-  if (!temDados) {
+  if (!temEstoque) {
     $('#seloComprar').textContent = '0'; $('#seloOport').textContent = '0';
+    atualizarSeloClientes();
+    if (temCarteira) {
+      vistasSujas.add('clientes');
+      if (vistaAtiva() !== 'clientes') trocarVista('clientes'); else renderVista('clientes');
+    }
     atualizarCarrinho(); return;
   }
   montarSelects();
@@ -6271,6 +6597,43 @@ $$('thead th.ord').forEach((th) => th.addEventListener('click', () => {
 }));
 
 liga('#btMovimentacao', 'click', () => $('#arquivo').click());
+
+/* ── Carteira de clientes ─────────────────────────────────────────── */
+liga('#btCarregarClientes', 'click', () => $('#arquivo').click());
+liga('#fClienteBusca', 'input', (e) => {
+  estado.filtrosClientes.busca = e.target.value;
+  estado.limiteClientes = 50;
+  renderClientes();
+});
+['fClienteSituacao', 'fClienteVendedor'].forEach((id) =>
+  liga('#' + id, 'change', (e) => {
+    estado.filtrosClientes[id === 'fClienteSituacao' ? 'situacao' : 'vendedor'] = e.target.value;
+    estado.limiteClientes = 50;
+    renderClientes();
+  }));
+liga('#fMetaFator', 'change', async (e) => {
+  estado.metaFator = Number(e.target.value) || 1;
+  renderClientes();
+  atualizarSelos();
+  /* O multiplicador é decisão de quem gerencia: fica gravado junto com a
+     carteira, senão volta a 1 na próxima abertura. */
+  try { if (estado.clientes) await guardarClientes(estado.nomeClientes || 'carteira'); }
+  catch (err) { estado.gravacao = { ok: false, em: null, erro: err.message || String(err) }; }
+  equipeAgendarEnvio();
+});
+liga('#btMaisClientes', 'click', () => { estado.limiteClientes += 50; renderClientes(); });
+liga('#btCsvClientes', 'click', () => {
+  const lista = clientesFiltrados().sort(porTamanho);
+  if (!lista.length) { recado('Nenhum cliente na lista', 'Tire os filtros antes de baixar.', 'erro'); return; }
+  baixar('carteira-clientes.csv', csvDaCarteira(lista), 'text/csv');
+});
+liga('#btTextoClientes', 'click', () => {
+  const lista = clientesFiltrados().sort(porTamanho);
+  if (!lista.length) { recado('Nenhum cliente na lista', 'Tire os filtros antes de gerar o texto.', 'erro'); return; }
+  abrirModal('Carteira para o vendedor',
+    'Meta pela média dos meses fechados de cada cliente. O mês corrente não entra na média.',
+    textoDaCarteira(lista), csvDaCarteira(lista), 'carteira-clientes.csv');
+});
 liga('#btCsvFilial', 'click', () => {
   const lista = itens().filter((i) => i.demandaUsada && i.demandaUsada.fora > 0)
     .sort((a, b) => b.demandaUsada.fora - a.demandaUsada.fora);
@@ -6368,6 +6731,10 @@ function pacoteDeDados() {
     nomeTabelaMarcas: estado.nomeTabelaMarcas,
     quantidades: estado.quantidades,
     rede: estado.rede,
+    clientes: estado.clientes,
+    nomeClientes: estado.nomeClientes,
+    emClientes: estado.emClientes,
+    metaFator: estado.metaFator,
     diasCobertura: estado.diasCobertura,
     resumo: {
       itens: e ? e.itens.length : 0,
@@ -6392,6 +6759,10 @@ async function aplicarPacote(pacote) {
   estado.nomeTabelaMarcas = pacote.nomeTabelaMarcas || null;
   estado.quantidades = pacote.quantidades || {};
   estado.rede = pacote.rede || {};
+  estado.clientes = pacote.clientes || null;
+  estado.nomeClientes = pacote.nomeClientes || null;
+  estado.emClientes = pacote.emClientes || null;
+  if (pacote.metaFator) estado.metaFator = pacote.metaFator;
   invalidarRede();
   if (pacote.diasCobertura) estado.diasCobertura = pacote.diasCobertura;
   estado.marcados.clear();
@@ -6399,6 +6770,7 @@ async function aplicarPacote(pacote) {
     for (const env of estado.envios) await guardarEnvio(env);
     if (estado.movimentos) await guardarMovimentos(estado.nomeMovimentos || 'pacote');
     if (estado.tabelaMarcas) await guardarTabelaMarcas(estado.nomeTabelaMarcas || 'pacote');
+    if (estado.clientes) await guardarClientes(estado.nomeClientes || 'pacote');
     await guardarMapaMarcas();
     await guardarQuantidades();
     await guardarRede();
@@ -7510,6 +7882,13 @@ $('#logo').src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAOAAAAB4CAIAAABk
     const tab = guardados.find((e) => e.id === '__tabelaMarcas');
     const rede = guardados.find((e) => e.id === '__rede');
     if (rede) estado.rede = rede.filiais || {};
+    const carteira = guardados.find((e) => e.id === '__clientes');
+    if (carteira) {
+      estado.clientes = carteira.clientes || null;
+      estado.nomeClientes = carteira.nome || null;
+      estado.emClientes = carteira.em || null;
+      if (carteira.metaFator) estado.metaFator = carteira.metaFator;
+    }
     const eq = guardados.find((e) => e.id === '__equipe');
     if (eq) equipe.versao = Number(eq.versao) || 0;
     if (tab) {

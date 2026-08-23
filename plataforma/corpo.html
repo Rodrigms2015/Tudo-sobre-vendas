@@ -1,4 +1,4 @@
-<title>Central de Compras — Estoque Ribeirão Preto</title>
+<title>Central de Compras — Estoque e Carteira</title>
 
 <style>
   /* ───────────────────────────────────────────────────────────────
@@ -539,7 +539,7 @@
 
   /* ── Comparação entre filiais ────────────────────────────────
      A praça de casa é sempre a primeira linha e vem marcada: quem lê a
-     tabela precisa achar Ribeirão sem procurar. */
+     tabela precisa se achar sem procurar. */
   .aqui { background: rgba(239, 126, 50, .09); }
   .aqui td:first-child { box-shadow: inset 3px 0 0 var(--laranja); font-weight: 700; }
   .barra {
@@ -1038,7 +1038,7 @@
     <div class="marca">
       <img id="logo" alt="Pacaembu" />
       <div class="marca-txt">
-        <div class="sobrancelha">Filial Ribeirão Preto · Linha pesada</div>
+        <div class="sobrancelha" id="pracaTopo">Linha pesada</div>
         <h1>Central de Compras e Oportunidades</h1>
       </div>
     </div>
@@ -1558,7 +1558,7 @@
   <section class="vista" id="vista-rede" role="tabpanel" aria-labelledby="aba-rede" tabindex="0" hidden>
     <div class="secao">
       <div class="secao-topo">
-        <h2>Ribeirão Preto comparado com as filiais irmãs</h2>
+        <h2 id="tituloRede">Comparação com as filiais irmãs</h2>
         <span class="nota">Carregue o estoque de cada filial. A praça é reconhecida pelo nome do arquivo.</span>
       </div>
       <div class="grade" id="cartoesRede"></div>
@@ -1585,6 +1585,23 @@
         <div class="secao">
       <div class="secao-topo"><h2>O que está carregado agora</h2><span class="nota">Se não está escrito aqui, não entrou.</span></div>
       <div class="grade" id="situacaoCartoes"></div>
+    </div>
+
+    <div class="secao">
+      <div class="secao-topo">
+        <h2>Praça desta análise</h2>
+        <span class="nota">É a filial que a página chama de “aqui”. O primeiro estoque carregado já define.</span>
+      </div>
+      <div class="filtros">
+        <div class="campo" style="flex:1 1 300px">
+          <label for="fPraca">Filial de casa</label>
+          <select id="fPraca"></select>
+        </div>
+      </div>
+      <p class="nota" style="margin:8px 0 0">
+        Trocar aqui muda quem é “casa” na aba Rede e o nome que sai nos textos e nas planilhas.
+        <b>Não recarrega nem apaga nada</b> — o estoque que está carregado continua sendo o mesmo arquivo.
+      </p>
     </div>
 
     <!-- Base da equipe: só existe na versão publicada no link com senha. Aberta
@@ -1686,7 +1703,7 @@
 
 <footer class="rodape-pagina">
   <p><b>Central de Compras</b> — criada e desenvolvida por <b>Rodrigo Soares</b></p>
-  <p>Supervisor · Filial 03, Ribeirão Preto · Pacaembu Autopeças</p>
+  <p id="pracaRodape">Pacaembu Autopeças</p>
 </footer>
 
 <div class="barra-fixa oculto" id="barraCarrinho">
@@ -1761,7 +1778,7 @@
 /* FIM MOTOR IDENTIDADE */
 
 /* ═══════════════════════════════════════════════════════════════════
-   CENTRAL DE COMPRAS — Filial Ribeirão Preto
+   CENTRAL DE COMPRAS — a praça é a do estoque carregado, ver `aqui()`
    Tudo roda no navegador. Nenhuma requisição de rede é feita em
    nenhum momento: sem fetch, sem XHR, sem WebSocket.
    ═══════════════════════════════════════════════════════════════════ */
@@ -2706,7 +2723,7 @@ const FILIAIS = {
   '20': ['São Paulo', 'SP'], '21': ['Goiânia', 'GO'], '22': ['Guarulhos', 'SP'],
   '23': ['Fortaleza', 'CE'], '24': ['São Bernardo', 'SP'], '25': ['Presidente Prudente', 'SP'],
   '27': ['Chapecó', 'SC'], '28': ['Caxias do Sul', 'RS'], '29': ['Cascavel', 'PR'],
-  '30': ['Maringá', 'PR'], '31': ['Pouso Alegre', 'MG'],
+  '30': ['Maringá', 'PR'], '31': ['Pouso Alegre', 'MG'], '37': ['Passo Fundo', 'RS'],
 };
 
 const dosDigitos = (v) => String(v ?? '').trim().padStart(2, '0');
@@ -3638,6 +3655,9 @@ function resumirDemanda(movimentos) {
    IndexedDB no navegador do usuário. Daqui só sai o que a pessoa publicar
    explicitamente para a equipe — ver `equipePublicar`. */
 
+/* O nome do banco NÃO acompanha a praça: trocar o nome faz o navegador abrir
+   um banco vazio e todo o trabalho guardado some da vista. Ele identifica o
+   armazenamento, não a filial. */
 const BANCO = 'compras-ribeirao-preto', VERSAO_BANCO = 1, LOJA = 'envios';
 
 function abrirBanco() {
@@ -3685,6 +3705,7 @@ const guardarMovimentos = (nome) => gravarVerificado(
   { id: '__movimentos', nome, em: new Date().toISOString(), movimentos: estado.movimentos },
   (r) => (r.movimentos || []).length);
 const guardarRede = () => comLoja('readwrite', (l) => l.put({ id: '__rede', filiais: estado.rede }));
+const guardarPraca = () => comLoja('readwrite', (l) => l.put({ id: '__praca', ff: estado.praca }));
 const guardarClientes = (nome) => gravarVerificado(
   { id: '__clientes', nome, em: new Date().toISOString(), clientes: estado.clientes, metaFator: estado.metaFator },
   (r) => (r.clientes || []).length);
@@ -3723,6 +3744,8 @@ const estado = {
   gravacao: { ok: null, em: null, erro: null },
   nomeMovimentos: null,
   emMovimentos: null,
+  /* Filial desta análise. `null` = ainda não definida; ver `aqui()`. */
+  praca: null,
   /* Carteira de clientes. Vive ao lado do estoque, não dentro dele: são dois
      relatórios diferentes, e um funciona sem o outro. */
   clientes: null,
@@ -4698,7 +4721,7 @@ function renderReconciliacao() {
     }
     /* Só afirma que baixou depois que o download realmente aconteceu: no
        visualizador de Artifacts a pessoa pode recusar a confirmação. */
-    if (await baixar('nao-conciliados-ribeirao-preto.csv', linhas.join('\n'), 'text/csv')) {
+    if (await baixar(arquivoDaPraca('nao-conciliados', 'csv'), linhas.join('\n'), 'text/csv')) {
       recado('Planilha baixada', emItens(r.soNaVenda.length + r.soNoEstoque.length) + ' fora do cruzamento.');
     }
   });
@@ -5113,7 +5136,7 @@ function renderOportunidades() {
 function textoParaVendedores(blocos) {
   const e = envioAtual();
   const linhas = [];
-  linhas.push('*DISPONIVEL NO ESTOQUE - RIBEIRAO PRETO*');
+  linhas.push('*DISPONIVEL NO ESTOQUE - ' + nomeAquiCaixaAlta() + '*');
   linhas.push('_Posicao de ' + (e ? dataBr(e.dataISO) : '-') + '_');
   linhas.push('');
   for (const b of blocos) {
@@ -5131,7 +5154,7 @@ function textoParaGestor(blocos) {
   const itensTotais = blocos.reduce((a, b) => a + b.itens.length, 0);
   const unidades = blocos.reduce((a, b) => a + b.unidades, 0);
   const linhas = [];
-  linhas.push('OPORTUNIDADES DE GIRO - FILIAL RIBEIRAO PRETO');
+  linhas.push('OPORTUNIDADES DE GIRO - FILIAL ' + nomeAquiCaixaAlta());
   linhas.push('Gerado em ' + new Date().toLocaleString('pt-BR'));
   linhas.push('Base: ' + (e ? e.nome + ', estoque de ' + dataBr(e.dataISO) : '-'));
   linhas.push('');
@@ -5811,7 +5834,7 @@ function itensMarcados() {
 function textoSolicitacao(lista) {
   const e = envioAtual();
   const linhas = [];
-  linhas.push('SOLICITAÇÃO DE COMPRA — FILIAL RIBEIRÃO PRETO');
+  linhas.push('SOLICITAÇÃO DE COMPRA — FILIAL ' + nomeAquiCaixaAlta());
   linhas.push('Gerada em ' + new Date().toLocaleString('pt-BR'));
   linhas.push('Base: ' + (e ? e.nome + ', estoque de ' + dataBr(e.dataISO) : '—'));
   linhas.push('Itens: ' + lista.length + ' · Unidades: ' + lista.reduce((s, i) => s + (i.qtd || 0), 0));
@@ -5844,7 +5867,7 @@ function pedidosPorFornecedor(lista) {
     porMarca.get(k).push(i);
   }
   const e = envioAtual();
-  const linhas = ['PEDIDOS DE COMPRA SEPARADOS POR FORNECEDOR — FILIAL RIBEIRÃO PRETO',
+  const linhas = ['PEDIDOS DE COMPRA SEPARADOS POR FORNECEDOR — FILIAL ' + nomeAquiCaixaAlta(),
     'Gerado em ' + new Date().toLocaleString('pt-BR'),
     'Base: ' + (e ? e.nome + ', estoque de ' + dataBr(e.dataISO) : '—'),
     lista.length + ' itens · ' + lista.reduce((s, i) => s + (i.qtd || 0), 0) + ' unidades · ' + porMarca.size + ' fornecedores',
@@ -6091,7 +6114,18 @@ async function carregarArquivo(file) {
         }
       }
     }
-    if (ff && ff !== AQUI) {
+    /* O PRIMEIRO estoque carregado define a praça desta análise: ninguém
+       começa pelo estoque da filial vizinha. Sem isso, quem trabalha em Passo
+       Fundo subia o próprio estoque e ele entrava como "filial irmã", porque
+       a página tinha Ribeirão escrito no código. O botão "carregar estoque de
+       outra filial" continua mandando — ele é escolha explícita. */
+    if (ff && ff !== aqui() && comoVeio === 'nome' && !estado.envios.length) {
+      estado.praca = ff;
+      try { await guardarPraca(); }
+      catch (err) { estado.gravacao = { ok: false, em: null, erro: err.message || String(err) }; }
+      ff = aqui();
+    }
+    if (ff && ff !== aqui()) {
       await aplicarFilialIrma(ff, itensLidos, nome, file, comoVeio);
       return;
     }
@@ -6245,7 +6279,26 @@ function recado(titulo, texto, tom = 'ok') {
   setTimeout(() => { if (document.getElementById(RECADO_ID) === el) el.remove(); }, tom === 'erro' ? 14000 : 9000);
 }
 
+/* Onde o nome da praça aparece na tela. Uma função só, chamada em todo
+   render: praça escrita em três lugares diferentes é praça que diverge. */
+function renderPraca() {
+  const nome = nomeAqui();
+  const uf = ufDaFilial(aqui());
+  $('#pracaTopo').textContent = 'Filial ' + nome + (uf ? ' · ' + uf : '') + ' · Linha pesada';
+  $('#pracaRodape').textContent = 'Supervisor · Filial ' + aqui() + ', ' + nome + ' · Pacaembu Autopeças';
+  $('#tituloRede').textContent = nome + ' comparado com as filiais irmãs';
+  const sel = $('#fPraca');
+  if (sel && !sel.options.length) {
+    sel.innerHTML = Object.entries(FILIAIS)
+      .sort((a, b) => a[1][0].localeCompare(b[1][0], 'pt-BR'))
+      .map(([ff, [cidade, u]]) => '<option value="' + ff + '">' + esc(cidade) + ' · ' + esc(u) + ' (filial ' + ff + ')</option>')
+      .join('');
+  }
+  if (sel) sel.value = aqui();
+}
+
 function renderEstado() {
+  renderPraca();
   const st = situacaoDoSistema();
   const fichas = [];
 
@@ -6600,6 +6653,19 @@ liga('#btMovimentacao', 'click', () => $('#arquivo').click());
 
 /* ── Carteira de clientes ─────────────────────────────────────────── */
 liga('#btCarregarClientes', 'click', () => $('#arquivo').click());
+
+liga('#fPraca', 'change', async (e) => {
+  estado.praca = e.target.value;
+  try { await guardarPraca(); }
+  catch (err) { estado.gravacao = { ok: false, em: null, erro: err.message || String(err) }; }
+  invalidarRede();
+  invalidarVistas();
+  renderTudo();
+  equipeAgendarEnvio();
+  recado('Praça trocada para ' + nomeAqui(),
+    'Nada foi recarregado nem apagado: o estoque carregado continua o mesmo arquivo. ' +
+    'O que muda é quem é “casa” na aba Rede e o nome que sai nos textos e nas planilhas.');
+});
 liga('#fClienteBusca', 'input', (e) => {
   estado.filtrosClientes.busca = e.target.value;
   estado.limiteClientes = 50;
@@ -6657,7 +6723,7 @@ liga('#btPedidoUrgente', 'click', () => {
   if (!lista.length) return;
   abrirModal('Pedido urgente — zerado e vendendo',
     lista.length + ' itens com saldo zero e venda comprovada no período. Cada um destes é venda que está sendo perdida hoje.',
-    pedidosPorFornecedor(lista), csvDeItens(lista), 'pedido-urgente-ribeirao-preto.csv');
+    pedidosPorFornecedor(lista), csvDeItens(lista), arquivoDaPraca('pedido-urgente', 'csv'));
 });
 
 
@@ -6667,7 +6733,7 @@ liga('#btSolicitacao', 'click', () => {
   if (!lista.length) return;
   abrirModal('Solicitação de compra',
     plural(lista.length, 'item marcado', 'itens marcados') + '. Copie o texto para o e-mail ou mensagem, ou baixe a planilha para o fornecedor.',
-    textoSolicitacao(lista), csvDeItens(lista), 'solicitacao-compra-ribeirao-preto.csv');
+    textoSolicitacao(lista), csvDeItens(lista), arquivoDaPraca('solicitacao-compra', 'csv'));
 });
 liga('#btFecharModal', 'click', () => $('#modal').close());
 
@@ -6703,7 +6769,7 @@ liga('#btPautaGestor', 'click', () => {
 
 liga('#btCsvParado', 'click', () => {
   const parados = itens().filter((i) => i.situacao === 'EXCESSO').sort((a, b) => (b.saldo || 0) - (a.saldo || 0));
-  baixar('oportunidades-ribeirao-preto.csv', csvDeItens(parados), 'text/csv');
+  baixar(arquivoDaPraca('oportunidades', 'csv'), csvDeItens(parados), 'text/csv');
 });
 
 /* ── Empacotar para enviar ───────────────────────────────────────────
@@ -6717,6 +6783,8 @@ liga('#btCsvParado', 'click', () => {
 function pacoteDeDados() {
   const e = envioAtual();
   return {
+    /* Identificador do formato, não da filial: mudar isto faz a página
+       recusar todo pacote já gerado. A praça vai no campo `praca`. */
     formato: 'central-de-compras-ribeirao-preto',
     versao: 1,
     geradoEm: new Date().toISOString(),
@@ -6731,6 +6799,7 @@ function pacoteDeDados() {
     nomeTabelaMarcas: estado.nomeTabelaMarcas,
     quantidades: estado.quantidades,
     rede: estado.rede,
+    praca: estado.praca,
     clientes: estado.clientes,
     nomeClientes: estado.nomeClientes,
     emClientes: estado.emClientes,
@@ -6759,6 +6828,7 @@ async function aplicarPacote(pacote) {
   estado.nomeTabelaMarcas = pacote.nomeTabelaMarcas || null;
   estado.quantidades = pacote.quantidades || {};
   estado.rede = pacote.rede || {};
+  if (pacote.praca) estado.praca = pacote.praca;
   estado.clientes = pacote.clientes || null;
   estado.nomeClientes = pacote.nomeClientes || null;
   estado.emClientes = pacote.emClientes || null;
@@ -6770,6 +6840,7 @@ async function aplicarPacote(pacote) {
     for (const env of estado.envios) await guardarEnvio(env);
     if (estado.movimentos) await guardarMovimentos(estado.nomeMovimentos || 'pacote');
     if (estado.tabelaMarcas) await guardarTabelaMarcas(estado.nomeTabelaMarcas || 'pacote');
+    if (estado.praca) await guardarPraca();
     if (estado.clientes) await guardarClientes(estado.nomeClientes || 'pacote');
     await guardarMapaMarcas();
     await guardarQuantidades();
@@ -6812,7 +6883,7 @@ liga('#btPacoteHtml', 'click', () => {
 });
 
 liga('#btExportarTudo', 'click', () => {
-  baixar('analise-estoque-ribeirao-preto.csv', csvDeItens([...itens()].sort((a, b) => b.prioridade - a.prioridade)), 'text/csv');
+  baixar(arquivoDaPraca('analise-estoque', 'csv'), csvDeItens([...itens()].sort((a, b) => b.prioridade - a.prioridade)), 'text/csv');
 });
 
 liga('#btApagar', 'click', async () => {
@@ -6841,7 +6912,23 @@ liga('#btApagar', 'click', async () => {
    saldo e descrição —, não o relatório inteiro. Cinco praças cabem em
    ~200 kB, e é isso que sobe para a base da equipe. */
 
-const AQUI = '03';
+/* ── A praça desta análise ────────────────────────────────────────────
+   Nasce em Ribeirão Preto porque foi para lá que a página foi feita, mas
+   NÃO é constante. O primeiro estoque carregado manda; quem quiser troca na
+   aba Situação. Com isso o mesmo arquivo serve qualquer filial — a
+   alternativa era uma cópia por praça, e cópia diverge.
+
+   Tudo o que a tela chama de "aqui", "casa" e "esta filial" passa por
+   `aqui()`. Ficar com o `'03'` escrito em vinte lugares foi o que fazia a
+   página anunciar Ribeirão Preto enquanto exibia o estoque de Passo Fundo. */
+const PRACA_PADRAO = '03';
+const aqui = () => estado.praca || PRACA_PADRAO;
+const nomeAqui = () => nomeFilial(aqui());
+/* Para os textos de WhatsApp, que são todos em caixa alta e sem acento. */
+const nomeAquiCaixaAlta = () => semAcento(nomeAqui()).toUpperCase();
+/* Para nome de arquivo: `analise-estoque` + `passo-fundo`. */
+const arquivoDaPraca = (base, ext) =>
+  base + '-' + semAcento(nomeAqui()).toLowerCase().replace(/[^a-z0-9]+/g, '-') + '.' + ext;
 const ORDEM_CURVA = 'ABCDEF';
 const postoCurva = (c) => {
   const i = ORDEM_CURVA.indexOf(String(c || '')[0]);
@@ -6932,7 +7019,7 @@ function nomeCurto(nome) {
 }
 
 const filiaisIrmas = () =>
-  Object.values(estado.rede || {}).filter((f) => f.ff !== AQUI)
+  Object.values(estado.rede || {}).filter((f) => f.ff !== aqui())
     .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
 
 function resumoDaFilial(pecas) {
@@ -6971,7 +7058,7 @@ function analisarRedeAgora() {
   if (!carregadas.length || !itens().length) return null;
 
   const praças = [
-    { ff: AQUI, nome: nomeFilial(AQUI), uf: ufDaFilial(AQUI), pecas: pecasDaFilial(itens()), casa: true, dataISO: (envioAtual() || {}).dataISO || null },
+    { ff: aqui(), nome: nomeAqui(), uf: ufDaFilial(aqui()), pecas: pecasDaFilial(itens()), casa: true, dataISO: (envioAtual() || {}).dataISO || null },
     ...carregadas.map((f) => ({ ...f, casa: false })),
   ];
 
@@ -7131,13 +7218,13 @@ function faltaFiltrada(R) {
 }
 
 /* Lista de praças do seletor: as de SP primeiro, que é com quem a
-   comparação faz sentido no dia a dia. Ribeirão fica de fora — o estoque
-   de casa entra pelo caminho normal. */
+   comparação faz sentido no dia a dia. A praça de casa fica de fora — o
+   estoque dela entra pelo caminho normal. */
 function montarSeletorDeFilial() {
   const sel = $('#fFilialAlvo');
   if (!sel || sel.dataset.pronto) return;
   const opcoes = Object.entries(FILIAIS)
-    .filter(([ff]) => ff !== AQUI)
+    .filter(([ff]) => ff !== aqui())
     .sort((a, b) => (a[1][1] === 'SP' ? 0 : 1) - (b[1][1] === 'SP' ? 0 : 1) || a[1][0].localeCompare(b[1][0], 'pt-BR'));
   sel.insertAdjacentHTML('beforeend', opcoes
     .map(([ff, [cidade, uf]]) => '<option value="' + ff + '">' + esc(cidade) + ' — ' + esc(uf) + ' (filial ' + ff + ')</option>')
@@ -7156,14 +7243,14 @@ function renderRede() {
   const meuEnvio = envioAtual();
   const cartaoCasa = meuEnvio
     ? '<div class="ficha" style="border-left:4px solid var(--laranja)">' +
-      '<div class="sobrancelha">Filial ' + AQUI + ' · SP · aqui</div>' +
-      '<h3>' + esc(nomeFilial(AQUI)) + '</h3>' +
+      '<div class="sobrancelha">Filial ' + aqui() + ' · ' + esc(ufDaFilial(aqui()) || '') + ' · aqui</div>' +
+      '<h3>' + esc(nomeAqui()) + '</h3>' +
       '<p>' + n(Object.keys(pecasDaFilial(itens())).length) + ' peças · ' +
       n(itens().filter((i) => (i.saldo || 0) > 0).length) + ' itens com saldo · ' +
       n(itens().reduce((t, i) => t + (i.saldo || 0), 0)) + ' unidades<br>' +
       '<span style="color:var(--tinta-3);font-size:12.5px">' + esc(meuEnvio.nome) + ' · ' + dataBr(meuEnvio.dataISO) + '</span></p>' +
       '<p style="font-size:12.5px;color:var(--tinta-3);margin-top:auto;padding-top:9px">' +
-      'É este arquivo que vale como estoque de casa. Se não for de ' + esc(nomeFilial(AQUI)) +
+      'É este arquivo que vale como estoque de casa. Se não for de ' + esc(nomeAqui()) +
       ', troque na aba Situação antes de olhar a comparação.</p></div>'
     : '';
 
@@ -7197,7 +7284,7 @@ function renderRede() {
   $('#seloRede').textContent = R ? n(R.faltaAB.length) : '0';
   if (!R) {
     alvo.innerHTML = irmas.length
-      ? '<div class="secao"><p style="color:var(--tinta-2)">Carregue o estoque de Ribeirão Preto para a comparação aparecer.</p></div>'
+      ? '<div class="secao"><p style="color:var(--tinta-2)">Carregue o estoque de ' + esc(nomeAqui()) + ' para a comparação aparecer.</p></div>'
       : '';
     return;
   }
@@ -7220,7 +7307,7 @@ function renderRede() {
               ? 'Com ' + emFiliais(1) + ' carregada o critério é de uma praça — duas seria o ideal, mas exigir duas aqui devolveria zero por falta de comparação, não por falta de peça.'
               : 'São ' + emFiliais(R.irmas.length) + ' carregadas.') },
     { tom: 'atencao', valor: pct(meu.taxa), rot: 'Paridade com a rede',
-      pe: 'De ' + n(R.universo) + ' peças que giram no estado, Ribeirão tem ' + n(meu.tem) + ' com saldo.' +
+      pe: 'De ' + n(R.universo) + ' peças que giram no estado, ' + esc(nomeAqui()) + ' tem ' + n(meu.tem) + ' com saldo.' +
         (atras > 0 ? ' ' + esc(R.lider.nome) + ' tem ' + n(R.lider.tem) + ' — ' + n(atras) + ' a mais.' : '') },
     { tom: 'parado', valor: n(R.unidadesParadas), rot: 'Unidades nas irmãs',
       pe: 'Somadas nas praças que mantêm as peças que faltam aqui. É estoque que a rede já comprou.' },
@@ -7305,7 +7392,7 @@ function renderRede() {
          aconteceu quando o estoque de outra praca entrou como o de casa. */
       '<p style="margin:-4px 0 12px;font-size:13px;line-height:1.55;color:var(--tinta-2)">' +
         'A coluna <b>aqui</b> sai de <b>' + esc(fonteDeCasa.arquivo) + '</b>, de ' + esc(fonteDeCasa.data) + ' — ' +
-        n(fonteDeCasa.pecas) + ' peças de ' + esc(nomeFilial(AQUI)) + '.<br>' +
+        n(fonteDeCasa.pecas) + ' peças de ' + esc(nomeAqui()) + '.<br>' +
         (filtroRede.so === 'novo'
           ? 'Estes códigos <b>não estão nesse arquivo</b> — pode ser cadastro que não existe aqui, ou cadastro ' +
             'que existe e ficou de fora da extração. A página não distingue os dois; quem confere é o sistema. ' +
@@ -7331,7 +7418,7 @@ function renderRede() {
           '<input id="fRedeBusca" type="search" placeholder="descrição, código ou original" value="' + esc(filtroRede.busca) + '" /></div>' +
       '</div>' +
       '<div class="rolo" style="margin-top:12px"><table><thead><tr>' +
-        '<th>Peça</th><th>Em Ribeirão Preto</th><th class="dir">Praças</th><th class="dir">Un. na rede</th><th>Onde tem</th>' +
+        '<th>Peça</th><th>Em ' + esc(nomeAqui()) + '</th><th class="dir">Praças</th><th class="dir">Un. na rede</th><th>Onde tem</th>' +
       '</tr></thead><tbody>' + (linhasFalta ||
         '<tr><td colspan="5" style="padding:18px;color:var(--tinta-2)">Nenhuma peça neste recorte. Afrouxe o filtro acima.</td></tr>') +
       '</tbody></table></div>' +
@@ -7354,12 +7441,12 @@ function renderRede() {
     if (foco) { const novo = $('#fRedeBusca'); novo.focus(); novo.setSelectionRange(novo.value.length, novo.value.length); }
   });
   $('#btPedidoRede').addEventListener('click', () => {
-    abrirModal('Pedido de abastecimento — filial 03, Ribeirão Preto',
+    abrirModal('Pedido de abastecimento — filial ' + aqui() + ', ' + nomeAqui(),
       lista.length + ' peças no recorte atual.',
-      textoAbastecimento(R, lista), csvRede(R, lista), 'abastecimento-ribeirao-preto.csv');
+      textoAbastecimento(R, lista), csvRede(R, lista), arquivoDaPraca('abastecimento', 'csv'));
   });
   $('#btCsvRede').addEventListener('click', async () => {
-    if (await baixar('comparacao-filiais-ribeirao-preto.csv', csvRede(R, R.falta), 'text/csv')) {
+    if (await baixar(arquivoDaPraca('comparacao-filiais', 'csv'), csvRede(R, R.falta), 'text/csv')) {
       recado('Planilha baixada', n(R.falta.length) + ' peças que a rede mantém e que aqui estão zeradas ou sem cadastro.');
     }
   });
@@ -7392,19 +7479,19 @@ function perguntarFilial(nomeArquivo, itensLidos, semelhanca) {
   const dlg = $('#dlgFilial');
   const sel = $('#dlgFilialSel');
 
-  sel.innerHTML = '<option value="' + AQUI + '">' + esc(nomeFilial(AQUI)) + ' — é o estoque de casa mesmo</option>' +
-    Object.entries(FILIAIS).filter(([ff]) => ff !== AQUI)
+  sel.innerHTML = '<option value="' + aqui() + '">' + esc(nomeAqui()) + ' — é o estoque de casa mesmo</option>' +
+    Object.entries(FILIAIS).filter(([ff]) => ff !== aqui())
       .sort((a, b) => (a[1][1] === 'SP' ? 0 : 1) - (b[1][1] === 'SP' ? 0 : 1) || a[1][0].localeCompare(b[1][0], 'pt-BR'))
       .map(([ff, [cidade, uf]]) => '<option value="' + ff + '">' + esc(cidade) + ' — ' + esc(uf) + ' (filial ' + ff + ')</option>')
       .join('');
-  sel.value = AQUI;
+  sel.value = aqui();
 
   $('#dlgFilialTexto').innerHTML =
     '<b>' + esc(nomeArquivo) + '</b> tem ' + n(itensLidos.length) + ' itens, e o nome não diz de qual praça é.<br><br>' +
-    'Só <b>' + pct(semelhanca) + '</b> dos códigos batem com o estoque de ' + esc(nomeFilial(AQUI)) +
+    'Só <b>' + pct(semelhanca) + '</b> dos códigos batem com o estoque de ' + esc(nomeAqui()) +
     ' que já está carregado. Dois relatórios da mesma filial repetem quase todo o cadastro, então este arquivo ' +
     '<b>provavelmente é de outra praça</b>.<br><br>' +
-    'Se confirmar como ' + esc(nomeFilial(AQUI)) + ', ele substitui o estoque de casa e muda toda a análise.';
+    'Se confirmar como ' + esc(nomeAqui()) + ', ele substitui o estoque de casa e muda toda a análise.';
 
   dlg.showModal();
   return new Promise((resolver) => {
@@ -7479,12 +7566,12 @@ function textoAbastecimento(R, lista) {
   const meu = R.minhaParidade;
   const dataIrmas = R.irmas.map((f) => f.nome).join(', ');
   const linhas = [
-    'PEDIDO DE ABASTECIMENTO — FILIAL 03, RIBEIRÃO PRETO',
+    'PEDIDO DE ABASTECIMENTO — FILIAL ' + aqui() + ', ' + nomeAquiCaixaAlta(),
     'Base: relatório de estoque desta filial e de ' + dataIrmas + '.',
     '',
     'SITUAÇÃO',
     '- ' + n(R.universo) + ' peças são classificadas curva A ou B em duas ou mais das praças comparadas.',
-    '- Ribeirão Preto tem ' + n(meu.tem) + ' delas com saldo (' + pct(meu.taxa) + ').' +
+    '- ' + nomeAqui() + ' tem ' + n(meu.tem) + ' delas com saldo (' + pct(meu.taxa) + ').' +
       (R.lider && !R.lider.casa ? ' ' + R.lider.nome + ' tem ' + n(R.lider.tem) + ' (' + pct(R.lider.taxa) + ').' : ''),
     '- ' + n(R.falta.filter((f) => f.aqui).length) + ' peças que as irmãs mantêm em prateleira estão zeradas aqui.',
     '- Dessas, ' + n(R.faltaAB.length) + ' são curva A ou B em pelo menos duas praças.',
@@ -7827,7 +7914,7 @@ liga('#btCarregarFilial', 'click', () => {
 });
 
 liga('#btLimparRede', 'click', async () => {
-  if (!confirm('Tirar todas as filiais irmãs da comparação? O estoque de Ribeirão Preto não é afetado.')) return;
+  if (!confirm('Tirar todas as filiais irmãs da comparação? O estoque de ' + nomeAqui() + ' não é afetado.')) return;
   estado.rede = {};
   invalidarRede();
   await guardarRede().catch(() => {});
@@ -7882,6 +7969,8 @@ $('#logo').src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAOAAAAB4CAIAAABk
     const tab = guardados.find((e) => e.id === '__tabelaMarcas');
     const rede = guardados.find((e) => e.id === '__rede');
     if (rede) estado.rede = rede.filiais || {};
+    const praca = guardados.find((e) => e.id === '__praca');
+    if (praca && praca.ff) estado.praca = praca.ff;
     const carteira = guardados.find((e) => e.id === '__clientes');
     if (carteira) {
       estado.clientes = carteira.clientes || null;

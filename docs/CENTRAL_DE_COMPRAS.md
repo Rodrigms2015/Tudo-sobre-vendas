@@ -1,7 +1,8 @@
-# Central de Compras — Filial Ribeirão Preto
+# Central de Compras
 
-Uma página só, sem servidor, que lê o relatório de estoque da filial e devolve três
-coisas: **o que comprar**, **por que**, e **o que os vendedores têm para oferecer hoje**.
+Uma página só, sem servidor, que lê os relatórios do Opus e devolve quatro coisas: **o que
+comprar**, **por que**, **o que os vendedores têm para oferecer hoje** e **quem comprava e
+parou**. A filial é a do relatório carregado — ver §7a.
 
 - Fonte: [`plataforma/corpo.html`](../plataforma/corpo.html) (fragmento)
 - Publicada em: `public/compras.html` → `/compras.html` no site
@@ -783,6 +784,32 @@ Detalhes de operação, cadastro de usuários e como publicar de novo: `deploy-n
 - Para mostrar a ferramenta a alguém sem ter arquivo em mãos, o botão **"Ver com dados de
   exemplo"** gera uma carteira fictícia determinística. Nenhum dado real.
 - Para compartilhar resultado: **Copiar texto**, **Baixar CSV** ou **Imprimir / PDF**.
+
+---
+
+## 7a. A praça desta análise
+
+A página nasceu para Ribeirão Preto e tinha `'03'` escrito em vinte lugares. O resultado é
+que ela **anunciava Ribeirão Preto enquanto exibia o estoque de Passo Fundo** — e, pior, o
+estoque de Passo Fundo entrava como *filial irmã*, não como estoque de casa.
+
+Agora `aqui()` é estado, não constante:
+
+- **O primeiro estoque carregado define a praça.** Ninguém começa pelo estoque da filial
+  vizinha. O botão *carregar estoque de outra filial* continua mandando — ele é escolha
+  explícita, e a página não a sobrepõe.
+- **Quem quiser troca na aba Situação.** Trocar não recarrega nem apaga nada: muda quem é
+  "casa" na aba Rede e o nome que sai nos textos e nas planilhas.
+- A escolha fica gravada e viaja no pacote.
+
+Duas coisas **não** acompanham a praça, de propósito:
+
+| O quê | Por quê |
+|---|---|
+| O nome do banco (`compras-ribeirao-preto`) | trocar o nome faz o navegador abrir um banco vazio e todo o trabalho guardado some da vista |
+| O identificador do formato do pacote | mudá-lo faria a página recusar todo pacote já gerado |
+
+Os dois identificam armazenamento e formato, não filial.
 
 ---
 

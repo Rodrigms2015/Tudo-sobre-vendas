@@ -1,0 +1,201 @@
+/**
+ * Carteira de clientes e metas — filial 37, Passo Fundo.
+ *
+ * Cada teste descreve a REGRA DE NEGÓCIO. Os números vêm do arquivo real
+ * `CLIENTE_PASSO_FUNDO_21082026.xls`, medidos antes de escrever o código.
+ */
+
+import { describe, expect, it } from 'vitest';
+import {
+  anoDeDoisDigitos,
+  lerLinhaCliente,
+  mediaDosFechados,
+  mesDeReferencia,
+  metaDoCliente,
+  paraReal,
+  resumirCarteira,
+  rotulosDasColunas,
+  separarCodigoNome,
+  situacaoDoCliente,
+} from './carteira.js';
+
+/** A linha do ALCEU FOPPA, copiada do arquivo real. */
+const LINHA_ALCEU = [
+  '800677 ALCEU FOPPA & CIA LTDA        ', 'ALVO', '37', '3702 ', '3702', '    0',
+  '  40.000,00', '   3.912,75', '     611,00', '       0,00', '   3.386,39',
+  '10/08/26', '    3.912,75', '100', '0345',
+];
+
+describe('código e nome vêm grudados na mesma coluna', () => {
+  it('separa os dois', () => {
+    expect(separarCodigoNome('800677 ALCEU FOPPA & CIA LTDA   '))
+      .toEqual({ codigo: '800677', nome: 'ALCEU FOPPA & CIA LTDA' });
+  });
+
+  it('recusa cabeçalho e separador em vez de inventar cliente', () => {
+    expect(separarCodigoNome('Cliente       N o m e   ')).toBeNull();
+    expect(separarCodigoNome('-------------------------')).toBeNull();
+    expect(separarCodigoNome('')).toBeNull();
+  });
+});
+
+describe('ano de dois dígitos não pode jogar cliente para o futuro', () => {
+  it('lê 26 como 2026', () => {
+    expect(anoDeDoisDigitos('26', 2026)).toBe(2026);
+  });
+
+  it('lê 99 como 1999, e não 2099', () => {
+    /* O arquivo real tem cliente sem comprar desde os anos 90. Mapear tudo
+       para 20xx faz "há quantos dias não compra" virar negativo. */
+    expect(anoDeDoisDigitos('99', 2026)).toBe(1999);
+    expect(anoDeDoisDigitos('05', 2026)).toBe(2005);
+    expect(anoDeDoisDigitos('27', 2026)).toBe(2027);
+  });
+});
+
+describe('valor em real: ponto é milhar, e vazio não é zero', () => {
+  it('lê 40.000,00', () => {
+    expect(paraReal('  40.000,00')).toBeCloseTo(40000, 2);
+  });
+
+  it('mantém o zero que é faturamento de verdade', () => {
+    expect(paraReal('       0,00')).toBe(0);
+  });
+
+  it('devolve null para ausente e ilegível', () => {
+    expect(paraReal('')).toBeNull();
+    expect(paraReal('____')).toBeNull();
+    expect(paraReal('-----')).toBeNull();
+  });
+});
+
+describe('a linha do relatório vira cliente', () => {
+  const c = lerLinhaCliente(LINHA_ALCEU, 2026);
+
+  it('lê os campos que o ERP traz', () => {
+    expect(c?.codigo).toBe('800677');
+    expect(c?.nome).toBe('ALCEU FOPPA & CIA LTDA');
+    expect(c?.tipo).toBe('ALVO');
+    expect(c?.filial).toBe('37');
+    expect(c?.potencial).toBeCloseTo(40000, 2);
+    expect(c?.vendedor).toBe('0345');
+  });
+
+  it('guarda os quatro meses na ordem do relatório, o corrente primeiro', () => {
+    expect(c?.faturamento).toEqual([3912.75, 611, 0, 3386.39]);
+  });
+
+  it('converte a última compra para data comparável', () => {
+    expect(c?.ultimaCompra).toBe('2026-08-10');
+    expect(c?.valorUltimaCompra).toBeCloseTo(3912.75, 2);
+  });
+});
+
+describe('a média NÃO usa o mês corrente, que é parcial', () => {
+  it('usa só os três meses fechados', () => {
+    /* 611,00 + 0,00 + 3.386,39 = 3.997,39 ÷ 3 = 1.332,46 */
+    const m = mediaDosFechados([3912.75, 611, 0, 3386.39]);
+    expect(m?.mesesUsados).toBe(3);
+    expect(m?.media).toBeCloseTo(1332.4633, 3);
+  });
+
+  it('incluir o mês corrente daria outro número — e mais baixo por ser parcial', () => {
+    const comParcial = (3912.75 + 611 + 0 + 3386.39) / 4;
+    const m = mediaDosFechados([3912.75, 611, 0, 3386.39]);
+    expect(m?.media).not.toBeCloseTo(comParcial, 2);
+  });
+
+  it('sem nenhum mês fechado lido não há média', () => {
+    expect(mediaDosFechados([100, null, null, null])).toBeNull();
+    expect(mediaDosFechados([])).toBeNull();
+  });
+});
+
+describe('meta sem base é lacuna, nunca zero', () => {
+  it('a meta é a média dos fechados vezes o fator', () => {
+    const r = metaDoCliente({ faturamento: [3912.75, 611, 0, 3386.39] }, 1);
+    expect(r.meta).toBeCloseTo(1332.4633, 3);
+    expect(r.base).toBeCloseTo(1332.4633, 3);
+  });
+
+  it('aplica o multiplicador que a gerência escolheu', () => {
+    const r = metaDoCliente({ faturamento: [0, 1000, 1000, 1000] }, 1.1);
+    expect(r.meta).toBeCloseTo(1100, 2);
+  });
+
+  it('quem não faturou nada nos fechados fica SEM meta, com o motivo', () => {
+    const r = metaDoCliente({ faturamento: [500, 0, 0, 0] }, 1);
+    expect(r.meta).toBeNull();
+    expect(r.motivo).toMatch(/não faturou nada/i);
+  });
+
+  it('zero não é meta batida — é ausência de meta', () => {
+    const r = metaDoCliente({ faturamento: [null, null, null, null] }, 1);
+    expect(r.meta).toBeNull();
+  });
+});
+
+describe('situação do cliente sai do que foi medido', () => {
+  const fat = [0, 100, 100, 100];
+  it('quem comprou este mês está ativo', () => {
+    expect(situacaoDoCliente({ ultimaCompra: '2026-08-10', faturamento: fat }, '2026-08-21').situacao).toBe('ATIVO');
+  });
+
+  it('quem sumiu há mais de um ano está perdido', () => {
+    const s = situacaoDoCliente({ ultimaCompra: '2013-07-23', faturamento: fat }, '2026-08-21');
+    expect(s.situacao).toBe('PERDIDO');
+    expect(s.rotulo).toMatch(/mais de um ano/);
+  });
+
+  it('os degraus do meio têm nome próprio', () => {
+    expect(situacaoDoCliente({ ultimaCompra: '2026-06-20', faturamento: fat }, '2026-08-21').situacao).toBe('ESFRIANDO');
+    expect(situacaoDoCliente({ ultimaCompra: '2026-02-10', faturamento: fat }, '2026-08-21').situacao).toBe('DORMINDO');
+  });
+
+  it('sem data de compra não inventa dias', () => {
+    const s = situacaoDoCliente({ ultimaCompra: null, faturamento: [null, null, null, null] }, '2026-08-21');
+    expect(s.dias).toBeNull();
+    expect(s.situacao).toBe('SEM_DATA');
+  });
+});
+
+describe('o mês de referência sai do arquivo, não do nome dele', () => {
+  it('usa a compra mais recente', () => {
+    const ref = mesDeReferencia([
+      { ultimaCompra: '2026-07-02' }, { ultimaCompra: '2026-08-19' }, { ultimaCompra: '2013-07-23' },
+    ]);
+    expect(ref).toEqual({ ano: 2026, mes: 8 });
+  });
+
+  it('rotula as quatro colunas e marca a primeira como parcial', () => {
+    const r = rotulosDasColunas({ ano: 2026, mes: 8 });
+    expect(r.map((x) => x.rotulo)).toEqual(['agosto/26', 'julho/26', 'junho/26', 'maio/26']);
+    expect(r[0].parcial).toBe(true);
+    expect(r.slice(1).every((x) => x.parcial === false)).toBe(true);
+  });
+
+  it('vira o ano quando o recuo cruza janeiro', () => {
+    const r = rotulosDasColunas({ ano: 2026, mes: 2 });
+    expect(r.map((x) => x.rotulo)).toEqual(['fevereiro/26', 'janeiro/26', 'dezembro/25', 'novembro/25']);
+  });
+});
+
+describe('o resumo separa as grandezas', () => {
+  it('conta quem tem meta e quem ficou sem base', () => {
+    const r = resumirCarteira([
+      { faturamento: [100, 300, 300, 300] },
+      { faturamento: [50, 0, 0, 0] },
+      { faturamento: [null, null, null, null] },
+    ], 1);
+    expect(r.clientes).toBe(3);
+    expect(r.comMeta).toBe(1);
+    expect(r.semBase).toBe(2);
+    expect(r.somaMeta).toBeCloseTo(300, 2);
+  });
+
+  it('o faturado do mês corrente fica separado, porque o mês não acabou', () => {
+    const r = resumirCarteira([{ faturamento: [100, 300, 300, 300] }], 1);
+    expect(r.faturadoNoMesParcial).toBeCloseTo(100, 2);
+    expect(r.somaMeta).not.toBeCloseTo(r.faturadoNoMesParcial, 2);
+  });
+});

@@ -1075,7 +1075,7 @@
   <!-- Estado sem dados: é a primeira coisa que qualquer pessoa vê ao abrir o link. -->
   <section id="semDados" class="secao">
     <div class="vazio" id="zonaSolta">
-      <div class="sobrancelha">Arraste um arquivo para qualquer lugar da tela</div>
+      <div class="sobrancelha">Arraste os arquivos para qualquer lugar da tela — pode ser vários de uma vez</div>
       <h3>Os relatórios do Opus, na ordem que você quiser</h3>
       <p>
         Aceita <b>.xls</b>, <b>.xlsx</b>, <b>.pdf</b>, <b>.csv</b> e <b>.txt</b>, e reconhece sozinha qual
@@ -1103,7 +1103,7 @@
         <button class="bt bt-forte" id="btEscolher" type="button">Escolher arquivo</button>
         <button class="bt" id="btExemplo" type="button">Ver com dados de exemplo</button>
       </div>
-      <input type="file" id="arquivo" accept=".xls,.xlsx,.csv,.txt,.pdf,.json" class="oculto" />
+      <input type="file" id="arquivo" accept=".xls,.xlsx,.csv,.txt,.pdf,.json" class="oculto" multiple />
     </div>
   </section>
 
@@ -1770,6 +1770,9 @@
 
 /* INICIO MOTOR CARTEIRA */
 /* FIM MOTOR CARTEIRA */
+
+/* INICIO MOTOR FILIAIS */
+/* FIM MOTOR FILIAIS */
 
 /* INICIO MOTOR REPOSICAO */
 /* FIM MOTOR REPOSICAO */
@@ -2713,25 +2716,11 @@ function inferirOrigem(codigo) {
    e a peca devia estar aqui. Fora do estado entra ICMS, e ai estocar aqui
    pode nao compensar — precisa ser avaliado, nao assumido. */
 
-const FILIAIS = {
-  '03': ['Ribeirão Preto', 'SP'], '04': ['São José do Rio Preto', 'SP'],
-  '05': ['Contagem', 'MG'], '06': ['Uberlândia', 'MG'], '07': ['Curitiba', 'PR'],
-  '08': ['Recife', 'PE'], '09': ['Porto Alegre', 'RS'], '10': ['Rio de Janeiro', 'RJ'],
-  '11': ['Brasília', 'DF'], '12': ['Salvador', 'BA'], '13': ['Londrina', 'PR'],
-  '14': ['Campinas', 'SP'], '15': ['Belém', 'PA'], '16': ['Viana', 'ES'],
-  '17': ['Campo Grande', 'MS'], '18': ['Cuiabá', 'MT'], '19': ['Itajaí', 'SC'],
-  '20': ['São Paulo', 'SP'], '21': ['Goiânia', 'GO'], '22': ['Guarulhos', 'SP'],
-  '23': ['Fortaleza', 'CE'], '24': ['São Bernardo', 'SP'], '25': ['Presidente Prudente', 'SP'],
-  '27': ['Chapecó', 'SC'], '28': ['Caxias do Sul', 'RS'], '29': ['Cascavel', 'PR'],
-  '30': ['Maringá', 'PR'], '31': ['Pouso Alegre', 'MG'], '37': ['Passo Fundo', 'RS'],
-};
+/* FILIAIS, nomeFilial, ufDaFilial e reconhecerFilial vivem em
+   src/domain/estoque/filiais.js — testados pelo vitest e injetados no topo
+   deste arquivo. Errar o reconhecimento troca a filial da análise inteira, e
+   nada na tela denuncia; por isso a regra saiu daqui. */
 
-const dosDigitos = (v) => String(v ?? '').trim().padStart(2, '0');
-const nomeFilial = (ff) => {
-  const f = FILIAIS[dosDigitos(ff)];
-  return f ? f[0] : 'filial ' + dosDigitos(ff);
-};
-const ufDaFilial = (ff) => (FILIAIS[dosDigitos(ff)] || [null, null])[1];
 
 /* ─── 4b. Marcas ─────────────────────────────────────────────────────
    O catálogo de marcas da Pacaembu (pabu.com.br). A marca de cada item
@@ -5940,7 +5929,12 @@ async function aplicarMovimentos(movimentos, nome, extra = '') {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-async function carregarArquivo(file) {
+/**
+ * @param {File} file
+ * @param {boolean} [emLote] quando verdadeiro, o erro sobe para quem chamou
+ *   em vez de virar recado — é `carregarVarios` que junta tudo num aviso só.
+ */
+async function carregarArquivo(file, emLote) {
   const nome = file.name;
   let linhas;
   /* Linhas que o gerador do .xlsx escreveu como bloco de texto dentro de uma
@@ -6106,7 +6100,7 @@ async function carregarArquivo(file) {
       const semelhanca = semelhancaComOAtual(itensLidos);
       if (semelhanca !== null && semelhanca < LIMIAR_MESMA_FILIAL) {
         comoVeio = 'escolha';
-        ff = await perguntarFilial(nome, itensLidos, semelhanca);
+        ff = await perguntarFilial(nome, itensLidos, semelhanca, reconhecerFilial(nome, true));
         if (!ff) {
           recado('Arquivo não carregado',
             'Nada foi alterado. Se ' + nome + ' for de outra praça, escolha a filial na aba Rede antes de carregar.');
@@ -6159,8 +6153,39 @@ async function carregarArquivo(file) {
     trocarVista('painel');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   } catch (err) {
-    recado('Não consegui ler ' + nome, (err && err.message ? err.message : String(err)), 'erro');
+    const motivo = err && err.message ? err.message : String(err);
+    if (emLote) throw new Error(motivo);
+    recado('Não consegui ler ' + nome, motivo, 'erro');
   }
+}
+
+/**
+ * Vários arquivos de uma vez — arrastados juntos ou escolhidos juntos.
+ *
+ * Um de cada vez, em ordem, porque cada leitura mexe no mesmo estado e
+ * gravar em paralelo no IndexedDB deixaria a base com metade de cada.
+ *
+ * **Um arquivo ruim não derruba os outros.** Antes, quem arrastava cinco
+ * estoques de filial e errava um ficava sem saber quais entraram. Agora a
+ * tela diz, no fim, o que entrou e o que não entrou, com o motivo de cada
+ * um que ficou de fora.
+ */
+async function carregarVarios(arquivos) {
+  const lista = Array.from(arquivos || []);
+  if (!lista.length) return;
+  if (lista.length === 1) { await carregarArquivo(lista[0]); return; }
+
+  const entraram = [];
+  const falharam = [];
+  for (let i = 0; i < lista.length; i++) {
+    recado('Lendo ' + (i + 1) + ' de ' + n(lista.length), lista[i].name + '. Isso leva alguns segundos por arquivo.');
+    try { await carregarArquivo(lista[i], true); entraram.push(lista[i].name); }
+    catch (err) { falharam.push({ nome: lista[i].name, motivo: err && err.message ? err.message : String(err) }); }
+  }
+  const resumo = (entraram.length ? entraram.length + ' de ' + lista.length + ' entraram. ' : 'Nenhum dos ' + lista.length + ' entrou. ') +
+    (falharam.length ? 'Ficaram de fora: ' + falharam.map((f) => f.nome + ' (' + f.motivo + ')').join('; ') + '.' : 'Nenhum ficou de fora.');
+  recado(falharam.length ? 'Carreguei o que deu' : 'Carreguei os ' + n(lista.length) + ' arquivos',
+    resumo, falharam.length ? 'erro' : 'ok');
 }
 
 /* Dados de demonstração: determinísticos, para quem abre o link sem
@@ -6603,7 +6628,7 @@ $('.abas-interno').addEventListener('keydown', (ev) => {
   trocarVista(alvo.dataset.vista);
 });
 
-$('#arquivo').addEventListener('change', (ev) => { if (ev.target.files[0]) carregarArquivo(ev.target.files[0]); ev.target.value = ''; });
+$('#arquivo').addEventListener('change', (ev) => { carregarVarios(ev.target.files); ev.target.value = ''; });
 $('#btEscolher').addEventListener('click', () => $('#arquivo').click());
 $('#btImportarTopo').addEventListener('click', () => $('#arquivo').click());
 $('#btNovoEnvio').addEventListener('click', () => $('#arquivo').click());
@@ -6624,7 +6649,7 @@ const zona = $('#zonaSolta');
   if (ev === 'dragleave' && e.relatedTarget) return;
   zona.classList.remove('solta');
 }));
-document.addEventListener('drop', (e) => { if (e.dataTransfer.files[0]) carregarArquivo(e.dataTransfer.files[0]); });
+document.addEventListener('drop', (e) => carregarVarios(e.dataTransfer.files));
 
 const liga = (id, ev, fn) => $(id).addEventListener(ev, fn);
 liga('#fBusca', 'input', (e) => { estado.filtros.busca = e.target.value; estado.limite = 50; renderComprar(); });
@@ -6935,58 +6960,8 @@ const postoCurva = (c) => {
   return i < 0 ? 9 : i;
 };
 
-const palavrasDe = (t) =>
-  semAcento(t).toUpperCase().replace(/[^A-Z0-9]+/g, ' ').trim().split(' ')
-    .filter((p) => p.length >= 3 && !/^\d+$/.test(p));
-
-/* Palavras que aparecem em nome de relatório e não ajudam a identificar praça. */
-const RUIDO_NOME = new Set(['ESTOQUE', 'RELATORIO', 'POSICAO', 'FILIAL', 'GERAL', 'ATUAL', 'XLS', 'DOS', 'DAS']);
-
-/* Distância de edição, limitada: quantas letras é preciso trocar, tirar ou
-   pôr para uma palavra virar a outra. Existe aqui por causa de um caso real —
-   `ESTOQUE SÃO BERNADO` sem o segundo R. Um erro de digitação no nome do
-   arquivo não pode decidir de qual filial é o estoque. */
-function distancia(a, b, teto) {
-  if (Math.abs(a.length - b.length) > teto) return teto + 1;
-  let ant = Array.from({ length: b.length + 1 }, (_, i) => i);
-  for (let i = 1; i <= a.length; i++) {
-    const atual = [i];
-    let melhor = i;
-    for (let j = 1; j <= b.length; j++) {
-      atual[j] = Math.min(ant[j] + 1, atual[j - 1] + 1, ant[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
-      if (atual[j] < melhor) melhor = atual[j];
-    }
-    if (melhor > teto) return teto + 1;
-    ant = atual;
-  }
-  return ant[b.length];
-}
-
-/**
- * Descobre a praça pelo nome do arquivo — `ESTOQUE PRES. PRUD 0608.xls`
- * vira Presidente Prudente. Uma palavra do arquivo casa com uma palavra da
- * cidade quando uma é começo da outra (resolve as abreviações que o pessoal
- * usa) ou quando está a uma ou duas letras de distância (resolve erro de
- * digitação). Devolve `null` quando não dá para ter certeza.
- */
-function reconhecerFilial(nomeArquivo) {
-  const alvo = palavrasDe(nomeArquivo).filter((p) => !RUIDO_NOME.has(p));
-  if (!alvo.length) return null;
-  const casa = (a, b) =>
-    a === b || a.startsWith(b) || b.startsWith(a) ||
-    (Math.min(a.length, b.length) >= 6 && distancia(a, b, 2) <= 2);
-
-  const notas = Object.entries(FILIAIS).map(([ff, [cidade]]) => {
-    const termos = palavrasDe(cidade);
-    const acertos = termos.filter((t) => alvo.some((a) => casa(a, t))).length;
-    return { ff, acertos, nota: termos.length ? acertos / termos.length : 0 };
-  }).filter((x) => x.acertos > 0).sort((a, b) => b.nota - a.nota || b.acertos - a.acertos);
-
-  if (!notas.length || notas[0].nota < 0.6) return null;
-  /* Empate é dúvida, e dúvida não vira palpite. */
-  if (notas[1] && notas[1].nota === notas[0].nota && notas[1].acertos === notas[0].acertos) return null;
-  return notas[0].ff;
-}
+/* `palavrasDe`, `distancia` e `reconhecerFilial` vivem em
+   src/domain/estoque/filiais.js. */
 
 /**
  * Reduz o relatório de uma filial ao que a comparação usa. As variantes
@@ -7083,7 +7058,12 @@ function analisarRedeAgora() {
     }
     p.pecas = reunido;
   }
-  const aqui = praças[0].pecas;
+  /* Nome explícito de propósito: chamar isto de `aqui` sombreava a função
+     `aqui()` da praça, e a linha de cima desta mesma função — que usa
+     `aqui()` para montar a praça de casa — quebrava com "Cannot access
+     'aqui' before initialization". O estoque irmão não carregava por causa
+     disso. */
+  const pecasDeCasa = praças[0].pecas;
   /* Daqui para baixo, `irmas` são as cópias já reunidas — nunca os objetos
      guardados em `estado.rede`, que continuam com os códigos originais. */
   const irmas = praças.filter((p) => !p.casa);
@@ -7126,7 +7106,7 @@ function analisarRedeAgora() {
      ou nem aparece no relatório. */
   const falta = [];
   for (const k of todosCodigos) {
-    const meu = aqui[k] || null;
+    const meu = pecasDeCasa[k] || null;
     if (meu && (meu.s || 0) > 0) continue;
     const com = irmas.filter((f) => f.pecas[k] && (f.pecas[k].s || 0) > 0)
       .map((f) => ({ ff: f.ff, nome: f.nome, c: f.pecas[k].c, s: f.pecas[k].s }))
@@ -7475,7 +7455,7 @@ function semelhancaComOAtual(itensNovos) {
 }
 
 /** Pergunta de qual praça é o arquivo. Devolve o código, ou `null` se desistiu. */
-function perguntarFilial(nomeArquivo, itensLidos, semelhanca) {
+function perguntarFilial(nomeArquivo, itensLidos, semelhanca, palpite) {
   const dlg = $('#dlgFilial');
   const sel = $('#dlgFilialSel');
 
@@ -7484,7 +7464,11 @@ function perguntarFilial(nomeArquivo, itensLidos, semelhanca) {
       .sort((a, b) => (a[1][1] === 'SP' ? 0 : 1) - (b[1][1] === 'SP' ? 0 : 1) || a[1][0].localeCompare(b[1][0], 'pt-BR'))
       .map(([ff, [cidade, uf]]) => '<option value="' + ff + '">' + esc(cidade) + ' — ' + esc(uf) + ' (filial ' + ff + ')</option>')
       .join('');
-  sel.value = aqui();
+  /* Vem marcado o melhor palpite do nome do arquivo, quando existe um. Antes
+     vinha marcado "é o estoque de casa mesmo", que é a opção que SUBSTITUI o
+     estoque de casa — o clique distraído no botão de confirmar apagava a
+     análise inteira. */
+  sel.value = palpite && FILIAIS[palpite] ? palpite : aqui();
 
   $('#dlgFilialTexto').innerHTML =
     '<b>' + esc(nomeArquivo) + '</b> tem ' + n(itensLidos.length) + ' itens, e o nome não diz de qual praça é.<br><br>' +

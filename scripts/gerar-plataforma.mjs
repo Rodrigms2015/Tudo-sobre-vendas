@@ -32,6 +32,7 @@ const MODULOS = [
   { arquivo: ['src', 'domain', 'dados', 'leitura.js'], abre: '/* INICIO MOTOR LEITURA */', fecha: '/* FIM MOTOR LEITURA */', nome: 'leitura' },
   { arquivo: ['src', 'domain', 'dados', 'xlsx.js'], abre: '/* INICIO MOTOR XLSX */', fecha: '/* FIM MOTOR XLSX */', nome: 'xlsx' },
   { arquivo: ['src', 'domain', 'clientes', 'carteira.js'], abre: '/* INICIO MOTOR CARTEIRA */', fecha: '/* FIM MOTOR CARTEIRA */', nome: 'carteira' },
+  { arquivo: ['src', 'domain', 'estoque', 'filiais.js'], abre: '/* INICIO MOTOR FILIAIS */', fecha: '/* FIM MOTOR FILIAIS */', nome: 'filiais' },
 ];
 
 for (const m of MODULOS) {

@@ -813,6 +813,56 @@ Os dois identificam armazenamento e formato, não filial.
 
 ---
 
+## 7a-2. Carregar vários arquivos de uma vez
+
+Dá para escolher ou arrastar **vários arquivos juntos** — os cinco estoques das filiais irmãs
+numa tacada só. São lidos um de cada vez, em ordem, porque cada leitura mexe no mesmo estado
+e gravar em paralelo no IndexedDB deixaria a base com metade de cada.
+
+**Um arquivo ruim não derruba os outros.** No fim a tela diz o que entrou e o que ficou de
+fora, com o motivo de cada um — antes, quem arrastava cinco estoques e errava um ficava sem
+saber quais tinham entrado.
+
+### Três defeitos que impediam o estoque irmão de carregar
+
+Encontrados carregando os cinco estoques reais (Chapecó, Caxias, Cascavel, Itajaí, Londrina)
+sobre Passo Fundo:
+
+| Defeito | Causa | Correção |
+|---|---|---|
+| **Nenhum** estoque irmão carregava | `analisarRede` tinha uma local `const aqui = praças[0].pecas` que passou a sombrear a função `aqui()`; a linha logo acima, que usa `aqui()`, morria com *Cannot access 'aqui' before initialization* | a local virou `pecasDeCasa` |
+| `CAXIAS` não era reconhecido | "Caxias do Sul" tem duas palavras contáveis e o arquivo traz uma: nota 0,5, abaixo do corte de 0,6 | a palavra que só existe numa cidade decide sozinha (abaixo) |
+| O diálogo de escolha vinha marcado em *"é o estoque de casa mesmo"* | era o primeiro `<option>` | vem marcado o melhor palpite do nome do arquivo |
+
+O terceiro é o mais perigoso dos três: *"é o estoque de casa mesmo"* é justamente a opção que
+**substitui** o estoque de casa. Um clique distraído no botão de confirmar apagava a análise
+inteira.
+
+### A palavra que só existe numa cidade
+
+`reconhecerFilial` vive em [`src/domain/estoque/filiais.js`](../src/domain/estoque/filiais.js),
+com 12 testes. Saiu do HTML porque errar aqui **troca a filial da análise inteira** e nada na
+tela denuncia — era a única regra dessa gravidade sem teste próprio.
+
+Duas passagens, nesta ordem:
+
+1. **Maioria das palavras da cidade.** Nota ≥ 0,6 decide; empate é dúvida.
+2. **A palavra que só existe numa cidade.** Uma palavra de cinco letras ou mais que case com
+   UMA cidade só decide sozinha. Cinco letras porque abaixo disso as palavras se repetem
+   (`SAO`, `RIO`, `DO`); "uma cidade só" porque `PRETO` está em Ribeirão Preto **e** em São
+   José do Rio Preto — e ali perguntar continua sendo o certo.
+
+| Nome do arquivo | Praça | Por qual passagem |
+|---|---|---|
+| `ESTOQUE_CHAPECO_2408.xls` | Chapecó | maioria (1/1) |
+| `ESTOQUE_CAXIAS_2406.xls` | Caxias do Sul | palavra exclusiva |
+| `ESTOQUE PRES. PRUD 0608.xls` | Presidente Prudente | maioria, por abreviação |
+| `ESTOQUE SÃO BERNADO.xls` | São Bernardo | maioria, perdoando o erro de digitação |
+| `ESTOQUE RIO PRETO.xls` | **pergunta** | `PRETO` está em duas praças |
+| `ESTOQUE 2408.xls` | **pergunta** | não diz cidade nenhuma |
+
+---
+
 ## 7b. Clientes e metas — a carteira
 
 O terceiro relatório do Opus não fala de peça nenhuma: fala de quem compra. Entra pela mesma

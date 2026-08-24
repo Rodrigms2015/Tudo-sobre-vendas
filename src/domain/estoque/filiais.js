@@ -116,8 +116,45 @@ function reconhecerFilial(nomeArquivo, frouxo) {
   return null;
 }
 
+/**
+ * Separa os lançamentos por filial faturadora.
+ *
+ * O relatório de movimentação traz a coluna `FI`, e ela diz de quem é a venda.
+ * Sem olhar para ela, subir o relatório de Londrina transformava a venda de
+ * Londrina em demanda medida da praça de casa — a página passaria a comprar
+ * para Passo Fundo com o giro de Londrina, e nada na tela denunciaria.
+ *
+ * A `principal` é a filial com mais lançamentos: é a dona do recorte. As
+ * outras, quando existem, são venda que saiu por outra praça — já tratada
+ * pelo motor de demanda, e por isso devolvida à parte em vez de descartada.
+ *
+ * @param {Array<{filial?: string}>} movimentos
+ * @returns {{porFilial: Map<string, object[]>, principal: string|null,
+ *   filiais: Array<{ff: string, lancamentos: number}>}}
+ */
+function separarMovimentosPorFilial(movimentos) {
+  const porFilial = new Map();
+  for (const m of movimentos || []) {
+    const bruto = String(m && m.filial !== undefined && m.filial !== null ? m.filial : '').trim();
+    /* Sem filial declarada é '' e não '00': `00` é um código de filial que
+       poderia existir, e inventar código é pior que assumir a ausência. */
+    const ff = bruto ? dosDigitos(bruto) : '';
+    if (!porFilial.has(ff)) porFilial.set(ff, []);
+    porFilial.get(ff).push(m);
+  }
+  const ordenado = [...porFilial.entries()]
+    .filter(([ff]) => ff !== '')
+    .sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0]));
+  return {
+    porFilial,
+    principal: ordenado.length ? ordenado[0][0] : null,
+    filiais: ordenado.map(([ff, l]) => ({ ff, lancamentos: l.length })),
+  };
+}
+
 export {
   FILIAIS,
+  separarMovimentosPorFilial,
   dosDigitos,
   nomeFilial,
   ufDaFilial,

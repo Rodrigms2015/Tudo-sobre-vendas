@@ -3694,6 +3694,7 @@ const guardarMovimentos = (nome) => gravarVerificado(
   { id: '__movimentos', nome, em: new Date().toISOString(), movimentos: estado.movimentos },
   (r) => (r.movimentos || []).length);
 const guardarRede = () => comLoja('readwrite', (l) => l.put({ id: '__rede', filiais: estado.rede }));
+const guardarVendaRede = () => comLoja('readwrite', (l) => l.put({ id: '__vendaRede', filiais: estado.vendaRede }));
 const guardarPraca = () => comLoja('readwrite', (l) => l.put({ id: '__praca', ff: estado.praca }));
 const guardarClientes = (nome) => gravarVerificado(
   { id: '__clientes', nome, em: new Date().toISOString(), clientes: estado.clientes, metaFator: estado.metaFator },
@@ -3735,6 +3736,10 @@ const estado = {
   emMovimentos: null,
   /* Filial desta análise. `null` = ainda não definida; ver `aqui()`. */
   praca: null,
+  /* Venda medida das filiais IRMÃS, por filial. Vive separada de
+     `estado.rede` (que é estoque) porque uma coisa não depende da outra: dá
+     para ter a venda de Londrina sem ter o estoque de Londrina. */
+  vendaRede: {},
   /* Carteira de clientes. Vive ao lado do estoque, não dentro dele: são dois
      relatórios diferentes, e um funciona sem o outro. */
   clientes: null,
@@ -5900,8 +5905,89 @@ function abrirModal(titulo, nota, texto, csv, nomeCsv) {
 
 /* ─── 21. Carregar arquivo ───────────────────────────────────────── */
 
+/**
+ * Venda medida de uma filial IRMÃ.
+ *
+ * Não vira demanda de casa — nunca. O que se guarda é o resumo por código
+ * interno: quanto saiu, em quantos pedidos e quando foi a última venda. Serve
+ * para a comparação da rede responder "lá gira?" e não só "lá tem?".
+ */
+async function aplicarVendaDeIrma(ff, movimentos, nomeArquivo) {
+  const saidas = movimentos.filter((m) => m.tp === 'S');
+  const porInterno = {};
+  let unidades = 0;
+  for (const m of saidas) {
+    const k = m.produto;
+    if (!k) continue;
+    const a = porInterno[k] || (porInterno[k] = { u: 0, p: 0, d: null });
+    a.u += m.qtd;
+    a.p += 1;
+    if (!a.d || m.data > a.d) a.d = m.data;
+    unidades += m.qtd;
+  }
+  const datas = movimentos.map((m) => m.data).sort();
+  estado.vendaRede[ff] = {
+    ff,
+    nome: nomeFilial(ff),
+    arquivo: nomeArquivo,
+    em: new Date().toISOString(),
+    lancamentos: movimentos.length,
+    saidas: saidas.length,
+    unidades,
+    inicio: datas[0] || null,
+    fim: datas[datas.length - 1] || null,
+    porInterno,
+  };
+  let erroGrav = null;
+  try { await guardarVendaRede(); }
+  catch (err) { erroGrav = err.message || String(err); estado.gravacao = { ok: false, em: null, erro: erroGrav }; }
+  invalidarRede();
+  invalidarVistas();
+  renderTudo();
+  equipeAgendarEnvio();
+  const v = estado.vendaRede[ff];
+  const comum = nomeFilial(ff) + ' (filial ' + ff + ') · ' + n(v.saidas) + ' saídas de ' +
+    n(Object.keys(porInterno).length) + ' peças, ' + n(Math.round(unidades)) + ' unidades' +
+    (v.inicio ? ', de ' + dataBr(v.inicio) + ' a ' + dataBr(v.fim) : '') + '. ' +
+    'Isto NÃO entra na demanda de ' + nomeAqui() + ': é venda de outra praça, e serve para a aba Rede ' +
+    'dizer o que gira lá.';
+  if (erroGrav) recado('Venda da filial lida, mas NÃO gravada', comum + ' Não consegui gravar (' + erroGrav + ').', 'erro');
+  else recado('Venda de ' + nomeFilial(ff) + ' guardada', comum);
+  trocarVista('rede');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+/**
+ * Porta única por onde todo movimento lido passa. Decide DE QUEM é a venda
+ * antes de aplicá-la.
+ *
+ * Sem isto, subir o relatório de Londrina fazia a venda de Londrina virar
+ * demanda medida da praça de casa: a página passaria a comprar para Passo
+ * Fundo com o giro de Londrina, e nada na tela denunciaria.
+ */
+async function encaminharMovimentos(movimentos, nome, extra = '') {
+  const separado = separarMovimentosPorFilial(movimentos);
+  const ff = separado.principal;
+  if (ff && ff !== aqui() && FILIAIS[ff]) {
+    await aplicarVendaDeIrma(ff, separado.porFilial.get(ff), nome);
+    return;
+  }
+  await aplicarMovimentos(movimentos, nome, extra);
+}
+
 async function aplicarMovimentos(movimentos, nome, extra = '') {
   const produtosDistintos = new Set(movimentos.map((m) => m.produto)).size;
+  /* Movimentação nova SUBSTITUI a anterior. Quando a nova é menor cobrindo o
+     mesmo período, alguma coisa se perdeu no caminho — e perder venda medida
+     rebaixa a sugestão de compra sem nada na tela denunciar.
+
+     Caso real: dois relatórios de Passo Fundo do mesmo período, 01/01 a
+     20/08. Um traz 7.398 lançamentos, o outro 4.319 — faltam 3.214, em todos
+     os meses. A página não escolhe por conta própria qual vale: ela conta o
+     que aconteceu e quem decide é quem carregou. */
+  const antes = estado.movimentos && estado.movimentos.length
+    ? { linhas: estado.movimentos.length, resumo: estado.resumoDemanda, nome: estado.nomeMovimentos }
+    : null;
   estado.movimentos = movimentos;
   estado.nomeMovimentos = nome;
   estado.formatoMovimentos = movimentos.formato || estado.formatoMovimentos || null;
@@ -5912,15 +5998,26 @@ async function aplicarMovimentos(movimentos, nome, extra = '') {
   renderTudo();
   equipeAgendarEnvio();
   const R = estado.resumoDemanda;
+  let aviso = '';
+  if (antes && antes.resumo && R) {
+    const mesmoPeriodo = antes.resumo.inicio <= R.inicio && antes.resumo.fim >= R.fim;
+    const perdidos = antes.linhas - movimentos.length;
+    if (perdidos > 0 && mesmoPeriodo) {
+      aviso = ' ATENÇÃO: o arquivo anterior (' + esc(antes.nome || 'sem nome') + ') tinha ' +
+        n(antes.linhas) + ' lançamentos cobrindo o mesmo período, ' + n(perdidos) + ' a mais que este. ' +
+        'Se os dois são do mesmo relatório, este veio incompleto — carregue o maior de novo para não perder venda medida.';
+    }
+  }
   if (estado.gravacao.ok) {
-    recado('Movimentação carregada e gravada',
+    recado(aviso ? 'Movimentação carregada — e ficou MENOR' : 'Movimentação carregada e gravada',
       n(movimentos.length) + ' lançamentos de ' + dataBr(R.inicio) + ' a ' + dataBr(R.fim) + ' (' + R.dias + ' dias). ' +
       'Conferi a gravação: ' + n(gravados) + ' linhas voltaram do banco. ' +
       'Cobre ' + n(produtosDistintos) + ' produtos' +
       (R.cobertura !== undefined ? ' (' + pct(R.cobertura) + ' do cadastro)' : '') + '. ' +
       (R.abrangente === false
         ? 'Como é um recorte, os itens de fora continuam avaliados pela curva — a página não conclui que eles não venderam.'
-        : 'A sugestão de compra agora usa venda medida.') + extra);
+        : 'A sugestão de compra agora usa venda medida.') + extra + aviso,
+      aviso ? 'erro' : 'ok');
   } else {
     recado('Movimentação carregada, mas NÃO gravada',
       n(movimentos.length) + ' lançamentos valem nesta tela, mas não consegui gravar (' + estado.gravacao.erro + ').', 'erro');
@@ -5962,7 +6059,7 @@ async function carregarArquivo(file, emLote) {
           '(filial, código, descrição, data, documento, tipo E/S e quantidade). ' +
           'Confira se é o relatório de Movimentação de Produto — e me mande este PDF que eu ajusto a leitura.');
       }
-      await aplicarMovimentos(movimentos, nome,
+      await encaminharMovimentos(movimentos, nome,
         ' Lidas ' + n(movimentos.length) + ' linhas de ' + n(linhasTexto.length) + ' no PDF' +
         (ignoradas ? ' (' + n(ignoradas) + ' linhas eram cabeçalho, rodapé ou totais).' : '.'));
       return;
@@ -5974,7 +6071,7 @@ async function carregarArquivo(file, emLote) {
       const doTexto = movimentosDeTexto(texto.split(/\r?\n/));
       if (doTexto.movimentos.length > 20) {
         estado.formatoMovimentos = doTexto.formato;
-        await aplicarMovimentos(doTexto.movimentos, nome,
+        await encaminharMovimentos(doTexto.movimentos, nome,
           ' Lidas ' + n(doTexto.movimentos.length) + ' linhas de movimentação do texto.');
         return;
       }
@@ -6080,10 +6177,26 @@ async function carregarArquivo(file, emLote) {
         for (const m of extra.movimentos) movimentos.push(m);
       }
       estado.formatoMovimentos = 'planilha de movimentação';
-      await aplicarMovimentos(movimentos, nome,
+      await encaminharMovimentos(movimentos, nome,
         doTexto ? ' ' + plural(doTexto, 'lançamento veio', 'lançamentos vieram') +
           ' num bloco de texto do arquivo, fora das colunas; li à parte para não sumir.' : '');
       return;
+    }
+
+    /* .xlsx "compressed": o relatório inteiro vive dentro de células de texto,
+       espalhado por centenas de planilhas, e não sobra grade nenhuma para o
+       cabeçalho ser reconhecido. Medido: 85.746 lançamentos em cinco arquivos,
+       nenhum deles numa coluna. */
+    if (textoSoltoDoXlsx.length) {
+      const doTexto = movimentosDeTexto(textoSoltoDoXlsx);
+      if (doTexto.movimentos.length) {
+        estado.formatoMovimentos = doTexto.formato;
+        await encaminharMovimentos(doTexto.movimentos, nome,
+          ' O arquivo veio no formato compactado do Opus: ' +
+          plural(textoSoltoDoXlsx.length, 'linha de texto', 'linhas de texto') +
+          ' dentro de células, sem colunas.');
+        return;
+      }
     }
 
     const itensLidos = normalizar(linhas);
@@ -6825,6 +6938,7 @@ function pacoteDeDados() {
     quantidades: estado.quantidades,
     rede: estado.rede,
     praca: estado.praca,
+    vendaRede: estado.vendaRede,
     clientes: estado.clientes,
     nomeClientes: estado.nomeClientes,
     emClientes: estado.emClientes,
@@ -6854,6 +6968,7 @@ async function aplicarPacote(pacote) {
   estado.quantidades = pacote.quantidades || {};
   estado.rede = pacote.rede || {};
   if (pacote.praca) estado.praca = pacote.praca;
+  estado.vendaRede = pacote.vendaRede || {};
   estado.clientes = pacote.clientes || null;
   estado.nomeClientes = pacote.nomeClientes || null;
   estado.emClientes = pacote.emClientes || null;
@@ -6866,6 +6981,7 @@ async function aplicarPacote(pacote) {
     if (estado.movimentos) await guardarMovimentos(estado.nomeMovimentos || 'pacote');
     if (estado.tabelaMarcas) await guardarTabelaMarcas(estado.nomeTabelaMarcas || 'pacote');
     if (estado.praca) await guardarPraca();
+    await guardarVendaRede();
     if (estado.clientes) await guardarClientes(estado.nomeClientes || 'pacote');
     await guardarMapaMarcas();
     await guardarQuantidades();
@@ -6973,7 +7089,11 @@ function pecasDaFilial(lista) {
   for (const it of lista) {
     const k = semSufixo(it.produto) || it.interno;
     if (!k) continue;
-    const a = mapa[k] || (mapa[k] = { c: '', s: null, d: '', o: '' });
+    const a = mapa[k] || (mapa[k] = { c: '', s: null, d: '', o: '', i: [] });
+    /* Os códigos internos das variantes fiscais desta peça. É por eles que o
+       relatório de movimentação identifica o produto — sem guardá-los, a
+       venda medida da filial não casa com o estoque dela. */
+    if (it.interno && !a.i.includes(it.interno)) a.i.push(it.interno);
     /* Saldo ausente não é saldo zero: só entra na soma o que veio no arquivo. */
     if (it.saldo !== null && it.saldo !== undefined) a.s = (a.s === null ? 0 : a.s) + it.saldo;
     if (it.curva && postoCurva(it.curva) < postoCurva(a.c)) a.c = it.curva;
@@ -7050,7 +7170,8 @@ function analisarRedeAgora() {
     const reunido = {};
     for (const [k, a] of Object.entries(p.pecas)) {
       const r = raizCodigo(k);
-      const alvo = reunido[r] || (reunido[r] = { c: '', s: null, d: '', o: '' });
+      const alvo = reunido[r] || (reunido[r] = { c: '', s: null, d: '', o: '', i: [] });
+      for (const interno of a.i || []) if (!alvo.i.includes(interno)) alvo.i.push(interno);
       if (a.s !== null && a.s !== undefined) alvo.s = (alvo.s === null ? 0 : alvo.s) + a.s;
       if (a.c && postoCurva(a.c) < postoCurva(alvo.c)) alvo.c = a.c;
       if (!alvo.d && a.d) alvo.d = a.d;
@@ -7113,6 +7234,26 @@ function analisarRedeAgora() {
       .sort((a, b) => postoCurva(a.c) - postoCurva(b.c) || b.s - a.s);
     if (!com.length) continue;
 
+    /* Venda medida nas irmãs. Só entra praça que teve o relatório de
+       movimentação carregado; quem não tem fica de fora da conta em vez de
+       entrar como zero — ausência de medida não é venda zero. */
+    let vendeuNaRede = null;
+    let pracasComVenda = 0;
+    for (const f of irmas) {
+      const v = estado.vendaRede[f.ff];
+      const pc = f.pecas[k];
+      if (!v || !pc || !pc.i || !pc.i.length) continue;
+      let un = 0;
+      let achou = false;
+      for (const interno of pc.i) {
+        const reg = v.porInterno[interno];
+        if (reg) { un += reg.u; achou = true; }
+      }
+      if (!achou) continue;
+      vendeuNaRede = (vendeuNaRede === null ? 0 : vendeuNaRede) + un;
+      pracasComVenda++;
+    }
+
     const ref = irmas.filter((f) => f.pecas[k]).map((f) => f.pecas[k]);
     const abNaRede = ref.filter((a) => postoCurva(a.c) <= 1).length;
     const melhorLa = Math.min(...ref.map((a) => postoCurva(a.c)));
@@ -7128,10 +7269,16 @@ function analisarRedeAgora() {
       unidades: com.reduce((t, x) => t + x.s, 0),
       abNaRede,
       melhorLa,
+      vendeuNaRede,
+      pracasComVenda,
       /* Força do argumento, e é só isso que a ordenação usa: em quantas
          praças a peça é bem classificada, em quantas ela tem saldo, e o
          quanto ela é melhor lá do que aqui. */
-      forca: abNaRede * 3 + com.length * 2 + (meu ? Math.max(0, postoCurva(meu.c) - melhorLa) : 3),
+      /* Giro comprovado pesa mais que curva: a curva é rótulo do sistema, a
+         venda é o que aconteceu. Entra como log para que uma peça de volume
+         gigante não empurre todas as outras para baixo da lista. */
+      forca: abNaRede * 3 + com.length * 2 + (meu ? Math.max(0, postoCurva(meu.c) - melhorLa) : 3) +
+        (vendeuNaRede ? Math.min(12, Math.log2(1 + vendeuNaRede) * 2) : 0),
     });
   }
   falta.sort((a, b) => b.forca - a.forca || b.unidades - a.unidades);
@@ -7338,6 +7485,10 @@ function renderRede() {
           '<br><span style="color:var(--tinta-3);font-size:12px">conferir no sistema</span>') + '</td>' +
       '<td class="dir">' + n(f.praças) + '</td>' +
       '<td class="dir">' + n(f.unidades) + '</td>' +
+      '<td class="dir">' + (f.vendeuNaRede === null
+        ? '<span style="color:var(--tinta-3)" title="Nenhuma praça com esta peça teve o relatório de movimentação carregado. Ausência de medida não é venda zero.">não medido</span>'
+        : '<b>' + n(Math.round(f.vendeuNaRede)) + '</b>' +
+          '<div style="font-size:12px;color:var(--tinta-3)">' + plural(f.pracasComVenda, 'praça', 'praças') + '</div>') + '</td>' +
       '<td><div class="grupo-filiais">' + selos + '</div></td></tr>';
   }).join('');
 
@@ -7398,9 +7549,10 @@ function renderRede() {
           '<input id="fRedeBusca" type="search" placeholder="descrição, código ou original" value="' + esc(filtroRede.busca) + '" /></div>' +
       '</div>' +
       '<div class="rolo" style="margin-top:12px"><table><thead><tr>' +
-        '<th>Peça</th><th>Em ' + esc(nomeAqui()) + '</th><th class="dir">Praças</th><th class="dir">Un. na rede</th><th>Onde tem</th>' +
+        '<th>Peça</th><th>Em ' + esc(nomeAqui()) + '</th><th class="dir">Praças</th><th class="dir">Un. na rede</th>' +
+        '<th class="dir">Vendeu lá</th><th>Onde tem</th>' +
       '</tr></thead><tbody>' + (linhasFalta ||
-        '<tr><td colspan="5" style="padding:18px;color:var(--tinta-2)">Nenhuma peça neste recorte. Afrouxe o filtro acima.</td></tr>') +
+        '<tr><td colspan="6" style="padding:18px;color:var(--tinta-2)">Nenhuma peça neste recorte. Afrouxe o filtro acima.</td></tr>') +
       '</tbody></table></div>' +
       '<div style="margin-top:12px;display:flex;gap:9px;flex-wrap:wrap">' +
         '<button class="bt" id="btPedidoRede" type="button">Gerar pedido de abastecimento</button>' +
@@ -7955,6 +8107,8 @@ $('#logo').src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAOAAAAB4CAIAAABk
     if (rede) estado.rede = rede.filiais || {};
     const praca = guardados.find((e) => e.id === '__praca');
     if (praca && praca.ff) estado.praca = praca.ff;
+    const vr = guardados.find((e) => e.id === '__vendaRede');
+    if (vr) estado.vendaRede = vr.filiais || {};
     const carteira = guardados.find((e) => e.id === '__clientes');
     if (carteira) {
       estado.clientes = carteira.clientes || null;

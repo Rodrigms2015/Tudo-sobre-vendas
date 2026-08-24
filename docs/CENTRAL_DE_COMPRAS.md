@@ -813,6 +813,71 @@ Os dois identificam armazenamento e formato, não filial.
 
 ---
 
+## 3i. Movimentação de outra praça — e o relatório que vem partido
+
+O relatório de movimentação traz a coluna `FI`, e ela diz **de quem é a venda**. Até então
+nada olhava para ela: subir o relatório de Londrina transformava a venda de Londrina em
+demanda medida da praça de casa. A página passaria a comprar para Passo Fundo com o giro de
+Londrina, e nada na tela denunciaria.
+
+Agora todo movimento lido passa por uma porta só, `encaminharMovimentos`, que decide antes de
+aplicar:
+
+| A filial dona do recorte é… | O que acontece |
+|---|---|
+| a praça de casa | vira demanda medida, como antes |
+| uma filial irmã | vira **venda medida daquela praça**, guardada à parte, e a tela diz que não entrou na demanda de casa |
+
+A dona do recorte é a filial com mais lançamentos. Os de outras filiais dentro do mesmo
+arquivo continuam sendo devolvidos à parte — venda que saiu por outra praça é sinal, não lixo.
+
+### O que a venda das irmãs destrava
+
+A comparação da rede respondia *"lá tem?"*. Com a venda medida ela responde **"lá gira?"** —
+que é outra pergunta. A coluna **Vendeu lá** mostra as unidades que saíram nas praças que têm
+a peça, e entra na força do argumento (em escala logarítmica, para que uma peça de volume
+gigante não empurre todas as outras para baixo).
+
+Praça sem relatório de movimentação carregado **fica de fora da conta**, e a coluna diz *não
+medido* em vez de zero. Ausência de medida não é venda zero — a mesma regra de sempre.
+
+### O relatório "compressed": tudo dentro de células de texto
+
+Cinco arquivos reais chegaram num formato que a página não lia:
+
+| Praça | Planilhas no arquivo | Lançamentos |
+|---|---:|---:|
+| Cascavel | 432 | 12.992 |
+| Caxias do Sul | 530 | 17.896 |
+| Porto Alegre | 880 | 29.008 |
+| Londrina | 653 | 21.531 |
+| Passo Fundo | 136 | 4.319 |
+
+Duas coisas os tornavam ilegíveis, e as duas somem em silêncio:
+
+1. **A leitura abria só a `sheet1`.** Estes arquivos espalham um relatório só por **centenas
+   de planilhas** — 96% dos lançamentos sumiam sem erro nenhum.
+2. **Nenhum dado está numa coluna.** O relatório inteiro vive dentro de células de texto, com
+   três blocos lado a lado na mesma linha. A regra antiga de bloco de texto só olhava linha
+   de uma célula só, e deixava passar todos.
+
+### Quando o arquivo novo é MENOR que o anterior
+
+Movimentação nova substitui a anterior. Dois relatórios de Passo Fundo do mesmo período,
+01/01 a 20/08, chegaram com contagens diferentes:
+
+| Arquivo | Lançamentos | Cobertura do cadastro |
+|---|---:|---:|
+| `MOVIMENTA__O_PRODUTO_PASSO_FUNDO_…` | 7.398 | 29% |
+| `…_compressed_2` | 4.319 | 23% |
+
+Faltam **3.214 lançamentos**, distribuídos por **todos os meses** — não é recorte de período,
+é perda. A página não escolhe por conta própria qual vale: quando o arquivo novo tem menos
+lançamentos cobrindo o mesmo período, ela **diz isso na cara**, com o nome do arquivo
+anterior e quantos a menos vieram. Quem decide é quem carregou.
+
+---
+
 ## 7a-2. Carregar vários arquivos de uma vez
 
 Dá para escolher ou arrastar **vários arquivos juntos** — os cinco estoques das filiais irmãs

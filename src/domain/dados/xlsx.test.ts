@@ -16,6 +16,7 @@ import {
   formatoEhData,
   indiceDaColuna,
   montarGrade,
+  planilhasDoZip,
 } from './xlsx.js';
 
 const cel = (pares: Array<[number, string]>) => pares.map(([coluna, valor]) => ({ coluna, valor }));
@@ -150,6 +151,61 @@ describe('montar a grade que o resto da página lê', () => {
     expect(textoSolto).toHaveLength(2);
     expect(textoSolto[0]).toContain('4656000394');
     expect(grade.some((l) => l[0].includes('Rolamento'))).toBe(false);
+  });
+});
+
+describe('o relatório espalhado por centenas de planilhas', () => {
+  it('lê as planilhas em ordem numérica, não alfabética', () => {
+    /* Em ordem de texto sheet10 vem antes de sheet2. Medido nos arquivos
+       reais: de 136 a 880 planilhas num relatório só. */
+    const zip = new Map([
+      ['xl/worksheets/sheet10.xml', new Uint8Array()],
+      ['xl/worksheets/sheet2.xml', new Uint8Array()],
+      ['xl/worksheets/sheet1.xml', new Uint8Array()],
+      ['xl/sharedStrings.xml', new Uint8Array()],
+      ['xl/worksheets/_rels/sheet1.xml.rels', new Uint8Array()],
+    ]);
+    expect(planilhasDoZip(zip)).toEqual([
+      'xl/worksheets/sheet1.xml', 'xl/worksheets/sheet2.xml', 'xl/worksheets/sheet10.xml',
+    ]);
+  });
+
+  it('não confunde o arquivo de relações com uma planilha', () => {
+    expect(planilhasDoZip(new Map([['xl/worksheets/_rels/sheet1.xml.rels', new Uint8Array()]]))).toEqual([]);
+  });
+});
+
+describe('o relatório inteiro dentro de células de texto', () => {
+  /* Forma do relatório "compressed" do Opus: três blocos de texto lado a lado
+     na mesma linha, sem coluna nenhuma. Medido: 85.746 lançamentos em cinco
+     arquivos, todos assim. */
+  const COMPRIMIDO = [
+    cel([
+      [0, 'FI Alm Produto   Descricao\n29 01 0040002815 Terminal cardan 15/01/26 NF27220902 10 E 1,00\n29 01 0090000105 Kit retentor cubo 27/01/26 NF08895903 10 E 2,00'],
+      [56, ',00\n ,00\n ,00'],
+      [59, 'Custo Medio Sequen.\n,00 0427009\n,00 0429101'],
+    ]),
+  ];
+
+  it('tira o texto de QUALQUER célula, não só da linha de uma célula só', () => {
+    /* A regra antiga exigia `linha.length === 1`. Nestes arquivos a linha tem
+       três blocos, e ela deixava passar todos — o arquivo inteiro sumia. */
+    const { textoSolto } = montarGrade(COMPRIMIDO);
+    expect(textoSolto.some((l) => l.includes('0040002815'))).toBe(true);
+    expect(textoSolto.some((l) => l.includes('0090000105'))).toBe(true);
+    expect(textoSolto.some((l) => l.includes('0429101'))).toBe(true);
+  });
+
+  it('não sobra nada na grade quando o arquivo é só texto', () => {
+    const { grade, cabecalho } = montarGrade(COMPRIMIDO);
+    expect(cabecalho).toBe(-1);
+    expect(grade).toEqual([]);
+  });
+
+  it('o bloco de texto não vira cabeçalho', () => {
+    /* A célula tem cinquenta linhas de dados dentro; contada como rótulo, ela
+       ganha de qualquer cabeçalho de verdade e a grade sai alinhada por ela. */
+    expect(escolherCabecalho([cel([[0, 'FI Alm Produto\n29 01 0040002815 Terminal cardan']])])).toBe(-1);
   });
 });
 

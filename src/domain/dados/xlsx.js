@@ -152,17 +152,34 @@ export function dataSerialBr(serial) {
   return iso.slice(8, 10) + '/' + iso.slice(5, 7) + '/' + iso.slice(0, 4);
 }
 
+/** Nomes das planilhas em ordem NUMÉRICA: sheet1, sheet2, … sheet10. */
+export function planilhasDoZip(arquivos) {
+  const nomes = [];
+  for (const nome of arquivos.keys()) {
+    const m = /^xl\/worksheets\/sheet(\d+)\.xml$/.exec(nome);
+    if (m) nomes.push({ nome, n: Number(m[1]) });
+  }
+  /* Em ordem de texto, `sheet10` vem antes de `sheet2` e o relatório sai fora
+     de ordem. Com centenas de planilhas isso embaralha meses inteiros. */
+  return nomes.sort((a, b) => a.n - b.n).map((x) => x.nome);
+}
+
 /**
- * Lê a primeira planilha e devolve as linhas, cada uma como
- * `[{coluna, valor}]` com o índice REAL da coluna.
+ * Lê TODAS as planilhas, em ordem, e devolve as linhas de todas emendadas —
+ * cada uma como `[{coluna, valor}]` com o índice REAL da coluna.
+ *
+ * Ler só a `sheet1` bastou até aparecer o relatório "compressed" do Opus, que
+ * espalha um relatório só por **centenas de planilhas** (medido: de 136 a 880
+ * num arquivo). Com uma planilha só, 96% dos lançamentos sumiam sem erro
+ * nenhum — o pior tipo de perda, a silenciosa.
  *
  * @param {ArrayBuffer} buffer
  * @returns {Promise<Array<Array<{coluna: number, valor: string}>>>}
  */
 export async function lerXlsx(buffer) {
   const arquivos = await abrirZip(buffer);
-  const planilha = arquivos.get('xl/worksheets/sheet1.xml');
-  if (!planilha) throw new Error('O .xlsx não tem planilha legível (xl/worksheets/sheet1.xml).');
+  const planilhas = planilhasDoZip(arquivos);
+  if (!planilhas.length) throw new Error('O .xlsx não tem planilha legível (xl/worksheets/sheet1.xml).');
 
   /* Textos compartilhados: o Excel guarda cada string uma vez só. */
   const compartilhadas = [];
@@ -179,29 +196,33 @@ export async function lerXlsx(buffer) {
     ? estilosDeData(textoUtf8(arquivos.get('xl/styles.xml')))
     : new Set();
 
-  const doc = new DOMParser().parseFromString(textoUtf8(planilha), 'application/xml');
   const linhas = [];
-  for (const linha of doc.getElementsByTagName('row')) {
-    const celulas = [];
-    for (const c of linha.getElementsByTagName('c')) {
-      const tipo = c.getAttribute('t');
-      let v = '';
-      if (tipo === 'inlineStr') {
-        for (const t of c.getElementsByTagName('t')) v += t.textContent || '';
-      } else {
-        const no = c.getElementsByTagName('v')[0];
-        v = no ? (no.textContent || '') : '';
-        if (tipo === 's' && v !== '') v = compartilhadas[Number(v)] || '';
+  for (const nomePlanilha of planilhas) {
+    const doc = new DOMParser().parseFromString(textoUtf8(arquivos.get(nomePlanilha)), 'application/xml');
+    for (const linha of doc.getElementsByTagName('row')) {
+      const celulas = [];
+      for (const c of linha.getElementsByTagName('c')) {
+        const tipo = c.getAttribute('t');
+        let v = '';
+        if (tipo === 'inlineStr') {
+          for (const t of c.getElementsByTagName('t')) v += t.textContent || '';
+        } else {
+          const no = c.getElementsByTagName('v')[0];
+          v = no ? (no.textContent || '') : '';
+          if (tipo === 's' && v !== '') v = compartilhadas[Number(v)] || '';
+        }
+        /* Apara só as pontas: a quebra de linha do MEIO é o que separa os
+           registros dentro de uma célula de texto, e não pode se perder. */
+        v = String(v).replace(/^\s+|\s+$/g, '');
+        /* Só número em célula formatada como data vira data. Texto que por
+           acaso está numa coluna de data continua texto. */
+        if (v && !tipo && estilos.has(Number(c.getAttribute('s') || 0))) {
+          v = dataSerialBr(v) || v;
+        }
+        if (v) celulas.push({ coluna: indiceDaColuna(c.getAttribute('r')), valor: v });
       }
-      v = String(v).trim();
-      /* Só número em célula formatada como data vira data. Texto que por acaso
-         está numa coluna de data continua texto. */
-      if (v && !tipo && estilos.has(Number(c.getAttribute('s') || 0))) {
-        v = dataSerialBr(v) || v;
-      }
-      if (v) celulas.push({ coluna: indiceDaColuna(c.getAttribute('r')), valor: v });
+      if (celulas.length) linhas.push(celulas);
     }
-    if (celulas.length) linhas.push(celulas);
   }
   return linhas;
 }
@@ -278,7 +299,10 @@ export function alinharPorCabecalho(celulas, colunas, primeiraDoCabecalho) {
  * @returns {number} índice, ou -1 se nenhuma linha tem três rótulos
  */
 export function escolherCabecalho(linhas, ate = 25) {
-  const ehRotulo = (v) => /[A-Za-zÀ-ÿ]/.test(v) && !/^[\d.,\-/]+$/.test(v);
+  /* Bloco de texto não é rótulo de coluna: no relatório "compressed" a célula
+     tem cinquenta linhas de dados dentro e ganharia de qualquer cabeçalho de
+     verdade. */
+  const ehRotulo = (v) => /[A-Za-zÀ-ÿ]/.test(v) && !/^[\d.,\-/]+$/.test(v) && !v.includes('\n');
   let melhor = -1;
   let quantos = 2;
   for (let i = 0; i < Math.min(linhas.length, ate); i++) {
@@ -292,30 +316,43 @@ export function escolherCabecalho(linhas, ate = 25) {
  * Transforma o .xlsx numa grade retangular, do jeito que o resto da página lê
  * planilha: uma linha de cabeçalho e as demais alinhadas a ela.
  *
- * Devolve também `textoSolto`: as linhas que o gerador escreveu como um bloco
- * de texto dentro de uma célula só, em vez de espalhar em colunas. No arquivo
- * de 21/08 são 8 movimentos escondidos assim. Elas não cabem na grade — quem
- * chama passa esse texto para o leitor de relatório em texto, senão some
- * movimento sem ninguém perceber.
+ * Devolve também `textoSolto`: o conteúdo das células que trazem um BLOCO DE
+ * TEXTO — várias linhas de relatório dentro de uma célula — em vez de campos
+ * espalhados em colunas. Elas não cabem numa grade; quem chama passa esse
+ * texto ao leitor de relatório em texto, senão some movimento sem ninguém
+ * perceber.
+ *
+ * Quanto isso vale, medido: no relatório normal de 21/08 são 8 lançamentos
+ * escondidos assim, de 7.398. No relatório "compressed" do Opus é **o arquivo
+ * inteiro** — 85.746 lançamentos em cinco arquivos, todos dentro de células
+ * de texto, nenhum numa coluna. Por isso a regra vale por CÉLULA e não por
+ * linha: nesses arquivos a mesma linha traz três blocos de texto lado a lado,
+ * e a regra antiga, que só olhava linha de uma célula só, deixava passar
+ * todos.
  *
  * @param {Array<Array<{coluna: number, valor: string}>>} linhas
  * @returns {{grade: string[][], cabecalho: number, textoSolto: string[]}}
  */
 export function montarGrade(linhas) {
-  const cabecalho = escolherCabecalho(linhas);
-  if (cabecalho < 0) return { grade: linhas.map((l) => l.map((c) => c.valor)), cabecalho: -1, textoSolto: [] };
-  const refs = linhas[cabecalho].map((c) => c.coluna);
-  const grade = [];
   const textoSolto = [];
-  let ondeFicou = -1;
-  linhas.forEach((l, i) => {
-    if (i === cabecalho) { ondeFicou = grade.length; grade.push(l.map((c) => c.valor)); return; }
-    /* Célula única com quebra de linha é bloco de texto, não linha de grade. */
-    if (l.length === 1 && l[0].valor.includes('\n')) {
-      for (const t of l[0].valor.split('\n')) if (t.trim()) textoSolto.push(t);
-      return;
+  /* Primeiro separa o texto do que é grade. Tem de vir antes de escolher o
+     cabeçalho: com os blocos no meio, não há cabeçalho que se ache. */
+  const soGrade = [];
+  for (const l of linhas || []) {
+    const daGrade = [];
+    for (const c of l) {
+      if (c.valor.includes('\n')) {
+        for (const t of c.valor.split('\n')) if (t.trim()) textoSolto.push(t);
+      } else daGrade.push(c);
     }
-    grade.push(alinharNaGrade(l, refs));
-  });
-  return { grade, cabecalho: ondeFicou, textoSolto };
+    if (daGrade.length) soGrade.push(daGrade);
+  }
+
+  const cabecalho = escolherCabecalho(soGrade);
+  if (cabecalho < 0) {
+    return { grade: soGrade.map((l) => l.map((c) => c.valor)), cabecalho: -1, textoSolto };
+  }
+  const refs = soGrade[cabecalho].map((c) => c.coluna);
+  const grade = soGrade.map((l, i) => (i === cabecalho ? l.map((c) => c.valor) : alinharNaGrade(l, refs)));
+  return { grade, cabecalho, textoSolto };
 }

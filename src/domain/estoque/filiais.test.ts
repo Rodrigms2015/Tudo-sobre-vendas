@@ -7,7 +7,10 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { FILIAIS, distancia, nomeFilial, palavrasDe, reconhecerFilial, ufDaFilial } from './filiais.js';
+import {
+  FILIAIS, distancia, nomeFilial, palavrasDe, reconhecerFilial,
+  separarMovimentosPorFilial, ufDaFilial,
+} from './filiais.js';
 
 const cidade = (ff: string | null) => (ff && FILIAIS[ff] ? FILIAIS[ff][0] : null);
 
@@ -90,5 +93,40 @@ describe('as peças da comparação', () => {
   it('a distância para de contar quando passa do teto', () => {
     expect(distancia('BERNADO', 'BERNARDO', 2)).toBe(1);
     expect(distancia('LONDRINA', 'CASCAVEL', 2)).toBeGreaterThan(2);
+  });
+});
+
+describe('de quem é a venda do relatório de movimentação', () => {
+  const mov = (filial: string, produto = '0040002815') => ({ filial, produto });
+
+  it('a filial com mais lançamentos é a dona do recorte', () => {
+    /* Medido nos arquivos reais: cada relatório vem de uma praça só —
+       Cascavel 12.992 lançamentos com FI 29, Londrina 21.531 com FI 13. */
+    const r = separarMovimentosPorFilial([mov('13'), mov('13'), mov('09')]);
+    expect(r.principal).toBe('13');
+    expect(r.filiais).toEqual([{ ff: '13', lancamentos: 2 }, { ff: '09', lancamentos: 1 }]);
+  });
+
+  it('guarda as outras filiais em vez de descartá-las', () => {
+    /* Venda que saiu por outra praça é sinal, não lixo. */
+    const r = separarMovimentosPorFilial([mov('37'), mov('13')]);
+    expect(r.porFilial.get('13')).toHaveLength(1);
+  });
+
+  it('completa o código de um dígito só', () => {
+    expect(separarMovimentosPorFilial([mov('9')]).principal).toBe('09');
+  });
+
+  it('lançamento sem filial não vira filial 00', () => {
+    /* `00` é um código que poderia existir. Inventar código é pior que
+       assumir a ausência. */
+    const r = separarMovimentosPorFilial([mov(''), mov('')]);
+    expect(r.principal).toBeNull();
+    expect(r.porFilial.get('')).toHaveLength(2);
+  });
+
+  it('lista vazia não inventa dona', () => {
+    expect(separarMovimentosPorFilial([]).principal).toBeNull();
+    expect(separarMovimentosPorFilial(null).principal).toBeNull();
   });
 });

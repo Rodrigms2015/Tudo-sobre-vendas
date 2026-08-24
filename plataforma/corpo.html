@@ -7834,6 +7834,16 @@ async function equipeEnviar({ forcar = false } = {}) {
   if (!equipe.ativa || equipe.enviando) return 'ocioso';
   if (!itens().length && !estado.movimentos) return 'ocioso';
 
+  /* Trava de endereço. A da guarda (dados.mjs) só age depois que a base tem
+     praça carimbada; esta age desde a primeira publicação, que é justamente
+     quando o estrago é mais fácil. Se o endereço nomeia uma praça e o que
+     está na tela é de outra, não sobe — a central errada não recebe o
+     estoque de ninguém por descuido de aba aberta. */
+  if (!forcar && PRACA_DO_ENDERECO && aqui() !== PRACA_DO_ENDERECO) {
+    equipe.pracaDaBase = PRACA_DO_ENDERECO;
+    return 'praca';
+  }
+
   clearTimeout(equipe.agendado);
   equipe.agendado = null;
   equipe.enviando = true;
@@ -7887,7 +7897,8 @@ function equipeAgendarEnvio() {
       recado('Esta base é de outra praça',
         'A base deste endereço é de ' + esc(nomeFilial(equipe.pracaDaBase)) + ' e o que está na tela é de ' +
         esc(nomeAqui()) + '. Não gravei: isso apagaria o trabalho da outra equipe. ' +
-        'Abra a central de ' + esc(nomeAqui()) + ' no endereço dela — cada praça tem a sua.', 'erro');
+        'Abra a central de ' + esc(nomeAqui()) + ' no endereço dela — cada praça tem a sua. ' +
+        'O que está na tela continua gravado neste navegador.', 'erro');
     } else if (r === 'conflito') {
       recado('Outra pessoa gravou antes',
         'A base está na versão ' + equipe.versao + ', de ' + (equipe.atualizadoPor || 'outra pessoa') +

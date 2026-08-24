@@ -18,6 +18,6 @@
 # INICIO BLOCO GERADO — scripts/gerar-plataforma.mjs
 # Nao edite a mao: rode `npm run plataforma` depois de mexer em plataforma/corpo.html.
 /compras.html
-  Content-Security-Policy: default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'sha256-Q3tSnPvb03n9bKsn/EXOftljhHUYX8a+aZtUqUuljwU='; connect-src 'none'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'
+  Content-Security-Policy: default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'sha256-nzghoct7z+tJgvCAsRdGC2oxJLUTsYgnO3JHSHtNCe8='; connect-src 'none'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'
   Cache-Control: no-cache
 # FIM BLOCO GERADO

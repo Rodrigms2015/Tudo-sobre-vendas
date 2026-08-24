@@ -1,8 +1,26 @@
-# Publicação com login — central-compras-ribeirao-preto
+# Publicação com login — as centrais
 
-A Central de Compras está no ar em
-**https://central-compras-ribeirao-preto.netlify.app**, com tela de entrada e base
-compartilhada entre cinco pessoas.
+Cada praça tem a **sua** central, no seu endereço:
+
+| Praça | Endereço | siteId |
+|---|---|---|
+| Ribeirão Preto (03) | https://central-compras-ribeirao-preto.netlify.app | `17f94a7b-7a75-4606-946a-4cfbf4f75249` |
+| Passo Fundo (37) | https://central-compras-passo-fundo.netlify.app | `b6716b21-c03a-4a4e-a0da-c3625f85804f` |
+
+**A mesma página serve as duas.** O que separa é o endereço, e o que ele traz junto:
+
+- **A base da equipe é por site.** O armazenamento do Netlify pertence ao site, então o que
+  Passo Fundo publica não encosta no que Ribeirão Preto publicou.
+- **O banco do navegador é por endereço.** Domínios diferentes, bancos diferentes: abrir as
+  duas centrais no mesmo computador não mistura nada.
+- **A praça padrão sai do endereço.** `central-compras-passo-fundo` abre como Passo Fundo, sem
+  esperar o primeiro arquivo. É só o padrão — o estoque carregado e a escolha na aba Situação
+  continuam mandando.
+- **A guarda recusa pacote de outra praça.** Mesmo com a aba errada aberta há horas, publicar
+  Passo Fundo sobre a base de Ribeirão Preto devolve erro em vez de apagar o trabalho da outra
+  equipe.
+
+As duas têm tela de entrada e base compartilhada entre cinco pessoas, com os mesmos logins.
 
 ## Como a proteção funciona
 
@@ -82,8 +100,12 @@ está gravado no navegador de cada pessoa continua lá.
 
 ```bash
 npm run plataforma                       # regera publicar/index.html e publicar/_headers
-cd deploy-netlify && netlify deploy --prod
+cd deploy-netlify && netlify deploy --prod --site 17f94a7b-7a75-4606-946a-4cfbf4f75249   # Ribeirão Preto
+cd deploy-netlify && netlify deploy --prod --site b6716b21-c03a-4a4e-a0da-c3625f85804f   # Passo Fundo
 ```
+
+**As duas publicam o mesmo `publicar/`.** Uma central que fica para trás é uma central com
+outro comportamento — publique nas duas.
 
 ## O que é publicado
 

@@ -12,7 +12,13 @@
  *   GET  /api/dados              → situação da guarda, sem baixar o conteúdo
  *   GET  /api/dados?conteudo=1   → os bytes compactados
  *   GET  /api/dados?historico=1  → as versões guardadas, da mais nova para a mais velha
- *   PUT  /api/dados?versaoBase=N → grava, se ninguém tiver gravado antes
+ *   PUT  /api/dados?versaoBase=N&praca=NN → grava, se ninguém tiver gravado antes
+ *
+ * A guarda pertence a UMA praça. Cada central tem o seu site e, por isso, o
+ * seu armazenamento — mas o endereço errado numa aba aberta há horas continua
+ * sendo possível. Por isso a guarda recusa pacote de outra praça: sobrescrever
+ * a base de Ribeirão Preto com o estoque de Passo Fundo apagaria o trabalho de
+ * outra equipe inteira, e não haveria nada na tela dizendo que aconteceu.
  *   PUT  /api/dados?forcar=1     → grava por cima (o usuário confirmou)
  *   PUT  /api/dados?restaurar=N  → traz a versão N de volta COMO VERSÃO NOVA
  *
@@ -48,6 +54,9 @@ async function situacao(loja) {
     atualizadoPor: m.atualizadoPor || null,
     atualizadoEm: m.atualizadoEm || null,
     bytes: Number(m.bytes) || 0,
+    /* `null` quando a base é anterior a este campo. Base sem praça aceita a
+       primeira que chegar: não dá para adivinhar de quem era. */
+    praca: m.praca || null,
   };
 }
 
@@ -61,6 +70,7 @@ async function arquivarAtual(loja, atual) {
       atualizadoPor: atual.atualizadoPor,
       atualizadoEm: atual.atualizadoEm,
       bytes: atual.bytes,
+      praca: atual.praca,
     },
   });
 }
@@ -144,6 +154,7 @@ export default async (request) => {
         atualizadoEm: new Date().toISOString(),
         bytes: bytes.byteLength,
         restauradaDe: restaurar,
+        praca: atual.praca,
       };
       await loja.set(CHAVE, bytes, { metadata });
       await podarHistorico(loja, metadata.versao);
@@ -157,6 +168,14 @@ export default async (request) => {
     const atual = await situacao(loja);
     const forcar = url.searchParams.get('forcar') === '1';
     const versaoBase = Number(url.searchParams.get('versaoBase'));
+    const praca = (url.searchParams.get('praca') || '').trim() || null;
+
+    /* Praça diferente da que está guardada é engano, não atualização. Recusa
+       antes de olhar a versão: o problema aqui não é quem gravou por último,
+       é que este pacote não pertence a esta base. */
+    if (!forcar && atual.praca && praca && praca !== atual.praca) {
+      return json({ erro: 'praca-diferente', pracaDaBase: atual.praca, pracaEnviada: praca, ...atual }, 409);
+    }
 
     if (!forcar && Number.isFinite(versaoBase) && versaoBase !== atual.versao) {
       return json({ erro: 'conflito', ...atual }, 409);
@@ -172,6 +191,7 @@ export default async (request) => {
       atualizadoPor: USUARIOS[usuario].nome,
       atualizadoEm: new Date().toISOString(),
       bytes: corpo.byteLength,
+      praca: praca || atual.praca || null,
     };
     await loja.set(CHAVE, corpo, { metadata });
     await podarHistorico(loja, metadata.versao);
@@ -182,7 +202,7 @@ export default async (request) => {
      se quer recomeçar do zero. O que está no navegador de cada um continua. */
   if (request.method === 'DELETE') {
     await loja.delete(CHAVE);
-    return json({ versao: 0, atualizadoPor: null, atualizadoEm: null, bytes: 0 });
+    return json({ versao: 0, atualizadoPor: null, atualizadoEm: null, bytes: 0, praca: null });
   }
 
   return json({ erro: 'metodo-nao-suportado' }, 405);

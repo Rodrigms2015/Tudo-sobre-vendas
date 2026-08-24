@@ -7062,7 +7062,20 @@ liga('#btApagar', 'click', async () => {
    Tudo o que a tela chama de "aqui", "casa" e "esta filial" passa por
    `aqui()`. Ficar com o `'03'` escrito em vinte lugares foi o que fazia a
    página anunciar Ribeirão Preto enquanto exibia o estoque de Passo Fundo. */
-const PRACA_PADRAO = '03';
+/* O endereço da página é a primeira pista da praça: o site
+   `central-compras-passo-fundo` é a central de Passo Fundo, o
+   `central-compras-ribeirao-preto` é a de Ribeirão Preto. Existe porque a
+   MESMA página serve as duas, e a de Passo Fundo não pode abrir anunciando
+   Ribeirão Preto enquanto o primeiro arquivo não chega.
+
+   Vale só como PADRÃO. O estoque carregado e a escolha na aba Situação
+   continuam mandando, nessa ordem. Aberta do disco não há endereço, e aí cai
+   no padrão histórico. */
+const PRACA_DO_ENDERECO = (() => {
+  try { return reconhecerFilial(String(location.hostname || '').replace(/\./g, ' ')) || null; }
+  catch { return null; }
+})();
+const PRACA_PADRAO = PRACA_DO_ENDERECO || '03';
 const aqui = () => estado.praca || PRACA_PADRAO;
 const nomeAqui = () => nomeFilial(aqui());
 /* Para os textos de WhatsApp, que são todos em caixa alta e sem acento. */
@@ -7750,6 +7763,8 @@ const equipe = {
   ultimoEnvio: null,
   erro: null,
   conflito: false,
+  /* Praça dona da base, quando ela recusa um pacote de outra. */
+  pracaDaBase: null,
   agendado: null,
 };
 
@@ -7825,13 +7840,25 @@ async function equipeEnviar({ forcar = false } = {}) {
   renderEquipe();
   try {
     const corpo = await comprimir(JSON.stringify(pacoteDeDados()));
-    const alvo = '/api/dados?' + (forcar ? 'forcar=1' : 'versaoBase=' + equipe.versao);
+    /* A praça vai junto: a base recusa pacote de outra praça em vez de
+       apagar o trabalho de outra equipe. Ver dados.mjs. */
+    const alvo = '/api/dados?praca=' + encodeURIComponent(aqui()) + '&' +
+      (forcar ? 'forcar=1' : 'versaoBase=' + equipe.versao);
     const r = await fetch(alvo, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/octet-stream' },
       body: corpo,
     });
-    if (r.status === 409) { anotarEquipe(await r.json()); equipe.conflito = true; return 'conflito'; }
+    if (r.status === 409) {
+      const corpoErro = await r.json();
+      anotarEquipe(corpoErro);
+      if (corpoErro.erro === 'praca-diferente') {
+        equipe.pracaDaBase = corpoErro.pracaDaBase;
+        return 'praca';
+      }
+      equipe.conflito = true;
+      return 'conflito';
+    }
     if (r.status === 401) { equipe.erro = 'a sessão expirou'; return 'sessao'; }
     if (!r.ok) throw new Error('a base respondeu ' + r.status);
     anotarEquipe(await r.json());
@@ -7856,7 +7883,12 @@ function equipeAgendarEnvio() {
   clearTimeout(equipe.agendado);
   equipe.agendado = setTimeout(async () => {
     const r = await equipeEnviar();
-    if (r === 'conflito') {
+    if (r === 'praca') {
+      recado('Esta base é de outra praça',
+        'A base deste endereço é de ' + esc(nomeFilial(equipe.pracaDaBase)) + ' e o que está na tela é de ' +
+        esc(nomeAqui()) + '. Não gravei: isso apagaria o trabalho da outra equipe. ' +
+        'Abra a central de ' + esc(nomeAqui()) + ' no endereço dela — cada praça tem a sua.', 'erro');
+    } else if (r === 'conflito') {
       recado('Outra pessoa gravou antes',
         'A base está na versão ' + equipe.versao + ', de ' + (equipe.atualizadoPor || 'outra pessoa') +
         '. Abra a aba Situação para trazer a versão dela ou gravar a sua por cima.', 'erro');

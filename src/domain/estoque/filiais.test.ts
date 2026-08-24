@@ -41,6 +41,25 @@ describe('reconhece a praça pelo nome do arquivo', () => {
   });
 });
 
+describe('o endereço da página também diz a praça', () => {
+  /* A MESMA página serve as duas centrais. O endereço é o padrão até o
+     primeiro arquivo chegar — senão a central de Passo Fundo abre anunciando
+     Ribeirão Preto. Ver PRACA_DO_ENDERECO em plataforma/corpo.html. */
+  const doEndereco = (h: string) => reconhecerFilial(h.replace(/\./g, ' '));
+
+  it('reconhece a central de cada praça pelo endereço', () => {
+    expect(cidade(doEndereco('central-compras-passo-fundo.netlify.app'))).toBe('Passo Fundo');
+    expect(cidade(doEndereco('central-compras-ribeirao-preto.netlify.app'))).toBe('Ribeirão Preto');
+  });
+
+  it('endereço que não nomeia praça não decide nada', () => {
+    /* Cai no padrão histórico de quem chama, e não num palpite. */
+    expect(doEndereco('bruto-os.netlify.app')).toBeNull();
+    expect(doEndereco('localhost')).toBeNull();
+    expect(doEndereco('')).toBeNull();
+  });
+});
+
 describe('quando há dúvida, não chuta', () => {
   it('recusa a palavra que está em duas cidades', () => {
     /* PRETO está em Ribeirão Preto e em São José do Rio Preto. */

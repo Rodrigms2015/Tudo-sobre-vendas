@@ -2892,6 +2892,265 @@ function ordenarPorGiro(a, b) {
 
 /* FIM MOTOR REDE */
 
+/* INICIO MOTOR PACOTE TECNICO */
+/**
+ * Pacote Técnico do Opus (`PCARP12`).
+ *
+ * FONTE ÚNICA DA VERDADE: testado pelo vitest E injetado na página. JS puro.
+ *
+ * ────────────────────────────────────────────────────────────────────────
+ * O QUE ESTE RELATÓRIO TRAZ QUE NENHUM OUTRO TRAZ
+ *
+ * O relatório de estoque não tem **marca**, não tem **preço** e não tem
+ * **aplicação**. O de movimentação também não. O Pacote Técnico tem os três,
+ * por código interno — é a única fonte desses campos em todo o material que
+ * entra na página.
+ *
+ * Medido no PC_TECNIC de 04/08/26: 61 pacotes, 1.337 componentes, **1.077
+ * códigos internos distintos**, 21 marcas, nenhum item sem preço. O mesmo
+ * código aparece em vários pacotes e **nunca com preço ou marca diferentes** —
+ * 0 divergências em 1.337 linhas —, o que é o que permite montar uma ficha por
+ * código sem escolher entre versões.
+ *
+ * ────────────────────────────────────────────────────────────────────────
+ * O QUE ELE **NÃO** SERVE PARA FAZER
+ *
+ * Não serve para dizer que uma peça serve num veículo (R1). A coluna
+ * `Aplicacao` é **texto do catálogo**, exibido como consulta rastreável e
+ * nunca como conclusão do sistema — a mesma regra que vale para a ficha de
+ * catálogo da loja.
+ *
+ * O preço é **de venda**, do relatório da filial que o emitiu, na data dele.
+ * Não é custo. Não entra em margem, não entra em capital parado e não vira
+ * "valor do estoque": para isso seria preciso o custo, que não está aqui.
+ *
+ * ────────────────────────────────────────────────────────────────────────
+ * COMO ELE É LIDO
+ *
+ * Largura fixa, 220 colunas. As posições NÃO são adivinhadas: saem da própria
+ * régua de tracinhos que o relatório imprime acima dos dados. Um relatório que
+ * mude de largura passa a ser lido pela régua nova sem tocar no código.
+ */
+
+/**
+ * Uma linha só de tracinhos e espaços, com pelo menos cinco grupos.
+ *
+ * Cinco e não oito porque o relatório imprime DUAS réguas: a do pacote, com
+ * sete colunas, e a do componente, com dez. Exigir oito descartava a do
+ * pacote — e sem ela nenhum componente tem a que pacote pertencer.
+ */
+function reguaDeColunas(linha) {
+  const t = String(linha || '');
+  if (!t.trim() || /[^\s-]/.test(t)) return null;
+  const grupos = [];
+  const re = /-+/g;
+  let m;
+  while ((m = re.exec(t)) !== null) grupos.push([m.index, m.index + m[0].length]);
+  return grupos.length >= 5 ? grupos : null;
+}
+
+const CAMPOS = ['fab', 'original', 'interno', 'descricao', 'marca', 'qtd', 'un', 'as', 'aplicacao', 'preco'];
+
+/** Preço brasileiro do relatório: `1.822,34`. `null` para o que não for preço. */
+function precoDoRelatorio(texto) {
+  const t = String(texto === null || texto === undefined ? '' : texto).trim();
+  if (!/^[\d.]+,\d{2}$/.test(t)) return null;
+  const n = Number(t.replace(/\./g, '').replace(',', '.'));
+  return Number.isFinite(n) ? n : null;
+}
+
+/**
+ * A marca vem como `820   Euroricambi`: código do fornecedor e nome colados.
+ * O nome é o que a tela mostra; o código fica à parte porque é ele que casa
+ * com o cadastro do Opus.
+ */
+function separarMarca(texto) {
+  const t = String(texto === null || texto === undefined ? '' : texto).trim();
+  const m = t.match(/^([A-Z0-9]{3})\s{2,}(.+)$/);
+  if (!m) return { codigo: '', nome: t };
+  return { codigo: m[1], nome: m[2].trim() };
+}
+
+/**
+ * Reconhece o relatório pelo cabeçalho que só ele tem.
+ *
+ * @param {string[]} linhas
+ * @returns {boolean}
+ */
+function ehPacoteTecnico(linhas) {
+  const ate = Math.min((linhas || []).length, 60);
+  for (let i = 0; i < ate; i++) {
+    const l = String(linhas[i] || '');
+    if (/Consulta Pacote Tecnico/i.test(l)) return true;
+    if (/Pac\.Tecnic/i.test(l) && /Ciclo/i.test(l)) return true;
+  }
+  return false;
+}
+
+/**
+ * Cabeçalho do relatório: de qual filial e de quando.
+ *
+ * Importa porque o PREÇO é o daquela filial naquela data. Mostrar a data em
+ * que o arquivo foi carregado no lugar da data em que ele foi emitido faz o
+ * número parecer mais novo do que é.
+ *
+ * @param {string[]} linhas
+ * @returns {{filial: string, nomeFilial: string, emitidoEm: string}}
+ */
+function cabecalhoDoRelatorio(linhas) {
+  let filial = '';
+  let nomeFilial = '';
+  let emitidoEm = '';
+  const ate = Math.min((linhas || []).length, 60);
+  for (let i = 0; i < ate; i++) {
+    const l = String(linhas[i] || '');
+    const f = l.match(/\|\s*(\d{2})\s*-\s*([A-Za-zÀ-ÿ .]+?)\s{2,}/);
+    if (f && !filial) { filial = f[1]; nomeFilial = f[2].trim(); }
+    const d = l.match(/Consulta Pacote Tecnico\s+(\d{2}\/\d{2}\/\d{2})/i);
+    if (d && !emitidoEm) emitidoEm = d[1];
+    if (filial && emitidoEm) break;
+  }
+  return { filial, nomeFilial, emitidoEm };
+}
+
+/**
+ * Lê os pacotes e seus componentes.
+ *
+ * @param {string[]} linhas texto do PDF, uma linha por linha impressa
+ * @returns {{pacotes: Array, componentes: number, ignoradas: number,
+ *   filial: string, nomeFilial: string, emitidoEm: string}}
+ */
+function lerPacoteTecnico(linhas) {
+  const ls = linhas || [];
+  let colunas = null;
+  let colunasPacote = null;
+  const pacotes = [];
+  let atual = null;
+  let ignoradas = 0;
+
+  const fatiar = (l, cols, nomes) => {
+    const saida = {};
+    cols.forEach(([a, b], i) => { if (nomes[i]) saida[nomes[i]] = l.slice(a, b).trim(); });
+    return saida;
+  };
+
+  for (const bruta of ls) {
+    const l = String(bruta === null || bruta === undefined ? '' : bruta);
+    if (!l.trim()) continue;
+    const t = l.trim();
+    /* Moldura, faixa de título e cabeçalhos repetidos a cada página. */
+    if (t.startsWith('+') || t.startsWith('|')) continue;
+    if (/COMPONENTES/.test(t)) continue;
+
+    const regua = reguaDeColunas(l);
+    if (regua) {
+      /* Duas réguas diferentes: a do pacote (7 grupos) e a do componente (10).
+         A do componente é a que tem mais grupos. */
+      if (regua.length >= 10) colunas = regua;
+      else if (!colunasPacote) colunasPacote = regua;
+      continue;
+    }
+    if (/^Pac\.Tecnic/i.test(t) || /^Cod fabricante/i.test(t)) continue;
+
+    /* Componente: o código interno de dez dígitos na coluna dele. */
+    if (colunas && l.length >= colunas[2][1]) {
+      const codigo = l.slice(colunas[2][0], colunas[2][1]).trim();
+      if (/^\d{10}$/.test(codigo)) {
+        if (!atual) { ignoradas++; continue; }
+        const c = fatiar(l, colunas, CAMPOS);
+        const marca = separarMarca(c.marca);
+        atual.itens.push({
+          interno: codigo,
+          fab: c.fab,
+          original: c.original === '.' ? '' : c.original,
+          descricao: c.descricao,
+          marca: marca.nome,
+          marcaCodigo: marca.codigo,
+          /* Quantidade da peça DENTRO do pacote, não de compra. */
+          qtdNoPacote: /^\d+$/.test(c.qtd) ? Number(c.qtd) : null,
+          un: c.un,
+          aplicacao: c.aplicacao,
+          preco: precoDoRelatorio(c.preco),
+        });
+        continue;
+      }
+    }
+
+    /* Cabeçalho de pacote: código, descrição e cinco datas. */
+    if (colunasPacote && l.length >= colunasPacote[2][1]) {
+      const p = fatiar(l, colunasPacote, ['codigo', 'descricao', 'cadastro']);
+      if (p.codigo && /^\d{2}\/\d{2}\/\d{2}$/.test(p.cadastro)) {
+        atual = { codigo: p.codigo, descricao: p.descricao, cadastro: p.cadastro, aplicacao: '', itens: [] };
+        pacotes.push(atual);
+        continue;
+      }
+    }
+
+    /* Linha solta logo abaixo do pacote: a aplicação dele, que às vezes
+       ocupa duas linhas. Emenda em vez de descartar. */
+    if (atual && !atual.itens.length) {
+      atual.aplicacao = atual.aplicacao ? atual.aplicacao + ' ' + t : t;
+      continue;
+    }
+    ignoradas++;
+  }
+
+  return Object.assign({
+    pacotes,
+    componentes: pacotes.reduce((s, p) => s + p.itens.length, 0),
+    ignoradas,
+  }, cabecalhoDoRelatorio(ls));
+}
+
+/**
+ * Uma ficha por código interno: marca, preço e aplicação.
+ *
+ * O mesmo código aparece em vários pacotes. Quando os dados batem — e no
+ * arquivo real batem em 1.337 de 1.337 —, a ficha é uma só. Quando NÃO batem,
+ * a divergência é registrada em vez de escondida: escolher em silêncio entre
+ * dois preços é inventar um deles.
+ *
+ * @param {Array} pacotes
+ * @returns {{ficha: Object, divergencias: Array}}
+ */
+function fichaPorCodigo(pacotes) {
+  const ficha = {};
+  const divergencias = [];
+  for (const p of pacotes || []) {
+    for (const i of p.itens || []) {
+      const atual = ficha[i.interno];
+      if (!atual) {
+        ficha[i.interno] = {
+          interno: i.interno,
+          descricao: i.descricao,
+          marca: i.marca,
+          marcaCodigo: i.marcaCodigo,
+          original: i.original,
+          fab: i.fab,
+          aplicacao: i.aplicacao,
+          preco: i.preco,
+          pacotes: [p.codigo],
+        };
+        continue;
+      }
+      if (!atual.pacotes.includes(p.codigo)) atual.pacotes.push(p.codigo);
+      if (atual.preco !== null && i.preco !== null && Math.abs(atual.preco - i.preco) > 0.005) {
+        divergencias.push({ interno: i.interno, campo: 'preco', a: atual.preco, b: i.preco });
+      }
+      if (atual.marca && i.marca && atual.marca !== i.marca) {
+        divergencias.push({ interno: i.interno, campo: 'marca', a: atual.marca, b: i.marca });
+      }
+      if (atual.preco === null && i.preco !== null) atual.preco = i.preco;
+      if (!atual.marca && i.marca) { atual.marca = i.marca; atual.marcaCodigo = i.marcaCodigo; }
+      if (!atual.aplicacao && i.aplicacao) atual.aplicacao = i.aplicacao;
+    }
+  }
+  return { ficha, divergencias };
+}
+
+
+/* FIM MOTOR PACOTE TECNICO */
+
 /* INICIO MOTOR REPOSICAO */
 /**
  * Reposição: quanto comprar, com que base, e com que grau de prova.
@@ -5428,6 +5687,9 @@ const guardarMovimentos = (nome) => gravarVerificado(
   { id: '__movimentos', nome, em: new Date().toISOString(), movimentos: estado.movimentos },
   (r) => (r.movimentos || []).length);
 const guardarRede = () => comLoja('readwrite', (l) => l.put({ id: '__rede', filiais: estado.rede }));
+const guardarPacoteTecnico = () => gravarVerificado(
+  { id: '__pacoteTecnico', em: new Date().toISOString(), pacote: estado.pacoteTecnico, precos: estado.precoCatalogo },
+  (r) => ((r.pacote || {}).pacotes || []).length);
 const guardarVendaRede = () => comLoja('readwrite', (l) => l.put({ id: '__vendaRede', filiais: estado.vendaRede }));
 const guardarPraca = () => comLoja('readwrite', (l) => l.put({ id: '__praca', ff: estado.praca }));
 const guardarClientes = () => gravarVerificado(
@@ -5462,6 +5724,13 @@ const estado = {
   /* Montadora e aplicação vindas do catálogo. Consulta rastreável, nunca
      entrada de cálculo — nenhuma nota do motor olha para cá. */
   fichaCatalogo: null,
+  /* Pacote Técnico: a ÚNICA fonte de marca, preço e aplicação por código
+     interno em todo o material que entra na página. Ver
+     src/domain/dados/pacoteTecnico.js. */
+  pacoteTecnico: null,
+  /* Preço de VENDA do catálogo, por chave de código. Não é custo: não entra
+     em margem, nem em capital parado, nem vira "valor do estoque". */
+  precoCatalogo: {},
   nomeTabelaMarcas: null,
   formatoMovimentos: null,
   rede: {},
@@ -6497,6 +6766,32 @@ function itemDoGrupo(g) {
  * Ficha única da peça. Tudo o que se sabe, com a origem de cada número e a
  * lacuna onde não se sabe. Nada aqui é inferido.
  */
+/**
+ * Preço de VENDA do Pacote Técnico, pela primeira variante fiscal que tiver.
+ * `null` quando o código não está no catálogo — e null não é zero.
+ */
+function precoDoCatalogo(g) {
+  const p = estado.precoCatalogo || {};
+  for (const c of g.codigosInternosDoGrupo) {
+    const achado = p[chave(c)];
+    if (achado !== undefined && achado !== null) return achado;
+  }
+  return null;
+}
+
+/** Os pacotes técnicos em que esta peça entra, com a descrição de cada um. */
+function pacotesDaPeca(g) {
+  const pt = estado.pacoteTecnico;
+  if (!pt || !pt.ficha) return [];
+  const codigos = new Set();
+  for (const c of g.codigosInternosDoGrupo) {
+    const f = pt.ficha[String(c || '').trim()];
+    if (f) for (const cod of f.pacotes) codigos.add(cod);
+  }
+  if (!codigos.size) return [];
+  return pt.pacotes.filter((p) => codigos.has(p.codigo));
+}
+
 function fichaDaPecaCompleta(g) {
   const it = itemDoGrupo(g);
   const d = it && it.demandaUsada;
@@ -6508,9 +6803,13 @@ function fichaDaPecaCompleta(g) {
     .filter((x) => x.p && (x.p.s || 0) > 0);
 
   const linha = (rot, val) => '<tr><td style="width:38%;color:var(--tinta-3)">' + esc(rot) + '</td><td><b>' + val + '</b></td></tr>';
+  const preco = precoDoCatalogo(g);
+  const pacotes = pacotesDaPeca(g);
+  const pt = estado.pacoteTecnico;
   const faltando = [];
   if (!d) faltando.push('venda medida (item fora do recorte da movimentação)');
-  if (!g.marca) faltando.push('marca (importe a tabela do catálogo)');
+  if (!g.marca) faltando.push('marca (importe a tabela do catálogo ou o Pacote Técnico)');
+  if (preco === null) faltando.push('preço (esta peça não está no Pacote Técnico carregado)');
   if (!irmas.length) faltando.push('estoque das filiais irmãs');
   if (!temCusto()) faltando.push('custo — nenhum relatório carregado traz a coluna');
 
@@ -6531,7 +6830,29 @@ function fichaDaPecaCompleta(g) {
       ? (comSaldo.length ? comSaldo.map((x) => esc(x.nome) + ' (' + x.p.s + ')').join(', ') : 'nenhuma das ' + emFiliais(irmas.length))
       : '— <span style="font-weight:400;color:var(--tinta-3)">nenhuma filial irmã carregada</span>') +
     (cat && cat.montadora ? linha('Montadora', esc(cat.montadora)) : '') +
+    (preco !== null
+      ? linha('Preço de catálogo', rs(preco) +
+        ' <span style="font-weight:400;color:var(--tinta-3)">· preço de VENDA do Pacote Técnico' +
+        (pt && pt.filial ? ' da filial ' + esc(pt.filial) +
+          (pt.nomeFilialRelatorio ? ' (' + esc(pt.nomeFilialRelatorio) + ')' : '') : '') +
+        (pt && pt.emitidoEm ? ', emitido em ' + esc(pt.emitidoEm) : '') +
+        '. Não é custo e não é o preço desta praça.</span>')
+      : '') +
     '</tbody></table></div>' +
+    (pacotes.length
+      ? '<div class="cadastros" style="margin-top:12px"><div class="titulo">' +
+        'Entra em ' + plural(pacotes.length, 'pacote técnico', 'pacotes técnicos') + '</div>' +
+        '<p style="font-size:12.5px;color:var(--tinta-2);margin:0 0 6px">' +
+        'Peças que o Opus agrupa no mesmo serviço. Quem compra uma costuma precisar das outras — ' +
+        'é consulta ao catálogo, não conclusão da página.</p>' +
+        '<ul style="margin:0;padding-left:18px;font-size:13px">' +
+        pacotes.slice(0, 6).map((p) => '<li><b>' + esc(p.descricao || p.codigo) + '</b> · ' +
+          plural(p.itens.length, 'peça', 'peças') +
+          (p.aplicacao ? '<div style="color:var(--tinta-3);font-size:12px">' + esc(p.aplicacao) + '</div>' : '') +
+          '</li>').join('') +
+        (pacotes.length > 6 ? '<li style="color:var(--tinta-3)">e mais ' + n(pacotes.length - 6) + '</li>' : '') +
+        '</ul></div>'
+      : '') +
     '<div class="cadastros" style="margin-top:12px"><div class="titulo">Recomendação</div>' +
     (it && it.sugestao
       ? '<p style="margin:0 0 6px"><b>' + (it.sugestao.qtd > 0 ? 'Comprar ' + emUnidades(it.sugestao.qtd) : 'Não comprar agora') + '</b>' +
@@ -7681,6 +8002,84 @@ function abrirModal(titulo, nota, texto, csv, nomeCsv) {
  * interno: quanto saiu, em quantos pedidos e quando foi a última venda. Serve
  * para a comparação da rede responder "lá gira?" e não só "lá tem?".
  */
+/**
+ * Pacote Técnico: catálogo, não movimento.
+ *
+ * Ele alimenta as MESMAS estruturas que a tabela de marcas da loja já
+ * alimentava — marca por código e ficha de aplicação —, porque a peça é a
+ * mesma e ter duas fontes paralelas para o mesmo campo é ter duas versões da
+ * verdade. O que ele traz de novo é o PREÇO, que nenhum outro relatório tem.
+ */
+async function aplicarPacoteTecnico(linhasTexto, nomeArquivo) {
+  const lido = lerPacoteTecnico(linhasTexto);
+  if (!lido.componentes) {
+    throw new Error('Reconheci o Pacote Técnico, mas não consegui ler nenhum componente nas ' +
+      n(linhasTexto.length) + ' linhas do PDF. Me mande este arquivo que eu ajusto a leitura.');
+  }
+  const { ficha, divergencias } = fichaPorCodigo(lido.pacotes);
+
+  estado.pacoteTecnico = {
+    arquivo: nomeArquivo,
+    em: new Date().toISOString(),
+    /* Do cabeçalho do PRÓPRIO relatório: o preço é o desta filial nesta data,
+       e não o de hoje nem o da praça que está olhando. */
+    emitidoEm: lido.emitidoEm || '',
+    filial: lido.filial || '',
+    nomeFilialRelatorio: lido.nomeFilial || '',
+    pacotes: lido.pacotes,
+    ficha,
+    divergencias,
+  };
+
+  /* Marca e aplicação entram pelos caminhos que já existem. Preço ganha o
+     seu, porque não havia nenhum. */
+  const marcas = {};
+  const fichas = {};
+  let comMarca = 0;
+  let comAplicacao = 0;
+  for (const f of Object.values(ficha)) {
+    const k = chave(f.interno);
+    if (f.marca) { marcas[k] = f.marca.toUpperCase(); comMarca++; }
+    if (f.aplicacao) { fichas[k] = { montadora: '', aplicacao: f.aplicacao }; comAplicacao++; }
+    if (f.preco !== null && f.preco !== undefined) estado.precoCatalogo[k] = f.preco;
+  }
+  const antes = itens().filter((i) => i.marca).length;
+  estado.tabelaMarcas = Object.assign({}, estado.tabelaMarcas || {}, marcas);
+  estado.fichaCatalogo = Object.assign({}, estado.fichaCatalogo || {}, fichas);
+  if (!estado.nomeTabelaMarcas) estado.nomeTabelaMarcas = nomeArquivo;
+
+  let erroGrav = null;
+  try {
+    await guardarPacoteTecnico();
+    await guardarTabelaMarcas(estado.nomeTabelaMarcas || nomeArquivo);
+  } catch (err) { erroGrav = err.message || String(err); estado.gravacao = { ok: false, em: null, erro: erroGrav }; }
+
+  recalcular();
+  invalidarVistas();
+  renderTudo();
+  equipeAgendarEnvio();
+
+  const depois = itens().filter((i) => i.marca).length;
+  const noEstoque = Object.values(ficha).filter((f) => estado.precoCatalogo[chave(f.interno)] !== undefined &&
+    itens().some((i) => chave(i.interno) === chave(f.interno))).length;
+  const deOnde = (lido.filial ? 'Relatório da filial ' + lido.filial +
+    (lido.nomeFilial ? ' (' + lido.nomeFilial + ')' : '') : 'Relatório') +
+    (lido.emitidoEm ? ', emitido em ' + lido.emitidoEm : '') + '. ';
+  const comum = deOnde + n(lido.pacotes.length) + ' pacotes e ' + n(lido.componentes) + ' componentes, ' +
+    n(Object.keys(ficha).length) + ' códigos distintos. ' +
+    'Trouxe marca para ' + n(comMarca) + ', preço para ' + n(Object.keys(estado.precoCatalogo).length) +
+    ' e aplicação para ' + n(comAplicacao) + ' — três campos que nenhum outro relatório traz. ' +
+    n(noEstoque) + ' desses códigos estão no estoque carregado' +
+    (depois > antes ? ', e ' + n(depois - antes) + ' itens ganharam marca agora' : '') + '. ' +
+    (divergencias.length
+      ? n(divergencias.length) + ' códigos vieram com preço ou marca diferentes entre pacotes — valeu o primeiro, e a divergência está na aba Situação.'
+      : 'Nenhum código veio com preço ou marca divergente entre pacotes.');
+  if (erroGrav) recado('Pacote Técnico lido, mas NÃO gravado', comum + ' Não consegui gravar (' + erroGrav + ').', 'erro');
+  else recado('Pacote Técnico carregado', comum);
+  trocarVista('produtos');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
 async function aplicarVendaDeIrma(ff, movimentos, nomeArquivo) {
   const saidas = movimentos.filter((m) => m.tp === 'S');
   const porInterno = {};
@@ -7819,8 +8218,14 @@ async function carregarArquivo(file, emLote) {
     }
 
     if (/\.pdf$/i.test(nome)) {
-      /* PDF e sempre relatorio de venda: o estoque sai em Excel. */
       const linhasTexto = await lerPdf(await file.arrayBuffer());
+      /* Dois relatórios saem em PDF. O Pacote Técnico é catálogo — marca,
+         preço e aplicação —, o outro é venda. Confundir os dois faria a
+         página procurar movimento onde não há e recusar o arquivo. */
+      if (ehPacoteTecnico(linhasTexto)) {
+        await aplicarPacoteTecnico(linhasTexto, nome);
+        return;
+      }
       const { movimentos, ignoradas, formato } = movimentosDeTexto(linhasTexto);
       estado.formatoMovimentos = formato;
       if (!movimentos.length) {
@@ -8721,6 +9126,8 @@ function pacoteDeDados() {
     rede: estado.rede,
     praca: estado.praca,
     vendaRede: estado.vendaRede,
+    pacoteTecnico: estado.pacoteTecnico,
+    precoCatalogo: estado.precoCatalogo,
     carteiras: estado.carteiras,
     metaFator: estado.metaFator,
     diasCobertura: estado.diasCobertura,
@@ -8749,6 +9156,8 @@ async function aplicarPacote(pacote) {
   estado.rede = pacote.rede || {};
   if (pacote.praca) estado.praca = pacote.praca;
   estado.vendaRede = pacote.vendaRede || {};
+  estado.pacoteTecnico = pacote.pacoteTecnico || null;
+  estado.precoCatalogo = pacote.precoCatalogo || {};
   estado.carteiras = pacote.carteiras || {};
   /* Pacote gerado antes da carteira por filial. */
   if (!Object.keys(estado.carteiras).length && pacote.clientes) {
@@ -8768,6 +9177,7 @@ async function aplicarPacote(pacote) {
     if (estado.tabelaMarcas) await guardarTabelaMarcas(estado.nomeTabelaMarcas || 'pacote');
     if (estado.praca) await guardarPraca();
     await guardarVendaRede();
+    if (estado.pacoteTecnico) await guardarPacoteTecnico();
     if (Object.keys(estado.carteiras).length) await guardarClientes();
     await guardarMapaMarcas();
     await guardarQuantidades();
@@ -9959,6 +10369,8 @@ $('#logo').src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAOAAAAB4CAIAAABk
     if (praca && praca.ff) estado.praca = praca.ff;
     const vr = guardados.find((e) => e.id === '__vendaRede');
     if (vr) estado.vendaRede = vr.filiais || {};
+    const pt = guardados.find((e) => e.id === '__pacoteTecnico');
+    if (pt) { estado.pacoteTecnico = pt.pacote || null; estado.precoCatalogo = pt.precos || {}; }
     const carteiras = guardados.find((e) => e.id === '__carteiras');
     if (carteiras) {
       estado.carteiras = carteiras.carteiras || {};

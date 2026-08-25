@@ -1787,6 +1787,9 @@
 /* INICIO MOTOR REDE */
 /* FIM MOTOR REDE */
 
+/* INICIO MOTOR PACOTE TECNICO */
+/* FIM MOTOR PACOTE TECNICO */
+
 /* INICIO MOTOR REPOSICAO */
 /* FIM MOTOR REPOSICAO */
 
@@ -3707,6 +3710,9 @@ const guardarMovimentos = (nome) => gravarVerificado(
   { id: '__movimentos', nome, em: new Date().toISOString(), movimentos: estado.movimentos },
   (r) => (r.movimentos || []).length);
 const guardarRede = () => comLoja('readwrite', (l) => l.put({ id: '__rede', filiais: estado.rede }));
+const guardarPacoteTecnico = () => gravarVerificado(
+  { id: '__pacoteTecnico', em: new Date().toISOString(), pacote: estado.pacoteTecnico, precos: estado.precoCatalogo },
+  (r) => ((r.pacote || {}).pacotes || []).length);
 const guardarVendaRede = () => comLoja('readwrite', (l) => l.put({ id: '__vendaRede', filiais: estado.vendaRede }));
 const guardarPraca = () => comLoja('readwrite', (l) => l.put({ id: '__praca', ff: estado.praca }));
 const guardarClientes = () => gravarVerificado(
@@ -3741,6 +3747,13 @@ const estado = {
   /* Montadora e aplicação vindas do catálogo. Consulta rastreável, nunca
      entrada de cálculo — nenhuma nota do motor olha para cá. */
   fichaCatalogo: null,
+  /* Pacote Técnico: a ÚNICA fonte de marca, preço e aplicação por código
+     interno em todo o material que entra na página. Ver
+     src/domain/dados/pacoteTecnico.js. */
+  pacoteTecnico: null,
+  /* Preço de VENDA do catálogo, por chave de código. Não é custo: não entra
+     em margem, nem em capital parado, nem vira "valor do estoque". */
+  precoCatalogo: {},
   nomeTabelaMarcas: null,
   formatoMovimentos: null,
   rede: {},
@@ -4776,6 +4789,32 @@ function itemDoGrupo(g) {
  * Ficha única da peça. Tudo o que se sabe, com a origem de cada número e a
  * lacuna onde não se sabe. Nada aqui é inferido.
  */
+/**
+ * Preço de VENDA do Pacote Técnico, pela primeira variante fiscal que tiver.
+ * `null` quando o código não está no catálogo — e null não é zero.
+ */
+function precoDoCatalogo(g) {
+  const p = estado.precoCatalogo || {};
+  for (const c of g.codigosInternosDoGrupo) {
+    const achado = p[chave(c)];
+    if (achado !== undefined && achado !== null) return achado;
+  }
+  return null;
+}
+
+/** Os pacotes técnicos em que esta peça entra, com a descrição de cada um. */
+function pacotesDaPeca(g) {
+  const pt = estado.pacoteTecnico;
+  if (!pt || !pt.ficha) return [];
+  const codigos = new Set();
+  for (const c of g.codigosInternosDoGrupo) {
+    const f = pt.ficha[String(c || '').trim()];
+    if (f) for (const cod of f.pacotes) codigos.add(cod);
+  }
+  if (!codigos.size) return [];
+  return pt.pacotes.filter((p) => codigos.has(p.codigo));
+}
+
 function fichaDaPecaCompleta(g) {
   const it = itemDoGrupo(g);
   const d = it && it.demandaUsada;
@@ -4787,9 +4826,13 @@ function fichaDaPecaCompleta(g) {
     .filter((x) => x.p && (x.p.s || 0) > 0);
 
   const linha = (rot, val) => '<tr><td style="width:38%;color:var(--tinta-3)">' + esc(rot) + '</td><td><b>' + val + '</b></td></tr>';
+  const preco = precoDoCatalogo(g);
+  const pacotes = pacotesDaPeca(g);
+  const pt = estado.pacoteTecnico;
   const faltando = [];
   if (!d) faltando.push('venda medida (item fora do recorte da movimentação)');
-  if (!g.marca) faltando.push('marca (importe a tabela do catálogo)');
+  if (!g.marca) faltando.push('marca (importe a tabela do catálogo ou o Pacote Técnico)');
+  if (preco === null) faltando.push('preço (esta peça não está no Pacote Técnico carregado)');
   if (!irmas.length) faltando.push('estoque das filiais irmãs');
   if (!temCusto()) faltando.push('custo — nenhum relatório carregado traz a coluna');
 
@@ -4810,7 +4853,29 @@ function fichaDaPecaCompleta(g) {
       ? (comSaldo.length ? comSaldo.map((x) => esc(x.nome) + ' (' + x.p.s + ')').join(', ') : 'nenhuma das ' + emFiliais(irmas.length))
       : '— <span style="font-weight:400;color:var(--tinta-3)">nenhuma filial irmã carregada</span>') +
     (cat && cat.montadora ? linha('Montadora', esc(cat.montadora)) : '') +
+    (preco !== null
+      ? linha('Preço de catálogo', rs(preco) +
+        ' <span style="font-weight:400;color:var(--tinta-3)">· preço de VENDA do Pacote Técnico' +
+        (pt && pt.filial ? ' da filial ' + esc(pt.filial) +
+          (pt.nomeFilialRelatorio ? ' (' + esc(pt.nomeFilialRelatorio) + ')' : '') : '') +
+        (pt && pt.emitidoEm ? ', emitido em ' + esc(pt.emitidoEm) : '') +
+        '. Não é custo e não é o preço desta praça.</span>')
+      : '') +
     '</tbody></table></div>' +
+    (pacotes.length
+      ? '<div class="cadastros" style="margin-top:12px"><div class="titulo">' +
+        'Entra em ' + plural(pacotes.length, 'pacote técnico', 'pacotes técnicos') + '</div>' +
+        '<p style="font-size:12.5px;color:var(--tinta-2);margin:0 0 6px">' +
+        'Peças que o Opus agrupa no mesmo serviço. Quem compra uma costuma precisar das outras — ' +
+        'é consulta ao catálogo, não conclusão da página.</p>' +
+        '<ul style="margin:0;padding-left:18px;font-size:13px">' +
+        pacotes.slice(0, 6).map((p) => '<li><b>' + esc(p.descricao || p.codigo) + '</b> · ' +
+          plural(p.itens.length, 'peça', 'peças') +
+          (p.aplicacao ? '<div style="color:var(--tinta-3);font-size:12px">' + esc(p.aplicacao) + '</div>' : '') +
+          '</li>').join('') +
+        (pacotes.length > 6 ? '<li style="color:var(--tinta-3)">e mais ' + n(pacotes.length - 6) + '</li>' : '') +
+        '</ul></div>'
+      : '') +
     '<div class="cadastros" style="margin-top:12px"><div class="titulo">Recomendação</div>' +
     (it && it.sugestao
       ? '<p style="margin:0 0 6px"><b>' + (it.sugestao.qtd > 0 ? 'Comprar ' + emUnidades(it.sugestao.qtd) : 'Não comprar agora') + '</b>' +
@@ -5960,6 +6025,84 @@ function abrirModal(titulo, nota, texto, csv, nomeCsv) {
  * interno: quanto saiu, em quantos pedidos e quando foi a última venda. Serve
  * para a comparação da rede responder "lá gira?" e não só "lá tem?".
  */
+/**
+ * Pacote Técnico: catálogo, não movimento.
+ *
+ * Ele alimenta as MESMAS estruturas que a tabela de marcas da loja já
+ * alimentava — marca por código e ficha de aplicação —, porque a peça é a
+ * mesma e ter duas fontes paralelas para o mesmo campo é ter duas versões da
+ * verdade. O que ele traz de novo é o PREÇO, que nenhum outro relatório tem.
+ */
+async function aplicarPacoteTecnico(linhasTexto, nomeArquivo) {
+  const lido = lerPacoteTecnico(linhasTexto);
+  if (!lido.componentes) {
+    throw new Error('Reconheci o Pacote Técnico, mas não consegui ler nenhum componente nas ' +
+      n(linhasTexto.length) + ' linhas do PDF. Me mande este arquivo que eu ajusto a leitura.');
+  }
+  const { ficha, divergencias } = fichaPorCodigo(lido.pacotes);
+
+  estado.pacoteTecnico = {
+    arquivo: nomeArquivo,
+    em: new Date().toISOString(),
+    /* Do cabeçalho do PRÓPRIO relatório: o preço é o desta filial nesta data,
+       e não o de hoje nem o da praça que está olhando. */
+    emitidoEm: lido.emitidoEm || '',
+    filial: lido.filial || '',
+    nomeFilialRelatorio: lido.nomeFilial || '',
+    pacotes: lido.pacotes,
+    ficha,
+    divergencias,
+  };
+
+  /* Marca e aplicação entram pelos caminhos que já existem. Preço ganha o
+     seu, porque não havia nenhum. */
+  const marcas = {};
+  const fichas = {};
+  let comMarca = 0;
+  let comAplicacao = 0;
+  for (const f of Object.values(ficha)) {
+    const k = chave(f.interno);
+    if (f.marca) { marcas[k] = f.marca.toUpperCase(); comMarca++; }
+    if (f.aplicacao) { fichas[k] = { montadora: '', aplicacao: f.aplicacao }; comAplicacao++; }
+    if (f.preco !== null && f.preco !== undefined) estado.precoCatalogo[k] = f.preco;
+  }
+  const antes = itens().filter((i) => i.marca).length;
+  estado.tabelaMarcas = Object.assign({}, estado.tabelaMarcas || {}, marcas);
+  estado.fichaCatalogo = Object.assign({}, estado.fichaCatalogo || {}, fichas);
+  if (!estado.nomeTabelaMarcas) estado.nomeTabelaMarcas = nomeArquivo;
+
+  let erroGrav = null;
+  try {
+    await guardarPacoteTecnico();
+    await guardarTabelaMarcas(estado.nomeTabelaMarcas || nomeArquivo);
+  } catch (err) { erroGrav = err.message || String(err); estado.gravacao = { ok: false, em: null, erro: erroGrav }; }
+
+  recalcular();
+  invalidarVistas();
+  renderTudo();
+  equipeAgendarEnvio();
+
+  const depois = itens().filter((i) => i.marca).length;
+  const noEstoque = Object.values(ficha).filter((f) => estado.precoCatalogo[chave(f.interno)] !== undefined &&
+    itens().some((i) => chave(i.interno) === chave(f.interno))).length;
+  const deOnde = (lido.filial ? 'Relatório da filial ' + lido.filial +
+    (lido.nomeFilial ? ' (' + lido.nomeFilial + ')' : '') : 'Relatório') +
+    (lido.emitidoEm ? ', emitido em ' + lido.emitidoEm : '') + '. ';
+  const comum = deOnde + n(lido.pacotes.length) + ' pacotes e ' + n(lido.componentes) + ' componentes, ' +
+    n(Object.keys(ficha).length) + ' códigos distintos. ' +
+    'Trouxe marca para ' + n(comMarca) + ', preço para ' + n(Object.keys(estado.precoCatalogo).length) +
+    ' e aplicação para ' + n(comAplicacao) + ' — três campos que nenhum outro relatório traz. ' +
+    n(noEstoque) + ' desses códigos estão no estoque carregado' +
+    (depois > antes ? ', e ' + n(depois - antes) + ' itens ganharam marca agora' : '') + '. ' +
+    (divergencias.length
+      ? n(divergencias.length) + ' códigos vieram com preço ou marca diferentes entre pacotes — valeu o primeiro, e a divergência está na aba Situação.'
+      : 'Nenhum código veio com preço ou marca divergente entre pacotes.');
+  if (erroGrav) recado('Pacote Técnico lido, mas NÃO gravado', comum + ' Não consegui gravar (' + erroGrav + ').', 'erro');
+  else recado('Pacote Técnico carregado', comum);
+  trocarVista('produtos');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
 async function aplicarVendaDeIrma(ff, movimentos, nomeArquivo) {
   const saidas = movimentos.filter((m) => m.tp === 'S');
   const porInterno = {};
@@ -6098,8 +6241,14 @@ async function carregarArquivo(file, emLote) {
     }
 
     if (/\.pdf$/i.test(nome)) {
-      /* PDF e sempre relatorio de venda: o estoque sai em Excel. */
       const linhasTexto = await lerPdf(await file.arrayBuffer());
+      /* Dois relatórios saem em PDF. O Pacote Técnico é catálogo — marca,
+         preço e aplicação —, o outro é venda. Confundir os dois faria a
+         página procurar movimento onde não há e recusar o arquivo. */
+      if (ehPacoteTecnico(linhasTexto)) {
+        await aplicarPacoteTecnico(linhasTexto, nome);
+        return;
+      }
       const { movimentos, ignoradas, formato } = movimentosDeTexto(linhasTexto);
       estado.formatoMovimentos = formato;
       if (!movimentos.length) {
@@ -7000,6 +7149,8 @@ function pacoteDeDados() {
     rede: estado.rede,
     praca: estado.praca,
     vendaRede: estado.vendaRede,
+    pacoteTecnico: estado.pacoteTecnico,
+    precoCatalogo: estado.precoCatalogo,
     carteiras: estado.carteiras,
     metaFator: estado.metaFator,
     diasCobertura: estado.diasCobertura,
@@ -7028,6 +7179,8 @@ async function aplicarPacote(pacote) {
   estado.rede = pacote.rede || {};
   if (pacote.praca) estado.praca = pacote.praca;
   estado.vendaRede = pacote.vendaRede || {};
+  estado.pacoteTecnico = pacote.pacoteTecnico || null;
+  estado.precoCatalogo = pacote.precoCatalogo || {};
   estado.carteiras = pacote.carteiras || {};
   /* Pacote gerado antes da carteira por filial. */
   if (!Object.keys(estado.carteiras).length && pacote.clientes) {
@@ -7047,6 +7200,7 @@ async function aplicarPacote(pacote) {
     if (estado.tabelaMarcas) await guardarTabelaMarcas(estado.nomeTabelaMarcas || 'pacote');
     if (estado.praca) await guardarPraca();
     await guardarVendaRede();
+    if (estado.pacoteTecnico) await guardarPacoteTecnico();
     if (Object.keys(estado.carteiras).length) await guardarClientes();
     await guardarMapaMarcas();
     await guardarQuantidades();
@@ -8238,6 +8392,8 @@ $('#logo').src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAOAAAAB4CAIAAABk
     if (praca && praca.ff) estado.praca = praca.ff;
     const vr = guardados.find((e) => e.id === '__vendaRede');
     if (vr) estado.vendaRede = vr.filiais || {};
+    const pt = guardados.find((e) => e.id === '__pacoteTecnico');
+    if (pt) { estado.pacoteTecnico = pt.pacote || null; estado.precoCatalogo = pt.precos || {}; }
     const carteiras = guardados.find((e) => e.id === '__carteiras');
     if (carteiras) {
       estado.carteiras = carteiras.carteiras || {};

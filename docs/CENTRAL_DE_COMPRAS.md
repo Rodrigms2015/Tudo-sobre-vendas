@@ -945,6 +945,66 @@ nele. É por isso que a coluna diz isso e não *"não cadastrada"*.
 
 ---
 
+## 3k. Pacote Técnico — marca, preço e aplicação
+
+O quarto relatório do Opus (`PCARP12`), em PDF. É a **única fonte** de três campos que nenhum
+outro relatório traz: **marca**, **preço** e **aplicação**, por código interno. Motor em
+[`src/domain/dados/pacoteTecnico.js`](../src/domain/dados/pacoteTecnico.js).
+
+Medido no `PC_TECNIC` de 04/08/26:
+
+| | |
+|---|---:|
+| Pacotes | 61 |
+| Componentes | 1.337 |
+| Códigos internos distintos | 1.077 |
+| Com marca / preço / aplicação | 1.077 / 1.077 / 1.073 |
+| Marcas distintas | 21 |
+| **Divergências de preço ou marca entre pacotes** | **0 em 1.337 linhas** |
+| Códigos que estão no estoque de Passo Fundo | 156 |
+| Itens do estoque que ganharam marca | 157 |
+
+Zero divergência é o que permite montar **uma ficha por código** sem escolher entre versões.
+Quando houver divergência, ela é **registrada e mostrada**, e o primeiro valor continua
+valendo — escolher em silêncio entre dois preços é inventar um deles.
+
+### Ele alimenta os caminhos que já existiam
+
+Marca e aplicação entram pelas mesmas estruturas que a tabela de marcas da loja já alimentava
+(`tabelaMarcas` e `fichaCatalogo`), porque a peça é a mesma e duas fontes paralelas para o
+mesmo campo são duas versões da verdade. O **preço** ganhou estrutura própria, porque não
+havia nenhuma.
+
+### O que o preço é, e o que ele não é
+
+É **preço de venda**, da filial que emitiu o relatório, na data dele — a ficha diz as três
+coisas. Não é custo: não entra em margem, não entra em capital parado e não vira "valor do
+estoque". A lacuna *"custo — nenhum relatório carregado traz a coluna"* continua aparecendo,
+porque continua verdadeira.
+
+### O que ele NÃO resolveu
+
+A ideia óbvia — *"quais pacotes dá para fechar?"* — **não se sustenta nestes dados**, e vale
+registrar para ninguém tentar de novo:
+
+| | |
+|---|---:|
+| Pacotes completos em Passo Fundo | **0 de 61** |
+| Melhor cobertura de um pacote | 25% (2 de 8 peças) |
+| Pacotes a 3 peças ou menos de fechar | 0 |
+
+São kits de retífica de motor e câmbio; uma revenda não estoca 30 peças de um câmbio inteiro.
+A leitura fica pela **composição** — *"esta peça entra nestes serviços"* —, que é consulta ao
+catálogo e verdadeira, e não pela completude, que não é.
+
+### Aplicação continua sendo texto, não conclusão
+
+A coluna `Aplicacao` é reproduzida como veio, com o mesmo aviso que já valia para a ficha da
+loja: **o sistema não conclui a partir dela que a peça serve num veículo** (R1). Nenhum
+componente da nota olha para esse campo.
+
+---
+
 ## 7a-2. Carregar vários arquivos de uma vez
 
 Dá para escolher ou arrastar **vários arquivos juntos** — os cinco estoques das filiais irmãs

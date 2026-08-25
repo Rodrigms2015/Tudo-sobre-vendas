@@ -65,7 +65,7 @@ const documento = `<!doctype html>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <meta name="color-scheme" content="light dark" />
 <meta name="robots" content="noindex, nofollow" />
-<meta name="description" content="Analise de estoque, lista de compra priorizada, oportunidades de venda e carteira de clientes. A filial e a do relatorio carregado. Os dados ficam no navegador de quem carrega o arquivo." />
+<meta name="description" content="Analise de estoque, lista de compra priorizada, oportunidades de venda e carteira de clientes da filial Passo Fundo. Os dados ficam no navegador de quem carrega o arquivo." />
 <title>${titulo}</title>
 </head>
 <body>

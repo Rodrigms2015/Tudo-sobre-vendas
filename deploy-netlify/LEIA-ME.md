@@ -1,11 +1,14 @@
-# Publicação com login — as centrais
+# Publicação com login — Passo Fundo
 
-Cada praça tem a **sua** central, no seu endereço:
+**A central em uso é a de Passo Fundo.** É ela que recebe as publicações.
 
-| Praça | Endereço | siteId |
-|---|---|---|
-| Ribeirão Preto (03) | https://central-compras-ribeirao-preto.netlify.app | `17f94a7b-7a75-4606-946a-4cfbf4f75249` |
-| Passo Fundo (37) | https://central-compras-passo-fundo.netlify.app | `b6716b21-c03a-4a4e-a0da-c3625f85804f` |
+| Praça | Endereço | siteId | |
+|---|---|---|---|
+| **Passo Fundo (37)** | https://central-compras-passo-fundo.netlify.app | `b6716b21-c03a-4a4e-a0da-c3625f85804f` | **em uso** |
+| Ribeirão Preto (03) | https://central-compras-ribeirao-preto.netlify.app | `17f94a7b-7a75-4606-946a-4cfbf4f75249` | parada na versão de 25/08 |
+
+Ribeirão Preto continua no ar com a base dela intacta, mas **não recebe mais publicação**.
+Quem voltar a mexer nela precisa publicar de propósito, com o siteId acima.
 
 **A mesma página serve as duas.** O que separa é o endereço, e o que ele traz junto:
 
@@ -100,12 +103,11 @@ está gravado no navegador de cada pessoa continua lá.
 
 ```bash
 npm run plataforma                       # regera publicar/index.html e publicar/_headers
-cd deploy-netlify && netlify deploy --prod --site 17f94a7b-7a75-4606-946a-4cfbf4f75249   # Ribeirão Preto
-cd deploy-netlify && netlify deploy --prod --site b6716b21-c03a-4a4e-a0da-c3625f85804f   # Passo Fundo
+cd deploy-netlify && netlify deploy --prod --site b6716b21-c03a-4a4e-a0da-c3625f85804f
 ```
 
-**As duas publicam o mesmo `publicar/`.** Uma central que fica para trás é uma central com
-outro comportamento — publique nas duas.
+Só Passo Fundo. Ribeirão Preto ficou parada de propósito — publicar nela sem pedido é mudar o
+comportamento de uma central que ninguém está acompanhando.
 
 ## O que é publicado
 

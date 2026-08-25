@@ -1,4 +1,4 @@
-<title>Central de Compras — Estoque e Carteira</title>
+<title>Central de Compras — Passo Fundo</title>
 
 <style>
   /* ───────────────────────────────────────────────────────────────
@@ -7119,14 +7119,17 @@ liga('#btApagar', 'click', async () => {
    ~200 kB, e é isso que sobe para a base da equipe. */
 
 /* ── A praça desta análise ────────────────────────────────────────────
-   Nasce em Ribeirão Preto porque foi para lá que a página foi feita, mas
-   NÃO é constante. O primeiro estoque carregado manda; quem quiser troca na
-   aba Situação. Com isso o mesmo arquivo serve qualquer filial — a
-   alternativa era uma cópia por praça, e cópia diverge.
+   NÃO é constante. Manda, nesta ordem: a escolha na aba Situação, o primeiro
+   estoque carregado, o endereço da página, e por último este padrão. Com isso
+   o mesmo arquivo serve qualquer filial — a alternativa era uma cópia por
+   praça, e cópia diverge.
+
+   O padrão é Passo Fundo, que é a praça em uso. Ele só decide quando não há
+   mais nada: arquivo aberto do disco, sem endereço e sem estoque carregado.
 
    Tudo o que a tela chama de "aqui", "casa" e "esta filial" passa por
-   `aqui()`. Ficar com o `'03'` escrito em vinte lugares foi o que fazia a
-   página anunciar Ribeirão Preto enquanto exibia o estoque de Passo Fundo. */
+   `aqui()`. Ficar com o código da filial escrito em vinte lugares foi o que
+   fazia a página anunciar uma praça enquanto exibia o estoque de outra. */
 /* O endereço da página é a primeira pista da praça: o site
    `central-compras-passo-fundo` é a central de Passo Fundo, o
    `central-compras-ribeirao-preto` é a de Ribeirão Preto. Existe porque a
@@ -7135,12 +7138,12 @@ liga('#btApagar', 'click', async () => {
 
    Vale só como PADRÃO. O estoque carregado e a escolha na aba Situação
    continuam mandando, nessa ordem. Aberta do disco não há endereço, e aí cai
-   no padrão histórico. */
+   no padrão de baixo. */
 const PRACA_DO_ENDERECO = (() => {
   try { return reconhecerFilial(String(location.hostname || '').replace(/\./g, ' ')) || null; }
   catch { return null; }
 })();
-const PRACA_PADRAO = PRACA_DO_ENDERECO || '03';
+const PRACA_PADRAO = PRACA_DO_ENDERECO || '37';
 const aqui = () => estado.praca || PRACA_PADRAO;
 const nomeAqui = () => nomeFilial(aqui());
 /* Para os textos de WhatsApp, que são todos em caixa alta e sem acento. */

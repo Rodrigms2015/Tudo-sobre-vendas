@@ -1,8 +1,14 @@
-# Central de Compras
+# Central de Compras — Passo Fundo
 
 Uma página só, sem servidor, que lê os relatórios do Opus e devolve quatro coisas: **o que
 comprar**, **por que**, **o que os vendedores têm para oferecer hoje** e **quem comprava e
-parou**. A filial é a do relatório carregado — ver §7a.
+parou**.
+
+A praça em uso é **Passo Fundo (37)**, em
+**https://central-compras-passo-fundo.netlify.app**. O motor continua servindo qualquer
+filial — a praça sai do relatório carregado, do endereço ou da aba Situação, nessa ordem (ver
+§7a) — e isso é o que permite comparar Passo Fundo com as irmãs. Ribeirão Preto segue na
+tabela de filiais **como praça irmã**, que é o papel dela na comparação da rede.
 
 - Fonte: [`plataforma/corpo.html`](../plataforma/corpo.html) (fragmento)
 - Publicada em: `public/compras.html` → `/compras.html` no site
@@ -789,7 +795,7 @@ Detalhes de operação, cadastro de usuários e como publicar de novo: `deploy-n
 
 ## 7a. A praça desta análise
 
-A página nasceu para Ribeirão Preto e tinha `'03'` escrito em vinte lugares. O resultado é
+A página nasceu com o código de uma filial escrito em vinte lugares. O resultado é
 que ela **anunciava Ribeirão Preto enquanto exibia o estoque de Passo Fundo** — e, pior, o
 estoque de Passo Fundo entrava como *filial irmã*, não como estoque de casa.
 

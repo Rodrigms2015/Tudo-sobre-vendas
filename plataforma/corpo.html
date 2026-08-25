@@ -536,6 +536,7 @@
   }
   .tudo-certo b { display: block; font-size: 17px; margin-bottom: 5px; }
   .tudo-certo span { font-size: 13.5px; color: var(--tinta-2); }
+  .carimbo-versao { font-size: 12px; color: var(--tinta-3); font-variant-numeric: tabular-nums; }
 
   /* ── Comparação entre filiais ────────────────────────────────
      A praça de casa é sempre a primeira linha e vem marcada: quem lê a
@@ -1599,6 +1600,14 @@
 
     <div class="secao">
       <div class="secao-topo">
+        <h2>Versão desta página</h2>
+        <span class="nota">Confira aqui se a mudança que você pediu já está no ar.</span>
+      </div>
+      <div class="rolo"><table><tbody id="corpoVersao"></tbody></table></div>
+    </div>
+
+    <div class="secao">
+      <div class="secao-topo">
         <h2>Praça desta análise</h2>
         <span class="nota">É a filial que a página chama de “aqui”. O primeiro estoque carregado já define.</span>
       </div>
@@ -1714,6 +1723,9 @@
 <footer class="rodape-pagina">
   <p><b>Central de Compras</b> — criada e desenvolvida por <b>Rodrigo Soares</b></p>
   <p id="pracaRodape">Pacaembu Autopeças</p>
+  <!-- Carimbo de versão. Sem ele, "qual versão está no ar?" não tinha resposta
+       olhando a tela — e sem resposta, toda mudança vira dúvida. -->
+  <p class="carimbo-versao">versão <b id="versaoPagina">—</b></p>
 </footer>
 
 <div class="barra-fixa oculto" id="barraCarrinho">
@@ -6640,8 +6652,35 @@ function renderPraca() {
   if (sel) sel.value = aqui();
 }
 
+function renderVersao() {
+  const marca = VERSAO.data.startsWith('__')
+    ? 'não gerada (arquivo de desenvolvimento)'
+    : VERSAO.data + ' · ' + VERSAO.commit;
+  $('#versaoPagina').textContent = marca;
+  const alvo = $('#corpoVersao');
+  if (!alvo) return;
+  const linha = (r, v) => '<tr><td style="width:38%;color:var(--tinta-3)">' + esc(r) + '</td><td><b>' + v + '</b></td></tr>';
+  alvo.innerHTML =
+    linha('Versão', esc(marca)) +
+    linha('Gerada em', VERSAO.gerado.startsWith('__') ? '—' : esc(VERSAO.gerado)) +
+    linha('Endereço', esc(location.hostname || 'arquivo local')) +
+    linha('Praça desta análise', esc(nomeAqui()) + ' <span style="font-weight:400;color:var(--tinta-3)">· filial ' + esc(aqui()) + '</span>') +
+    linha('Pacote Técnico', estado.pacoteTecnico
+      ? esc(estado.pacoteTecnico.arquivo || 'carregado') +
+        ' <span style="font-weight:400;color:var(--tinta-3)">· ' + n((estado.pacoteTecnico.pacotes || []).length) +
+        ' pacotes, ' + n(Object.keys(estado.pacoteTecnico.ficha || {}).length) + ' códigos</span>'
+      : '— <span style="font-weight:400;color:var(--tinta-3)">não carregado</span>') +
+    linha('Carteiras de clientes', Object.keys(estado.carteiras || {}).length
+      ? Object.values(estado.carteiras).map((c) => esc(c.nome) + ' (' + n((c.clientes || []).length) + ')').join(', ')
+      : '— <span style="font-weight:400;color:var(--tinta-3)">nenhuma carregada</span>') +
+    linha('Venda medida de irmãs', Object.keys(estado.vendaRede || {}).length
+      ? Object.values(estado.vendaRede).map((v) => esc(v.nome)).join(', ')
+      : '— <span style="font-weight:400;color:var(--tinta-3)">nenhuma carregada</span>');
+}
+
 function renderEstado() {
   renderPraca();
+  renderVersao();
   const st = situacaoDoSistema();
   const fichas = [];
 
@@ -7293,6 +7332,11 @@ liga('#btApagar', 'click', async () => {
    Vale só como PADRÃO. O estoque carregado e a escolha na aba Situação
    continuam mandando, nessa ordem. Aberta do disco não há endereço, e aí cai
    no padrão de baixo. */
+/* Carimbo de versão, trocado por scripts/gerar-plataforma.mjs na geração.
+   Fica com o valor literal quando alguém abre plataforma/corpo.html direto,
+   que é justamente o aviso de que aquele arquivo não é o publicado. */
+const VERSAO = { data: '__VERSAO_DATA__', commit: '__VERSAO_COMMIT__', gerado: '__VERSAO_GERADO__' };
+
 const PRACA_DO_ENDERECO = (() => {
   try { return reconhecerFilial(String(location.hostname || '').replace(/\./g, ' ')) || null; }
   catch { return null; }

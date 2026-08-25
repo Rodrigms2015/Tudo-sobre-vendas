@@ -11,6 +11,7 @@
 
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
+import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
@@ -53,6 +54,28 @@ for (const m of MODULOS) {
     corpo.slice(corpo.indexOf(m.fecha));
   console.log(`motor ${m.nome} injetado — ${(inline.length / 1024).toFixed(0)} kB`);
 }
+
+/*
+ * Carimbo de versão. Sem ele, "qual versão está no ar?" não tinha resposta
+ * olhando a tela — e sem resposta, toda mudança publicada vira dúvida.
+ *
+ * A data é a do ÚLTIMO COMMIT, não a de agora: é ela que diz de qual código a
+ * página foi feita. `gerado` guarda o momento da geração, que é outra coisa e
+ * às vezes explica a diferença.
+ */
+const git = (args) => {
+  try { return execFileSync('git', args, { cwd: raiz, encoding: 'utf8' }).trim(); }
+  catch { return ''; }
+};
+const commit = git(['rev-parse', '--short', 'HEAD']) || 'sem-git';
+const sujo = git(['status', '--porcelain']) ? '+alteracoes-nao-commitadas' : '';
+const dataCommit = git(['log', '-1', '--format=%cd', '--date=format:%d/%m/%Y %H:%M']) || '';
+const agora = new Date().toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+corpo = corpo
+  .replace('__VERSAO_DATA__', dataCommit || agora)
+  .replace('__VERSAO_COMMIT__', commit + sujo)
+  .replace('__VERSAO_GERADO__', agora);
+console.log(`versao carimbada — ${dataCommit} · ${commit}${sujo}`);
 
 const casouTitulo = corpo.match(/<title>([\s\S]*?)<\/title>/i);
 if (!casouTitulo) throw new Error('plataforma/corpo.html precisa declarar um <title>.');

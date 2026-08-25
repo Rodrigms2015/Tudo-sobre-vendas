@@ -7,7 +7,11 @@
 
 import { describe, expect, it } from 'vitest';
 import {
+  CORTE_INATIVIDADE,
+  diasSemComprar,
   ehRelatorioDeClientes,
+  filialDaCarteira,
+  inativos,
   lerCarteira,
   anoDeDoisDigitos,
   lerLinhaCliente,
@@ -247,5 +251,67 @@ describe('ler a carteira inteira', () => {
     /* (611,00 + 0,00 + 3.386,39) / 3 = 1.332,46. Com o mês corrente entraria
        3.912,75 na conta e a média subiria para 1.977,53. */
     expect(metaDoCliente(c, 1).meta).toBeCloseTo(1332.46, 2);
+  });
+});
+
+describe('a lista de ataque: quem não compra há 30 dias', () => {
+  const cli = (nome: string, ultimaCompra: string | null, media = 1000) => ({
+    nome, ultimaCompra, faturamento: [0, media, media, media] as Array<number | null>,
+  });
+
+  it('o corte padrão é 30 dias', () => {
+    expect(CORTE_INATIVIDADE).toBe(30);
+  });
+
+  it('pega quem passou do corte e deixa quem comprou dentro dele', () => {
+    const lista = inativos([
+      cli('parou há 45', '2026-07-10'),
+      cli('comprou ontem', '2026-08-23'),
+      cli('parou há exatamente 30', '2026-07-25'),
+    ], '2026-08-24');
+    expect(lista.map((c) => c.nome)).toEqual(['parou há 45', 'parou há exatamente 30']);
+  });
+
+  it('o mais parado vem primeiro', () => {
+    const lista = inativos([cli('A', '2026-06-01'), cli('B', '2026-01-01')], '2026-08-24');
+    expect(lista[0].nome).toBe('B');
+  });
+
+  it('empate no tempo desempata pelo maior cliente — é ele que paga a ligação', () => {
+    const lista = inativos([cli('pequeno', '2026-07-01', 100), cli('grande', '2026-07-01', 9000)], '2026-08-24');
+    expect(lista[0].nome).toBe('grande');
+  });
+
+  it('cliente SEM data de compra fica de fora, não entra como parado', () => {
+    /* Não dá para afirmar que parou há trinta dias quem não se sabe se
+       comprou alguma vez. A lacuna aparece na carteira, não nesta lista. */
+    expect(inativos([cli('sem data', null)], '2026-08-24')).toHaveLength(0);
+  });
+
+  it('o corte é escolha de quem trabalha, não constante', () => {
+    expect(inativos([cli('X', '2026-08-01')], '2026-08-24', 60)).toHaveLength(0);
+    expect(inativos([cli('X', '2026-08-01')], '2026-08-24', 10)).toHaveLength(1);
+  });
+
+  it('dias sem comprar é nulo sem data — nunca zero', () => {
+    expect(diasSemComprar({ ultimaCompra: null }, '2026-08-24')).toBeNull();
+    expect(diasSemComprar({ ultimaCompra: '2026-08-14' }, '2026-08-24')).toBe(10);
+  });
+});
+
+describe('de quem é a carteira', () => {
+  it('a filial que mais aparece é a dona', () => {
+    /* Mesma regra do relatório de movimentação, e pelo mesmo motivo: a
+       carteira de Londrina não pode virar a de Passo Fundo por descuido. */
+    expect(filialDaCarteira([{ filial: '37' }, { filial: '37' }, { filial: '13' }])).toBe('37');
+  });
+
+  it('completa o código de um dígito só', () => {
+    expect(filialDaCarteira([{ filial: '9' }])).toBe('09');
+  });
+
+  it('sem filial declarada não inventa dona', () => {
+    expect(filialDaCarteira([{ filial: '' }])).toBeNull();
+    expect(filialDaCarteira([])).toBeNull();
   });
 });

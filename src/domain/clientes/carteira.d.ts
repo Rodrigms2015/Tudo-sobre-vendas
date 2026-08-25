@@ -23,6 +23,12 @@ export interface ResumoCarteira {
   somaMeta: number; somaMedia: number; faturadoNoMesParcial: number;
 }
 export const MESES_FECHADOS: number;
+export const CORTE_INATIVIDADE: number;
+export function diasSemComprar(cliente: { ultimaCompra: string | null }, hojeIso: string): number | null;
+export function inativos<T extends { ultimaCompra: string | null; faturamento: Array<number | null> }>(
+  clientes: T[] | null | undefined, hojeIso: string, corte?: number,
+): Array<T & { diasParado: number }>;
+export function filialDaCarteira(clientes: Array<{ filial?: string }> | null | undefined): string | null;
 export function anoDeDoisDigitos(dd: unknown, anoAtual: unknown): number;
 export function paraReal(texto: unknown): number | null;
 export function separarCodigoNome(texto: unknown): { codigo: string; nome: string } | null;

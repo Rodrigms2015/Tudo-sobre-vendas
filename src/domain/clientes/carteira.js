@@ -40,6 +40,17 @@
 /** Meses fechados que a média usa. As colunas são 4; a primeira é a corrente. */
 const MESES_FECHADOS = 3;
 
+/**
+ * Corte de inatividade, em dias.
+ *
+ * Separado das faixas de `situacaoDoCliente` de propósito: as faixas descrevem
+ * TEMPERATURA (ativo, esfriando, dormindo) e servem para ler a carteira; o
+ * corte descreve a LISTA DE ATAQUE de hoje e serve para trabalhar. Misturar os
+ * dois obrigaria a mexer nas faixas — que já estão documentadas e testadas —
+ * toda vez que alguém quisesse atacar num prazo diferente.
+ */
+const CORTE_INATIVIDADE = 30;
+
 const NOMES_MES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
   'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
 
@@ -300,6 +311,69 @@ function lerCarteira(linhas, iCab, anoAtual) {
   return { clientes, ignoradas };
 }
 
+/**
+ * Dias desde a última compra. `null` quando não há data — e `null` não é
+ * zero: cliente sem data não é cliente que comprou hoje.
+ *
+ * @param {{ultimaCompra: string|null}} cliente
+ * @param {string} hojeIso
+ * @returns {number|null}
+ */
+function diasSemComprar(cliente, hojeIso) {
+  if (!cliente || !cliente.ultimaCompra) return null;
+  const d = Math.round(
+    (Date.parse(hojeIso + 'T00:00:00Z') - Date.parse(cliente.ultimaCompra + 'T00:00:00Z')) / 86400000,
+  );
+  return Number.isFinite(d) ? d : null;
+}
+
+/**
+ * Quem não compra há `corte` dias ou mais, do mais parado para o menos.
+ *
+ * Cliente SEM data de compra fica de fora: não dá para afirmar que ele parou
+ * há trinta dias quando não se sabe se ele comprou alguma vez. Ele aparece na
+ * carteira com a lacuna à mostra, e não nesta lista.
+ *
+ * @param {object[]} clientes
+ * @param {string} hojeIso
+ * @param {number} [corte]
+ * @returns {Array<object & {diasParado: number}>}
+ */
+function inativos(clientes, hojeIso, corte = CORTE_INATIVIDADE) {
+  const limite = Number(corte);
+  const saida = [];
+  for (const c of clientes || []) {
+    const dias = diasSemComprar(c, hojeIso);
+    if (dias === null || dias < limite) continue;
+    saida.push(Object.assign({}, c, { diasParado: dias }));
+  }
+  /* Mais parado primeiro; empate desempata pelo maior cliente, porque é ele
+     que paga a ligação. */
+  return saida.sort((a, b) => b.diasParado - a.diasParado ||
+    ((mediaDosFechados(b.faturamento) || { media: 0 }).media - (mediaDosFechados(a.faturamento) || { media: 0 }).media));
+}
+
+/**
+ * Filial dona da carteira: a que mais aparece na coluna `Fi`.
+ *
+ * Mesma regra do relatório de movimentação, e pelo mesmo motivo — a carteira
+ * de Londrina não pode virar a carteira de Passo Fundo por descuido.
+ *
+ * @param {Array<{filial?: string}>} clientes
+ * @returns {string|null}
+ */
+function filialDaCarteira(clientes) {
+  const contagem = new Map();
+  for (const c of clientes || []) {
+    const ff = String((c && c.filial) || '').trim();
+    if (!ff) continue;
+    const k = ff.padStart(2, '0');
+    contagem.set(k, (contagem.get(k) || 0) + 1);
+  }
+  const ordenado = [...contagem.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  return ordenado.length ? ordenado[0][0] : null;
+}
+
 /** Resumo da carteira, com as grandezas separadas — nunca misturadas. */
 function resumirCarteira(clientes, multiplicador = 1) {
   const lista = clientes || [];
@@ -336,6 +410,10 @@ export {
   situacaoDoCliente,
   mesDeReferencia,
   rotulosDasColunas,
+  CORTE_INATIVIDADE,
+  diasSemComprar,
+  inativos,
+  filialDaCarteira,
   ehRelatorioDeClientes,
   lerCarteira,
   resumirCarteira,

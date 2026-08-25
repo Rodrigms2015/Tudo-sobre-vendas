@@ -1490,8 +1490,13 @@
         <h3>A meta de cada cliente sai da média dele, não de um número redondo</h3>
         <p>
           Suba a <b>relação de clientes</b> do Opus — a que traz as quatro colunas de faturamento e a
-          data da última compra. A página lê o arquivo <b>do jeito que sai do sistema</b>, calcula a
-          média dos meses <b>fechados</b> de cada cliente e mostra quem comprava e parou.
+          data da última compra, em <b>.xls</b> ou <b>.xlsx</b>. A página lê o arquivo <b>do jeito que
+          sai do sistema</b>, reconhece <b>de qual praça ele é</b> pela coluna Fi, calcula a média dos
+          meses <b>fechados</b> de cada cliente e separa <b>quem não compra há 30 dias</b>.
+        </p>
+        <p>
+          Pode subir <b>a carteira de quantas praças você tiver</b>, uma de cada vez ou todas juntas.
+          Cada praça fica na sua, e o filtro em cima da lista escolhe qual olhar.
         </p>
         <p class="nota">
           O mês corrente não entra na média: ele ainda não acabou, e incluí-lo derruba a meta de todo
@@ -1508,14 +1513,19 @@
           <span class="nota" id="notaClientes"></span>
         </div>
         <div class="filtros">
-          <div class="campo" style="flex:1 1 260px">
+          <div class="campo" style="flex:1 1 220px">
             <label for="fClienteBusca">Buscar</label>
             <input id="fClienteBusca" type="search" placeholder="nome ou código do cliente" />
+          </div>
+          <div class="campo">
+            <label for="fClienteFilial">Praça</label>
+            <select id="fClienteFilial"><option value="">Todas as praças</option></select>
           </div>
           <div class="campo">
             <label for="fClienteSituacao">Situação</label>
             <select id="fClienteSituacao">
               <option value="">Todas</option>
+              <option value="INATIVO30">Sem comprar há 30 dias ou mais</option>
               <option value="PARADO">Comprava e parou</option>
               <option value="ATIVO">Ativo</option>
               <option value="ESFRIANDO">Esfriando</option>
@@ -1773,6 +1783,9 @@
 
 /* INICIO MOTOR FILIAIS */
 /* FIM MOTOR FILIAIS */
+
+/* INICIO MOTOR REDE */
+/* FIM MOTOR REDE */
 
 /* INICIO MOTOR REPOSICAO */
 /* FIM MOTOR REPOSICAO */
@@ -3696,9 +3709,9 @@ const guardarMovimentos = (nome) => gravarVerificado(
 const guardarRede = () => comLoja('readwrite', (l) => l.put({ id: '__rede', filiais: estado.rede }));
 const guardarVendaRede = () => comLoja('readwrite', (l) => l.put({ id: '__vendaRede', filiais: estado.vendaRede }));
 const guardarPraca = () => comLoja('readwrite', (l) => l.put({ id: '__praca', ff: estado.praca }));
-const guardarClientes = (nome) => gravarVerificado(
-  { id: '__clientes', nome, em: new Date().toISOString(), clientes: estado.clientes, metaFator: estado.metaFator },
-  (r) => (r.clientes || []).length);
+const guardarClientes = () => gravarVerificado(
+  { id: '__carteiras', em: new Date().toISOString(), carteiras: estado.carteiras, metaFator: estado.metaFator },
+  (r) => Object.values(r.carteiras || {}).reduce((t, c) => t + (c.clientes || []).length, 0));
 const lerEnvios = () => comLoja('readonly', (l) => l.getAll());
 const removerEnvio = (id) => comLoja('readwrite', (l) => l.delete(id));
 const limparEnvios = () => comLoja('readwrite', (l) => l.clear());
@@ -3742,9 +3755,12 @@ const estado = {
   vendaRede: {},
   /* Carteira de clientes. Vive ao lado do estoque, não dentro dele: são dois
      relatórios diferentes, e um funciona sem o outro. */
-  clientes: null,
-  nomeClientes: null,
-  emClientes: null,
+  /* Carteiras por filial: { '37': {ff, nome, arquivo, em, clientes: []} }.
+     Uma carteira por praça, como o estoque — a de Londrina não é a de Passo
+     Fundo, e somar as duas num total só não quer dizer nada. */
+  carteiras: {},
+  /* Filial escolhida na aba Clientes. '' = todas. */
+  filialClientes: '',
   /* Multiplicador da meta. 1 = repetir a média dos meses fechados. Quem
      gerencia escolhe; a página não inventa crescimento. */
   metaFator: 1,
@@ -5567,8 +5583,23 @@ function clienteParou(c, hoje, fator) {
   return metaDoCliente(c, fator).meta !== null;
 }
 
+/** Todas as carteiras, ou só a da filial escolhida. */
+function carteirasVisiveis() {
+  const todas = Object.values(estado.carteiras || {}).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+  return estado.filialClientes ? todas.filter((c) => c.ff === estado.filialClientes) : todas;
+}
+
+/** Os clientes das carteiras visíveis, cada um sabendo de que praça é. */
+function clientesVisiveis() {
+  const saida = [];
+  for (const c of carteirasVisiveis()) {
+    for (const cl of c.clientes || []) saida.push(Object.assign({ __ff: c.ff, __praca: c.nome }, cl));
+  }
+  return saida;
+}
+
 function clientesFiltrados() {
-  const lista = estado.clientes || [];
+  const lista = clientesVisiveis();
   const f = estado.filtrosClientes;
   const hoje = hojeIso();
   const busca = chave(f.busca);
@@ -5577,6 +5608,10 @@ function clientesFiltrados() {
     if (f.vendedor && c.vendedor !== f.vendedor) return false;
     if (!f.situacao) return true;
     if (f.situacao === 'PARADO') return clienteParou(c, hoje, estado.metaFator);
+    if (f.situacao === 'INATIVO30') {
+      const d = diasSemComprar(c, hoje);
+      return d !== null && d >= CORTE_INATIVIDADE;
+    }
     return situacaoDoCliente(c, hoje).situacao === f.situacao;
   });
 }
@@ -5592,19 +5627,20 @@ const porTamanho = (a, b) => {
 const TOM_SITUACAO = { ATIVO: 'saudavel', ESFRIANDO: 'atencao', DORMINDO: 'critico', PERDIDO: 'neutro', SEM_DATA: 'neutro' };
 
 function renderClientes() {
-  const temCarteira = !!(estado.clientes && estado.clientes.length);
+  const temCarteira = Object.values(estado.carteiras || {}).some((c) => (c.clientes || []).length);
   $('#clientesVazio').classList.toggle('oculto', temCarteira);
   $('#clientesConteudo').classList.toggle('oculto', !temCarteira);
   if (!temCarteira) return;
 
-  const todos = estado.clientes;
+  const todos = clientesVisiveis();
   const hoje = hojeIso();
   const fator = estado.metaFator;
   const ref = mesDeReferencia(todos);
   const rotulos = rotulosDasColunas(ref);
   const resumo = resumirCarteira(todos, fator);
-  const pararam = todos.filter((c) => clienteParou(c, hoje, fator));
-  const somaParada = pararam.reduce((a, c) => a + (mediaDosFechados(c.faturamento) || { media: 0 }).media, 0);
+  const parados = inativos(todos, hoje, CORTE_INATIVIDADE);
+  const somaParada = parados.reduce((a, c) => a + (mediaDosFechados(c.faturamento) || { media: 0 }).media, 0);
+  const carteiras = carteirasVisiveis();
 
   const fechados = rotulos.slice(1).map((r) => r.rotulo).join(', ');
   $('#placasClientes').innerHTML = [
@@ -5627,17 +5663,27 @@ function renderClientes() {
       tom: 'atencao',
     }),
     placa({
-      rotulo: 'Compravam e pararam', valor: n(pararam.length),
-      rodape: pararam.length
-        ? rs(somaParada) + ' de média mensal parada. Fora do prazo de compra e com histórico nos meses fechados.'
-        : 'Ninguém com histórico está fora do prazo de compra.',
-      tom: pararam.length ? 'critico' : 'saudavel',
+      rotulo: 'Sem comprar há ' + CORTE_INATIVIDADE + ' dias ou mais', valor: n(parados.length),
+      rodape: parados.length
+        ? rs(somaParada) + ' de média mensal parada. É a lista de ataque — o filtro Situação abre só ela.'
+        : 'Ninguém passou de ' + CORTE_INATIVIDADE + ' dias sem comprar.',
+      tom: parados.length ? 'critico' : 'saudavel',
     }),
   ].join('');
 
-  $('#notaClientes').textContent = 'Arquivo ' + (estado.nomeClientes || 'sem nome') +
-    (estado.emClientes ? ' · lido em ' + dataBr(estado.emClientes) : '') +
+  $('#notaClientes').textContent =
+    (carteiras.length === 1
+      ? 'Arquivo ' + (carteiras[0].arquivo || 'sem nome') + (carteiras[0].em ? ' · lido em ' + dataBr(carteiras[0].em) : '')
+      : carteiras.length + ' carteiras: ' + carteiras.map((c) => c.nome + ' (' + n((c.clientes || []).length) + ')').join(', ')) +
     ' · situação medida contra hoje, ' + dataBr(hoje) + '.';
+
+  /* Praças com carteira carregada. Sai do que existe, nunca de lista fixa. */
+  const selF = $('#fClienteFilial');
+  const todasCarteiras = Object.values(estado.carteiras || {}).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+  selF.innerHTML = '<option value="">Todas as praças (' + n(todasCarteiras.length) + ')</option>' +
+    todasCarteiras.map((c) => '<option value="' + esc(c.ff) + '">' + esc(c.nome) +
+      ' — ' + n((c.clientes || []).length) + '</option>').join('');
+  selF.value = estado.filialClientes;
 
   /* Vendedores do próprio arquivo, nunca uma lista fixa. */
   const sel = $('#fClienteVendedor');
@@ -5648,8 +5694,9 @@ function renderClientes() {
   }
   sel.value = estado.filtrosClientes.vendedor;
 
+  const varias = carteiras.length > 1;
   $('#cabClientes').innerHTML =
-    '<th>Cliente</th><th>Situação</th><th class="dir">Última compra</th>' +
+    '<th>Cliente</th>' + (varias ? '<th>Praça</th>' : '') + '<th>Situação</th><th class="dir">Última compra</th>' +
     rotulos.map((r) => '<th class="dir">' + esc(r.rotulo) + (r.parcial ? '<br><span style="font-weight:400;color:var(--tinta-3)">parcial</span>' : '') + '</th>').join('') +
     '<th class="dir">Média fechada</th><th class="dir">Meta</th><th class="dir">Falta</th>';
 
@@ -5665,6 +5712,7 @@ function renderClientes() {
       '<td><b style="font-weight:600">' + esc(c.nome) + '</b>' +
         '<div class="num" style="font-size:12px;color:var(--tinta-3)">' + esc(c.codigo) +
         (c.vendedor ? ' · vendedor ' + esc(c.vendedor) : '') + '</div></td>' +
+      (varias ? '<td>' + esc(c.__praca || '—') + '</td>' : '') +
       '<td><span class="etiqueta" data-tom="' + (TOM_SITUACAO[sit.situacao] || 'neutro') + '">' + esc(sit.rotulo) + '</span></td>' +
       '<td class="dir num">' + (c.ultimaCompra ? dataBr(c.ultimaCompra) +
         '<div style="font-size:12px;color:var(--tinta-3)">' + esc(haDias(sit.dias)) + '</div>' : '—') + '</td>' +
@@ -5677,7 +5725,7 @@ function renderClientes() {
         ? '<span style="color:var(--saudavel)">meta batida</span>'
         : rs(falta)) + '</td>' +
       '</tr>';
-  }).join('') : '<tr><td colspan="10" style="padding:14px;color:var(--tinta-2)">' +
+  }).join('') : '<tr><td colspan="11" style="padding:14px;color:var(--tinta-2)">' +
     'Nenhum cliente com esses filtros. Tire a busca ou volte a situação para “Todas”.</td></tr>';
 
   $('#btMaisClientes').hidden = lista.length <= mostrados.length;
@@ -5687,10 +5735,10 @@ function renderClientes() {
 
 function csvDaCarteira(lista) {
   const hoje = hojeIso();
-  const rotulos = rotulosDasColunas(mesDeReferencia(estado.clientes || []));
+  const rotulos = rotulosDasColunas(mesDeReferencia(clientesVisiveis()));
   const valor = (v) => (v === null || v === undefined ? '' : v.toFixed(2).replace('.', ','));
   return paraCsv(
-    ['Codigo', 'Cliente', 'Tipo', 'Vendedor', 'Ramo', 'Situacao', 'Dias sem comprar', 'Ultima compra']
+    ['Codigo', 'Cliente', 'Praca', 'Tipo', 'Vendedor', 'Ramo', 'Situacao', 'Dias sem comprar', 'Ultima compra']
       .concat(rotulos.map((r, i) => r.rotulo + (i === 0 ? ' (parcial)' : '')))
       .concat(['Media fechada', 'Meta', 'Base da meta', 'Falta']),
     lista.map((c) => {
@@ -5699,7 +5747,7 @@ function csvDaCarteira(lista) {
       const media = mediaDosFechados(c.faturamento);
       const parcial = c.faturamento[0];
       const falta = m.meta === null || parcial === null ? null : m.meta - parcial;
-      return [c.codigo, c.nome, c.tipo, c.vendedor, c.ramo, sit.rotulo,
+      return [c.codigo, c.nome, c.__praca || '', c.tipo, c.vendedor, c.ramo, sit.rotulo,
         sit.dias === null ? '' : sit.dias,
         c.ultimaCompra ? dataBr(c.ultimaCompra) : '']
         .concat(c.faturamento.map(valor))
@@ -5714,7 +5762,7 @@ function textoDaCarteira(lista) {
   const linhas = lista.slice(0, 40).map((c) => {
     const sit = situacaoDoCliente(c, hoje);
     const m = metaDoCliente(c, estado.metaFator);
-    return '• ' + c.nome + ' (' + c.codigo + ') — ' + sit.rotulo +
+    return '• ' + c.nome + ' (' + c.codigo + ')' + (c.__praca ? ' · ' + c.__praca : '') + ' — ' + sit.rotulo +
       (c.ultimaCompra ? ', última compra ' + dataBr(c.ultimaCompra) : '') +
       (m.meta === null ? ', sem base para meta (' + m.motivo + ')' : ', meta ' + rs(m.meta));
   });
@@ -6138,26 +6186,34 @@ async function carregarArquivo(file, emLote) {
         throw new Error('Li ' + n(linhas.length) + ' linhas na relação de clientes, mas nenhuma tinha código e nome ' +
           'na primeira coluna. Confira se é a relação de clientes do Opus, com as quatro colunas de faturamento.');
       }
-      estado.clientes = lido.clientes;
-      estado.nomeClientes = nome;
-      estado.emClientes = new Date().toISOString();
+      const ffCarteira = filialDaCarteira(lido.clientes) || aqui();
+      estado.carteiras[ffCarteira] = {
+        ff: ffCarteira,
+        nome: nomeFilial(ffCarteira),
+        arquivo: nome,
+        em: new Date().toISOString(),
+        clientes: lido.clientes,
+      };
+      estado.filialClientes = ffCarteira;
       let erroGrav = null;
-      try { await guardarClientes(nome); }
+      try { await guardarClientes(); }
       catch (err) { erroGrav = err.message || String(err); estado.gravacao = { ok: false, em: null, erro: erroGrav }; }
       invalidarVistas();
       renderTudo();
       equipeAgendarEnvio();
-      const ref = mesDeReferencia(estado.clientes);
-      const rotulos = rotulosDasColunas(ref);
-      const resumo = resumirCarteira(estado.clientes, estado.metaFator);
-      const comum = emClientes(resumo.clientes) + '. Meta somada ' + rs(resumo.somaMeta) +
-        ', pela média de ' + rotulos.slice(1).map((r) => r.rotulo).join(', ') + '. ' +
+      const rotulos = rotulosDasColunas(mesDeReferencia(lido.clientes));
+      const resumo = resumirCarteira(lido.clientes, estado.metaFator);
+      const parados = inativos(lido.clientes, hojeIso(), CORTE_INATIVIDADE);
+      const comum = nomeFilial(ffCarteira) + ' (filial ' + ffCarteira + ') · ' + emClientes(resumo.clientes) +
+        '. Meta somada ' + rs(resumo.somaMeta) + ', pela média de ' +
+        rotulos.slice(1).map((r) => r.rotulo).join(', ') + '. ' +
+        emClientes(parados.length) + ' sem comprar há ' + CORTE_INATIVIDADE + ' dias ou mais. ' +
         n(resumo.semBase) + ' sem base nos meses fechados — esses aparecem sem meta, não com meta zero.' +
         (lido.ignoradas ? ' Deixei de fora ' + n(lido.ignoradas) + ' linhas sem código de cliente (cabeçalho, traços e rodapé).' : '');
       if (erroGrav) {
         recado('Carteira carregada, mas NÃO gravada', comum + ' Não consegui gravar (' + erroGrav + ').', 'erro');
       } else {
-        recado('Carteira carregada e gravada', comum);
+        recado('Carteira de ' + nomeFilial(ffCarteira) + ' carregada', comum);
       }
       trocarVista('clientes');
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -6684,10 +6740,10 @@ function atualizarSelos() {
 /* Fora de `atualizarSelos` porque a carteira aparece mesmo sem estoque, e o
    resto da contagem depende do estoque estar carregado. */
 function atualizarSeloClientes() {
-  const carteira = estado.clientes || [];
-  if (!carteira.length) { $('#seloClientes').textContent = '0'; return; }
-  const hoje = hojeIso();
-  $('#seloClientes').textContent = n(carteira.filter((c) => clienteParou(c, hoje, estado.metaFator)).length);
+  /* O selo conta a LISTA DE ATAQUE: quem não compra há 30 dias, em todas as
+     carteiras carregadas. É o número que vira ligação hoje. */
+  const todos = Object.values(estado.carteiras || {}).flatMap((c) => c.clientes || []);
+  $('#seloClientes').textContent = todos.length ? n(inativos(todos, hojeIso()).length) : '0';
 }
 
 function renderTudo() {
@@ -6695,7 +6751,7 @@ function renderTudo() {
   /* A carteira não depende do estoque: são dois relatórios do Opus, e
      qualquer um pode chegar primeiro. Esconder a aba Clientes porque falta
      estoque seria esconder dado que já está carregado. */
-  const temCarteira = !!(estado.clientes && estado.clientes.length);
+  const temCarteira = Object.values(estado.carteiras || {}).some((c) => (c.clientes || []).length);
   $('#semDados').classList.toggle('oculto', temEstoque || temCarteira);
   $$('.vista').forEach((v) => {
     v.classList.toggle('oculto', !(v.id === 'vista-clientes' ? temCarteira : temEstoque));
@@ -6815,13 +6871,18 @@ liga('#fClienteBusca', 'input', (e) => {
     estado.limiteClientes = 50;
     renderClientes();
   }));
+liga('#fClienteFilial', 'change', (e) => {
+  estado.filialClientes = e.target.value;
+  estado.limiteClientes = 50;
+  renderClientes();
+});
 liga('#fMetaFator', 'change', async (e) => {
   estado.metaFator = Number(e.target.value) || 1;
   renderClientes();
   atualizarSelos();
   /* O multiplicador é decisão de quem gerencia: fica gravado junto com a
      carteira, senão volta a 1 na próxima abertura. */
-  try { if (estado.clientes) await guardarClientes(estado.nomeClientes || 'carteira'); }
+  try { if (Object.keys(estado.carteiras).length) await guardarClientes(); }
   catch (err) { estado.gravacao = { ok: false, em: null, erro: err.message || String(err) }; }
   equipeAgendarEnvio();
 });
@@ -6939,9 +7000,7 @@ function pacoteDeDados() {
     rede: estado.rede,
     praca: estado.praca,
     vendaRede: estado.vendaRede,
-    clientes: estado.clientes,
-    nomeClientes: estado.nomeClientes,
-    emClientes: estado.emClientes,
+    carteiras: estado.carteiras,
     metaFator: estado.metaFator,
     diasCobertura: estado.diasCobertura,
     resumo: {
@@ -6969,9 +7028,15 @@ async function aplicarPacote(pacote) {
   estado.rede = pacote.rede || {};
   if (pacote.praca) estado.praca = pacote.praca;
   estado.vendaRede = pacote.vendaRede || {};
-  estado.clientes = pacote.clientes || null;
-  estado.nomeClientes = pacote.nomeClientes || null;
-  estado.emClientes = pacote.emClientes || null;
+  estado.carteiras = pacote.carteiras || {};
+  /* Pacote gerado antes da carteira por filial. */
+  if (!Object.keys(estado.carteiras).length && pacote.clientes) {
+    const ff = filialDaCarteira(pacote.clientes) || pacote.praca || PRACA_PADRAO;
+    estado.carteiras[ff] = {
+      ff, nome: nomeFilial(ff), arquivo: pacote.nomeClientes || null,
+      em: pacote.emClientes || null, clientes: pacote.clientes,
+    };
+  }
   if (pacote.metaFator) estado.metaFator = pacote.metaFator;
   invalidarRede();
   if (pacote.diasCobertura) estado.diasCobertura = pacote.diasCobertura;
@@ -6982,7 +7047,7 @@ async function aplicarPacote(pacote) {
     if (estado.tabelaMarcas) await guardarTabelaMarcas(estado.nomeTabelaMarcas || 'pacote');
     if (estado.praca) await guardarPraca();
     await guardarVendaRede();
-    if (estado.clientes) await guardarClientes(estado.nomeClientes || 'pacote');
+    if (Object.keys(estado.carteiras).length) await guardarClientes();
     await guardarMapaMarcas();
     await guardarQuantidades();
     await guardarRede();
@@ -7252,6 +7317,7 @@ function analisarRedeAgora() {
        entrar como zero — ausência de medida não é venda zero. */
     let vendeuNaRede = null;
     let pracasComVenda = 0;
+    let diasDaMedida = 0;
     for (const f of irmas) {
       const v = estado.vendaRede[f.ff];
       const pc = f.pecas[k];
@@ -7265,7 +7331,16 @@ function analisarRedeAgora() {
       if (!achou) continue;
       vendeuNaRede = (vendeuNaRede === null ? 0 : vendeuNaRede) + un;
       pracasComVenda++;
+      /* Período da medida: o mais longo entre as praças que mediram. Usar o
+         mais curto encolheria a média diária de quem mediu mais tempo. */
+      if (v.inicio && v.fim) {
+        const d = Math.max(1, Math.round((Date.parse(v.fim) - Date.parse(v.inicio)) / DIA) + 1);
+        if (d > diasDaMedida) diasDaMedida = d;
+      }
     }
+    const vendaNaRede = vendeuNaRede === null ? null
+      : { unidades: vendeuNaRede, dias: diasDaMedida, pracasComVenda };
+    const sugestaoRede = quantidadePelaRede(vendaNaRede, estado.diasCobertura, meu ? meu.s : null);
 
     const ref = irmas.filter((f) => f.pecas[k]).map((f) => f.pecas[k]);
     const abNaRede = ref.filter((a) => postoCurva(a.c) <= 1).length;
@@ -7284,6 +7359,8 @@ function analisarRedeAgora() {
       melhorLa,
       vendeuNaRede,
       pracasComVenda,
+      vendaNaRede,
+      sugestaoRede,
       /* Força do argumento, e é só isso que a ordenação usa: em quantas
          praças a peça é bem classificada, em quantas ela tem saldo, e o
          quanto ela é melhor lá do que aqui. */
@@ -7502,6 +7579,12 @@ function renderRede() {
         ? '<span style="color:var(--tinta-3)" title="Nenhuma praça com esta peça teve o relatório de movimentação carregado. Ausência de medida não é venda zero.">não medido</span>'
         : '<b>' + n(Math.round(f.vendeuNaRede)) + '</b>' +
           '<div style="font-size:12px;color:var(--tinta-3)">' + plural(f.pracasComVenda, 'praça', 'praças') + '</div>') + '</td>' +
+      '<td class="dir">' + (f.sugestaoRede
+        ? '<b style="font-size:15px">' + n(f.sugestaoRede.qtd) + '</b>' +
+          '<div style="font-size:12px;color:var(--tinta-3)" title="' + esc(f.sugestaoRede.base) +
+          '. Cobertura de ' + n(estado.diasCobertura) + ' dias.">' +
+          f.sugestaoRede.porDiaPorPraca.toFixed(2).replace('.', ',') + '/dia · ' + n(estado.diasCobertura) + 'd</div>'
+        : '<span style="color:var(--tinta-3)">—</span>') + '</td>' +
       '<td><div class="grupo-filiais">' + selos + '</div></td></tr>';
   }).join('');
 
@@ -7563,9 +7646,9 @@ function renderRede() {
       '</div>' +
       '<div class="rolo" style="margin-top:12px"><table><thead><tr>' +
         '<th>Peça</th><th>Em ' + esc(nomeAqui()) + '</th><th class="dir">Praças</th><th class="dir">Un. na rede</th>' +
-        '<th class="dir">Vendeu lá</th><th>Onde tem</th>' +
+        '<th class="dir">Vendeu lá</th><th class="dir">Comprar</th><th>Onde tem</th>' +
       '</tr></thead><tbody>' + (linhasFalta ||
-        '<tr><td colspan="6" style="padding:18px;color:var(--tinta-2)">Nenhuma peça neste recorte. Afrouxe o filtro acima.</td></tr>') +
+        '<tr><td colspan="7" style="padding:18px;color:var(--tinta-2)">Nenhuma peça neste recorte. Afrouxe o filtro acima.</td></tr>') +
       '</tbody></table></div>' +
       '<div style="margin-top:12px;display:flex;gap:9px;flex-wrap:wrap">' +
         '<button class="bt" id="btPedidoRede" type="button">Gerar pedido de abastecimento</button>' +
@@ -8152,12 +8235,22 @@ $('#logo').src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAOAAAAB4CAIAAABk
     if (praca && praca.ff) estado.praca = praca.ff;
     const vr = guardados.find((e) => e.id === '__vendaRede');
     if (vr) estado.vendaRede = vr.filiais || {};
-    const carteira = guardados.find((e) => e.id === '__clientes');
-    if (carteira) {
-      estado.clientes = carteira.clientes || null;
-      estado.nomeClientes = carteira.nome || null;
-      estado.emClientes = carteira.em || null;
-      if (carteira.metaFator) estado.metaFator = carteira.metaFator;
+    const carteiras = guardados.find((e) => e.id === '__carteiras');
+    if (carteiras) {
+      estado.carteiras = carteiras.carteiras || {};
+      if (carteiras.metaFator) estado.metaFator = carteiras.metaFator;
+    }
+    /* Base gravada antes de existir carteira por filial: entra como a praça
+       desta análise, que é de onde ela veio. Migrar aqui evita pedir o
+       arquivo de novo a quem já tinha carregado. */
+    const carteiraAntiga = guardados.find((e) => e.id === '__clientes');
+    if (carteiraAntiga && carteiraAntiga.clientes && !Object.keys(estado.carteiras).length) {
+      const ff = filialDaCarteira(carteiraAntiga.clientes) || estado.praca || PRACA_PADRAO;
+      estado.carteiras[ff] = {
+        ff, nome: nomeFilial(ff), arquivo: carteiraAntiga.nome || null,
+        em: carteiraAntiga.em || null, clientes: carteiraAntiga.clientes,
+      };
+      if (carteiraAntiga.metaFator) estado.metaFator = carteiraAntiga.metaFator;
     }
     const eq = guardados.find((e) => e.id === '__equipe');
     if (eq) equipe.versao = Number(eq.versao) || 0;

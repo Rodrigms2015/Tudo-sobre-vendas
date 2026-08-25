@@ -878,6 +878,67 @@ anterior e quantos a menos vieram. Quem decide é quem carregou.
 
 ---
 
+## 3j. Comprar pela venda das outras praças
+
+A comparação de estoque respondia *"as outras praças têm esta peça?"*. Ter não é vender — uma
+peça pode estar parada em cinco filiais. Com o relatório de movimentação de cada praça, a
+pergunta vira **"lá gira?"**, e essa vira compra. Motor em
+[`src/domain/compras/rede.js`](../src/domain/compras/rede.js).
+
+### De onde sai a quantidade
+
+A rede vendeu `unidades` em `dias`, espalhadas por `pracasComVenda` praças. A média diária
+**de uma praça** é `unidades ÷ dias ÷ praças`. A sugestão é essa média × dias de cobertura,
+menos o saldo local.
+
+Isso **não é previsão**. É a pergunta *"se aqui vender como a média das praças que vendem,
+quanto dura?"*. Duas coisas que a conta deliberadamente **não** faz:
+
+| Não faz | Por quê |
+|---|---|
+| corrigir pelo tamanho da praça | seria preciso o faturamento de cada uma, e esse dado não está em nenhum relatório. Inventar o fator inventaria a quantidade |
+| somar a venda de todas as praças | somar responde *"quanto a rede inteira vende"*, que não é o que se compra para uma filial |
+
+Praça sem relatório de movimentação carregado fica **fora do divisor**. Ausência de medida não
+é venda zero.
+
+Empate no volume vai para quem gira em **mais praças**: venda espalhada é demanda de mercado,
+venda concentrada pode ser um cliente só — que pode ter ido embora.
+
+### Medido em 24/08/2026
+
+Cruzando Cascavel, Caxias do Sul, Porto Alegre e Londrina (232 dias) contra o estoque de
+Passo Fundo:
+
+| | |
+|---|---:|
+| Peças que a rede vende e Passo Fundo não atende | 3.351 |
+| — já cadastradas em Passo Fundo, zeradas | 242 |
+| — não vieram no relatório de estoque | 3.109 |
+| — que Passo Fundo **também já vendeu** | 356 |
+| Unidades somadas na sugestão (cobertura de 45 dias) | 8.438 |
+
+As dez primeiras, por giro na rede:
+
+| Código | Descrição | Rede | Praças | Comprar |
+|---|---|---:|---:|---:|
+| 4120000033 | Disco p/ tacografo 7 dias | 2.723 | 4 | 133 |
+| 2490211832 | Disco p/ tacografo | 2.430 | 3 | 158 |
+| 4471000689 | Filtro blindado comb 10 furos | 1.949 | 3 | 127 |
+| 0770707602 | Elemento filtro comb | 1.860 | 4 | 91 |
+| 1700268756 | Porca roda c/colar oscil M22x3 | 1.198 | 3 | 78 |
+| 4794000016 | Fluido freio DOT.4 500ml | 1.134 | 4 | 55 |
+| 1700268612 | Porca roda c/colar oscil M22x3 | 1.127 | 3 | 73 |
+| 1700266950 | Porca roda c/colar oscilante | 1.111 | 3 | 72 |
+| 1930740134 | Lampada R5W 24V 5W | 1.060 | 3 | 69 |
+| 0813010950 | Guia valvula escape/admissao | 1.028 | 4 | 50 |
+
+**"Não veio no relatório de estoque" não quer dizer que a peça não exista no sistema** — o
+relatório de Passo Fundo cobre 4.552 códigos, e o de movimentação alcança peças que não estão
+nele. É por isso que a coluna diz isso e não *"não cadastrada"*.
+
+---
+
 ## 7a-2. Carregar vários arquivos de uma vez
 
 Dá para escolher ou arrastar **vários arquivos juntos** — os cinco estoques das filiais irmãs

@@ -5995,9 +5995,10 @@ function resumirDemanda(movimentos) {
   }
 
   return {
-    /* A cobertura acompanha TODA tela que usa venda medida: sem ela, quem lê
-       não sabe se está vendo a demanda inteira ou um pedaço. */
-    cobertura: coberturaDeVenda(movimentos, estado.classificacaoTr),
+    /* Nome distinto de `cobertura`, que neste mesmo objeto já quer dizer
+       "fração do CADASTRO que o relatório alcança". São duas coberturas
+       diferentes, e trocá-las fazia a tela dizer "0,0% do cadastro". */
+    coberturaVenda: coberturaDeVenda(movimentos, estado.classificacaoTr),
     trs: resumirTrs(movimentos),
     demanda, dias,
     inicio: new Date(inicio).toISOString().slice(0, 10),
@@ -7222,7 +7223,7 @@ function fichaDaPecaCompleta(g) {
     linha('Venda medida', d
       ? emUnidades(Math.round(d.unidades)) + ' <span style="font-weight:400;color:var(--tinta-3)">em ' + plural(d.pedidos, 'pedido', 'pedidos') + '</span>'
       : (estado.resumoDemanda
-        ? (estado.resumoDemanda.cobertura.semClassificacao
+        ? (estado.resumoDemanda.coberturaVenda.semClassificacao
           ? AUSENTE.naoCarregado('Nenhum código de movimento foi classificado como venda ainda.')
           : AUSENTE.naoObservado)
         : AUSENTE.naoCarregado('A movimentação não foi carregada.'))) +
@@ -7668,7 +7669,7 @@ function textoParaGestor(blocos) {
 function renderTr(R) {
   const alvo = $('#corpoTr');
   if (!alvo) return;
-  const cob = R.cobertura;
+  const cob = R.coberturaVenda;
   const pct = (v) => (v === null ? 'N/D' : (v * 100).toFixed(v < 0.1 ? 1 : 0).replace('.', ',') + '%');
 
   const aviso = $('#avisoTr');
@@ -9151,12 +9152,12 @@ const DECISOES_CENTRAL = [
     quanto: () => {
       const R = estado.resumoDemanda;
       if (!R) return null;
-      if (R.cobertura.semClassificacao) return null;
+      if (R.coberturaVenda.semClassificacao) return null;
       return { n: R.produtosComVenda, un: 'peças com venda medida' };
     },
     falta: () => {
       if (!estado.resumoDemanda) return 'Carregue a movimentação';
-      return estado.resumoDemanda.cobertura.semClassificacao ? 'Classifique os códigos de movimento' : null;
+      return estado.resumoDemanda.coberturaVenda.semClassificacao ? 'Classifique os códigos de movimento' : null;
     },
   },
   {
@@ -9220,7 +9221,7 @@ function renderCentral() {
   const nota = $('#centralNota');
   if (nota) {
     const R = estado.resumoDemanda;
-    nota.textContent = R && R.cobertura.semClassificacao
+    nota.textContent = R && R.coberturaVenda.semClassificacao
       ? 'A venda medida está esperando você dizer quais códigos de movimento são venda.'
       : 'Cada opção mostra quanto há para decidir agora.';
   }
@@ -9916,7 +9917,7 @@ liga('#btApagar', 'click', async () => {
 /* Carimbo de versão, trocado por scripts/gerar-plataforma.mjs na geração.
    Fica com o valor literal quando alguém abre plataforma/corpo.html direto,
    que é justamente o aviso de que aquele arquivo não é o publicado. */
-const VERSAO = { data: '26/08/2026 11:26', commit: '5d4be7d+alteracoes-nao-commitadas', gerado: '26/08/2026, 11:30' };
+const VERSAO = { data: '26/08/2026 11:30', commit: '9cd613d+alteracoes-nao-commitadas', gerado: '26/08/2026, 11:33' };
 
 const PRACA_DO_ENDERECO = (() => {
   try { return reconhecerFilial(String(location.hostname || '').replace(/\./g, ' ')) || null; }

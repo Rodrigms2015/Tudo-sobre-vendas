@@ -14,21 +14,24 @@
  * ────────────────────────────────────────────────────────────────────────
  * DE ONDE SAI A QUANTIDADE
  *
- * A rede vendeu `unidades` em `dias`, espalhadas por `pracasComVenda` praças.
- * A média diária **de uma praça** é `unidades / dias / pracasComVenda`. A
- * sugestão é essa média multiplicada pelos dias de cobertura.
+ * Cada praça tem o SEU período medido. Somar tudo e dividir por um período só
+ * dilui quem mediu menos tempo: se Cascavel mediu 232 dias e Londrina 60, a
+ * taxa de Londrina cai por um período que ela nunca teve.
  *
- * Isso NÃO é previsão. É a pergunta "se aqui vender como a média das praças
- * que vendem, quanto dura?". Duas coisas que a conta deliberadamente não faz:
+ * Então a conta é feita praça a praça — `unidades ÷ dias daquela praça` — e a
+ * referência é a MÉDIA dessas taxas. A sugestão é essa média multiplicada pelos
+ * dias de cobertura, menos o saldo local.
  *
- * - **não corrige pelo tamanho da praça.** Seria preciso saber o faturamento
- *   de cada uma, e esse dado não está em nenhum dos relatórios. Inventar o
- *   fator inventaria a quantidade.
- * - **não soma a venda de todas as praças.** Somar responderia "quanto a rede
+ * Isso NÃO é previsão. É a pergunta "se aqui vender como a média das praças que
+ * vendem, quanto dura?". Três coisas que a conta deliberadamente não faz:
+ *
+ * - **não corrige pelo tamanho da praça.** Seria preciso o faturamento de cada
+ *   uma, e esse dado não está em nenhum relatório. Inventar o fator inventaria
+ *   a quantidade.
+ * - **não soma a venda de todas as praças.** Somar responde "quanto a rede
  *   inteira vende", que não é o que se compra para uma filial.
- *
- * Praça sem relatório de movimentação carregado fica FORA do divisor. Ausência
- * de medida não é venda zero.
+ * - **não usa praça sem medição.** Ausência de medida não é venda zero, e uma
+ *   praça sem relatório carregado não entra no divisor.
  */
 
 /** Cobertura padrão, em dias. A mesma da lista de compra. */
@@ -38,33 +41,40 @@ const DIAS_COBERTURA_PADRAO = 45;
  * Quanto comprar para cobrir `diasCobertura` vendendo como a média das praças
  * que vendem.
  *
- * @param {{unidades: number, dias: number, pracasComVenda: number}} venda
+ * @param {Array<{unidades: number, dias: number}>} pracas uma entrada por praça
+ *   COM medição. Praça sem relatório carregado não entra aqui.
  * @param {number} diasCobertura
- * @param {number} [saldoAqui] saldo local; `null` ou ausente = não sabido
- * @returns {{qtd: number, porDiaPorPraca: number, base: string}|null}
- *   `null` quando falta base — e falta de base não vira quantidade.
+ * @param {number|null} [saldoAqui] saldo local; `null` = não sabido
+ * @returns {{qtd: number, porDiaPorPraca: number, pracasComVenda: number,
+ *   unidades: number, base: string}|null} `null` quando falta base — e falta de
+ *   base não vira quantidade.
  */
-function quantidadePelaRede(venda, diasCobertura, saldoAqui) {
-  const v = venda || {};
-  const dias = Number(v.dias);
-  const pracas = Number(v.pracasComVenda);
-  const unidades = Number(v.unidades);
-  if (!Number.isFinite(dias) || dias <= 0) return null;
-  if (!Number.isFinite(pracas) || pracas <= 0) return null;
-  if (!Number.isFinite(unidades) || unidades <= 0) return null;
+function quantidadePelaRede(pracas, diasCobertura, saldoAqui) {
+  const validas = (pracas || []).filter((p) =>
+    p && Number.isFinite(Number(p.unidades)) && Number(p.unidades) > 0 &&
+    Number.isFinite(Number(p.dias)) && Number(p.dias) > 0);
+  if (!validas.length) return null;
   const cobertura = Number(diasCobertura);
   if (!Number.isFinite(cobertura) || cobertura <= 0) return null;
 
-  const porDiaPorPraca = unidades / dias / pracas;
+  /* Média das taxas diárias, e não taxa da soma: cada praça é medida no
+     período dela. */
+  const taxas = validas.map((p) => Number(p.unidades) / Number(p.dias));
+  const porDiaPorPraca = taxas.reduce((a, b) => a + b, 0) / taxas.length;
+  const unidades = validas.reduce((a, p) => a + Number(p.unidades), 0);
   const bruto = porDiaPorPraca * cobertura;
   /* Saldo local desconhecido não vira zero: sem saber o que há aqui, a
-     sugestão cobre o período inteiro e diz que o saldo não foi lido. */
+     sugestão cobre o período inteiro e a lacuna aparece do lado. */
   const desconta = saldoAqui === null || saldoAqui === undefined ? 0 : Math.max(0, Number(saldoAqui) || 0);
-  const qtd = Math.max(0, Math.ceil(bruto - desconta));
+  const dias = validas.map((p) => Number(p.dias));
+  const mesmoPeriodo = dias.every((d) => d === dias[0]);
   return {
-    qtd,
+    qtd: Math.max(0, Math.ceil(bruto - desconta)),
     porDiaPorPraca,
-    base: 'média de ' + pracas + (pracas === 1 ? ' praça' : ' praças') + ' que vendem, em ' + dias + ' dias',
+    pracasComVenda: validas.length,
+    unidades,
+    base: 'média da taxa diária de ' + validas.length + (validas.length === 1 ? ' praça' : ' praças') +
+      (mesmoPeriodo ? ', em ' + dias[0] + ' dias' : ', cada uma no período que mediu'),
   };
 }
 

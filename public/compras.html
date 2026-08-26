@@ -546,6 +546,34 @@
   .tudo-certo b { display: block; font-size: 17px; margin-bottom: 5px; }
   .tudo-certo span { font-size: 13.5px; color: var(--tinta-2); }
   .carimbo-versao { font-size: 12px; color: var(--tinta-3); font-variant-numeric: tabular-nums; }
+  /* Ausência nunca se parece com número: cor e traço a distinguem de longe. */
+  .ausente { color: var(--tinta-3); font-weight: 400; font-style: italic; border-bottom: 1px dotted var(--borda-forte); cursor: help; }
+
+  /* ── Central de decisões ──────────────────────────────────────
+     A primeira pergunta é o que decidir, não qual relatório abrir. */
+  .decisoes { display: grid; gap: 12px; margin-top: 16px; }
+  @media (min-width: 640px) { .decisoes { grid-template-columns: repeat(2, 1fr); } }
+  @media (min-width: 1080px) { .decisoes { grid-template-columns: repeat(3, 1fr); } }
+  .decisao {
+    display: flex; flex-direction: column; gap: 5px;
+    text-align: left; min-height: 108px;
+    padding: 15px 17px;
+    background: var(--papel);
+    border: 1px solid var(--borda);
+    border-left: 4px solid var(--marinho);
+    border-radius: var(--raio);
+    cursor: pointer;
+    font: inherit; color: inherit;
+    transition: border-color .12s ease, box-shadow .12s ease;
+  }
+  .decisao:hover { border-color: var(--borda-forte); border-left-color: var(--laranja); }
+  .decisao:focus-visible { outline: 3px solid var(--marinho); outline-offset: 2px; }
+  .decisao[disabled] { cursor: not-allowed; opacity: .58; border-left-color: var(--borda-forte); }
+  .decisao .titulo { font-size: 16px; font-weight: 700; letter-spacing: -.01em; }
+  .decisao .pergunta { font-size: 13px; color: var(--tinta-2); line-height: 1.45; }
+  .decisao .quanto { margin-top: auto; font-size: 12.5px; font-variant-numeric: tabular-nums; }
+  .decisao .quanto b { font-size: 19px; }
+  .decisao .falta { margin-top: auto; font-size: 12.5px; color: var(--atencao-texto); }
 
   /* ── Comparação entre filiais ────────────────────────────────
      A praça de casa é sempre a primeira linha e vem marcada: quem lê a
@@ -1082,6 +1110,17 @@
 
 <main class="palco">
 
+  <!-- ── CENTRAL DE DECISÕES ─────────────────────────────────────
+       A primeira pergunta não é qual relatório abrir, é o que decidir. -->
+  <section id="central" class="secao">
+    <div class="secao-topo">
+      <h2>O que você quer decidir hoje?</h2>
+      <span class="nota" id="centralNota"></span>
+    </div>
+    <div class="decisoes" id="listaDecisoes"></div>
+  </section>
+
+
   <!-- Estado sem dados: é a primeira coisa que qualquer pessoa vê ao abrir o link. -->
   <section id="semDados" class="secao">
     <div class="vazio" id="zonaSolta">
@@ -1482,12 +1521,24 @@
           </div></div>
         </div>
       </div>
-      <div class="secao">
-        <div class="secao-topo"><h2>Tipos de movimento no arquivo</h2><span class="nota">O que entrou como saída.</span></div>
-        <div class="rolo"><table>
-          <thead><tr><th>Tipo</th><th>Código</th><th class="dir">Lançamentos</th><th class="dir">Unidades</th><th>Entra na conta?</th></tr></thead>
+      <div class="secao" id="secaoTr">
+        <div class="secao-topo">
+          <h2>O que é venda, de verdade</h2>
+          <span class="nota">Nem toda saída é venda. Transferência e ajuste também saem do estoque.</span>
+        </div>
+        <div class="aviso" id="avisoTr" data-tom="atencao"></div>
+        <div class="rolo" style="margin-top:12px"><table>
+          <thead><tr>
+            <th>Tipo</th><th>Código</th><th class="dir">Lançamentos</th><th class="dir">Unidades</th>
+            <th class="dir">Documentos</th><th>Prefixo</th><th>Período</th><th style="min-width:330px">O que este código é</th>
+          </tr></thead>
           <tbody id="corpoTr"></tbody>
         </table></div>
+        <p class="nota" style="margin-top:10px">
+          O prefixo do documento é a pista mais forte — <b>NF</b> costuma ser nota fiscal, <b>RI</b>
+          requisição interna. A página <b>não decide por você</b>: ela mostra a evidência e você
+          classifica. Enquanto um código de saída não estiver classificado, ele não entra na venda medida.
+        </p>
       </div>
     </div>
   </section>
@@ -2834,21 +2885,24 @@ function separarMovimentosPorFilial(movimentos) {
  * ────────────────────────────────────────────────────────────────────────
  * DE ONDE SAI A QUANTIDADE
  *
- * A rede vendeu `unidades` em `dias`, espalhadas por `pracasComVenda` praças.
- * A média diária **de uma praça** é `unidades / dias / pracasComVenda`. A
- * sugestão é essa média multiplicada pelos dias de cobertura.
+ * Cada praça tem o SEU período medido. Somar tudo e dividir por um período só
+ * dilui quem mediu menos tempo: se Cascavel mediu 232 dias e Londrina 60, a
+ * taxa de Londrina cai por um período que ela nunca teve.
  *
- * Isso NÃO é previsão. É a pergunta "se aqui vender como a média das praças
- * que vendem, quanto dura?". Duas coisas que a conta deliberadamente não faz:
+ * Então a conta é feita praça a praça — `unidades ÷ dias daquela praça` — e a
+ * referência é a MÉDIA dessas taxas. A sugestão é essa média multiplicada pelos
+ * dias de cobertura, menos o saldo local.
  *
- * - **não corrige pelo tamanho da praça.** Seria preciso saber o faturamento
- *   de cada uma, e esse dado não está em nenhum dos relatórios. Inventar o
- *   fator inventaria a quantidade.
- * - **não soma a venda de todas as praças.** Somar responderia "quanto a rede
+ * Isso NÃO é previsão. É a pergunta "se aqui vender como a média das praças que
+ * vendem, quanto dura?". Três coisas que a conta deliberadamente não faz:
+ *
+ * - **não corrige pelo tamanho da praça.** Seria preciso o faturamento de cada
+ *   uma, e esse dado não está em nenhum relatório. Inventar o fator inventaria
+ *   a quantidade.
+ * - **não soma a venda de todas as praças.** Somar responde "quanto a rede
  *   inteira vende", que não é o que se compra para uma filial.
- *
- * Praça sem relatório de movimentação carregado fica FORA do divisor. Ausência
- * de medida não é venda zero.
+ * - **não usa praça sem medição.** Ausência de medida não é venda zero, e uma
+ *   praça sem relatório carregado não entra no divisor.
  */
 
 /** Cobertura padrão, em dias. A mesma da lista de compra. */
@@ -2858,33 +2912,40 @@ const DIAS_COBERTURA_PADRAO = 45;
  * Quanto comprar para cobrir `diasCobertura` vendendo como a média das praças
  * que vendem.
  *
- * @param {{unidades: number, dias: number, pracasComVenda: number}} venda
+ * @param {Array<{unidades: number, dias: number}>} pracas uma entrada por praça
+ *   COM medição. Praça sem relatório carregado não entra aqui.
  * @param {number} diasCobertura
- * @param {number} [saldoAqui] saldo local; `null` ou ausente = não sabido
- * @returns {{qtd: number, porDiaPorPraca: number, base: string}|null}
- *   `null` quando falta base — e falta de base não vira quantidade.
+ * @param {number|null} [saldoAqui] saldo local; `null` = não sabido
+ * @returns {{qtd: number, porDiaPorPraca: number, pracasComVenda: number,
+ *   unidades: number, base: string}|null} `null` quando falta base — e falta de
+ *   base não vira quantidade.
  */
-function quantidadePelaRede(venda, diasCobertura, saldoAqui) {
-  const v = venda || {};
-  const dias = Number(v.dias);
-  const pracas = Number(v.pracasComVenda);
-  const unidades = Number(v.unidades);
-  if (!Number.isFinite(dias) || dias <= 0) return null;
-  if (!Number.isFinite(pracas) || pracas <= 0) return null;
-  if (!Number.isFinite(unidades) || unidades <= 0) return null;
+function quantidadePelaRede(pracas, diasCobertura, saldoAqui) {
+  const validas = (pracas || []).filter((p) =>
+    p && Number.isFinite(Number(p.unidades)) && Number(p.unidades) > 0 &&
+    Number.isFinite(Number(p.dias)) && Number(p.dias) > 0);
+  if (!validas.length) return null;
   const cobertura = Number(diasCobertura);
   if (!Number.isFinite(cobertura) || cobertura <= 0) return null;
 
-  const porDiaPorPraca = unidades / dias / pracas;
+  /* Média das taxas diárias, e não taxa da soma: cada praça é medida no
+     período dela. */
+  const taxas = validas.map((p) => Number(p.unidades) / Number(p.dias));
+  const porDiaPorPraca = taxas.reduce((a, b) => a + b, 0) / taxas.length;
+  const unidades = validas.reduce((a, p) => a + Number(p.unidades), 0);
   const bruto = porDiaPorPraca * cobertura;
   /* Saldo local desconhecido não vira zero: sem saber o que há aqui, a
-     sugestão cobre o período inteiro e diz que o saldo não foi lido. */
+     sugestão cobre o período inteiro e a lacuna aparece do lado. */
   const desconta = saldoAqui === null || saldoAqui === undefined ? 0 : Math.max(0, Number(saldoAqui) || 0);
-  const qtd = Math.max(0, Math.ceil(bruto - desconta));
+  const dias = validas.map((p) => Number(p.dias));
+  const mesmoPeriodo = dias.every((d) => d === dias[0]);
   return {
-    qtd,
+    qtd: Math.max(0, Math.ceil(bruto - desconta)),
     porDiaPorPraca,
-    base: 'média de ' + pracas + (pracas === 1 ? ' praça' : ' praças') + ' que vendem, em ' + dias + ' dias',
+    pracasComVenda: validas.length,
+    unidades,
+    base: 'média da taxa diária de ' + validas.length + (validas.length === 1 ? ' praça' : ' praças') +
+      (mesmoPeriodo ? ', em ' + dias[0] + ' dias' : ', cada uma no período que mediu'),
   };
 }
 
@@ -3162,6 +3223,302 @@ function fichaPorCodigo(pacotes) {
 
 
 /* FIM MOTOR PACOTE TECNICO */
+
+/* INICIO MOTOR TR */
+/**
+ * Classificação dos códigos de movimento (TR).
+ *
+ * FONTE ÚNICA DA VERDADE: testado pelo vitest E injetado na página. JS puro.
+ *
+ * ────────────────────────────────────────────────────────────────────────
+ * O DEFEITO QUE ISTO CORRIGE
+ *
+ * A página tratava TODA saída como venda. Numa rede que transfere mercadoria
+ * entre filiais, isso conta transferência interna como demanda e manda comprar
+ * de novo o que só mudou de prateleira — e nada na tela denunciava.
+ *
+ * Medido nos quatro relatórios reais (81.427 linhas), as saídas se distribuem
+ * assim:
+ *
+ *   TR 50   53.477 linhas   204.419 un   93,4% das saídas   documento NF
+ *   TR 98    2.974 linhas    17.601 un    5,2%              documento NF
+ *   TR 54      600 linhas     9.858 un    1,0%              documento NF
+ *   TR 70      199 linhas      1.128 un                     documento NF
+ *   TR RS       48 linhas         53 un                     documento RI
+ *   TR 92/RW/JS 19 linhas         25 un
+ *
+ * Três códigos cobrem 99,6% das linhas. Por isso a tela ordena por volume:
+ * classificar três resolve quase tudo, e o resto fica visível como lacuna.
+ *
+ * ────────────────────────────────────────────────────────────────────────
+ * A REGRA
+ *
+ * TR não classificado **não é venda**. Não é venda zero também — é venda não
+ * classificada, que é outra coisa e aparece como lacuna. A página não adivinha
+ * pelo volume nem pelo prefixo do documento: ela MOSTRA essas evidências e
+ * quem decide é quem conhece o ERP.
+ */
+
+/** As classes que quem usa pode atribuir. `desconhecido` não se atribui: é a ausência. */
+const CLASSES = ['venda', 'transferencia', 'ajuste', 'devolucao', 'outro'];
+
+const ROTULO_CLASSE = {
+  venda: 'Venda',
+  transferencia: 'Transferência',
+  ajuste: 'Ajuste',
+  devolucao: 'Devolução',
+  outro: 'Outro',
+  desconhecido: 'Não classificado',
+};
+
+/** `S` + `50` → `'S·50'`. Entrada e saída com o mesmo número são coisas diferentes. */
+function chaveTr(tp, tr) {
+  const a = String(tp === null || tp === undefined ? '' : tp).trim().toUpperCase();
+  const b = String(tr === null || tr === undefined ? '' : tr).trim().toUpperCase();
+  if (!a || !b) return '';
+  return a + '·' + b;
+}
+
+/**
+ * A classe de um lançamento, segundo o mapa de classificação.
+ *
+ * @param {{tp?: string, tr?: string}} mov
+ * @param {Record<string, string>} mapa
+ * @returns {string} uma de CLASSES, ou `'desconhecido'`
+ */
+function classeDe(mov, mapa) {
+  const k = chaveTr(mov && mov.tp, mov && mov.tr);
+  if (!k) return 'desconhecido';
+  const c = (mapa || {})[k];
+  return CLASSES.includes(c) ? c : 'desconhecido';
+}
+
+/**
+ * Só é venda o que foi classificado como venda. A ausência de classificação
+ * NÃO vira venda — é justamente o defeito que este módulo existe para tirar.
+ */
+function ehVenda(mov, mapa) {
+  return classeDe(mov, mapa) === 'venda';
+}
+
+/**
+ * Resume os códigos encontrados, com as evidências que ajudam a classificar:
+ * volume, período, em quantas filiais aparece e que prefixo de documento usa.
+ *
+ * O prefixo é evidência forte na prática — `NF` é nota fiscal, `RI` é
+ * requisição interna — mas é evidência para QUEM LÊ, nunca regra automática.
+ *
+ * @param {Array<object>} movimentos
+ * @returns {Array<object>} do maior volume de linhas para o menor
+ */
+function resumirTrs(movimentos) {
+  const mapa = new Map();
+  for (const m of movimentos || []) {
+    const k = chaveTr(m && m.tp, m && m.tr);
+    if (!k) continue;
+    let r = mapa.get(k);
+    if (!r) {
+      r = {
+        chave: k,
+        tp: String(m.tp).trim().toUpperCase(),
+        tr: String(m.tr).trim().toUpperCase(),
+        linhas: 0,
+        unidades: 0,
+        documentos: new Set(),
+        filiais: new Set(),
+        prefixos: new Map(),
+        primeira: null,
+        ultima: null,
+      };
+      mapa.set(k, r);
+    }
+    r.linhas++;
+    const q = Number(m.qtd);
+    if (Number.isFinite(q)) r.unidades += q;
+    if (m.documento) {
+      r.documentos.add(m.documento);
+      const p = String(m.documento).replace(/[0-9]+/g, '').slice(0, 3) || '(só número)';
+      r.prefixos.set(p, (r.prefixos.get(p) || 0) + 1);
+    }
+    if (m.filial) r.filiais.add(String(m.filial).trim());
+    if (m.data) {
+      if (!r.primeira || m.data < r.primeira) r.primeira = m.data;
+      if (!r.ultima || m.data > r.ultima) r.ultima = m.data;
+    }
+  }
+  return [...mapa.values()]
+    .map((r) => ({
+      chave: r.chave,
+      tp: r.tp,
+      tr: r.tr,
+      linhas: r.linhas,
+      unidades: r.unidades,
+      documentos: r.documentos.size,
+      filiais: [...r.filiais].sort(),
+      prefixoMaisComum: [...r.prefixos.entries()].sort((a, b) => b[1] - a[1]).map(([p]) => p)[0] || '',
+      primeira: r.primeira,
+      ultima: r.ultima,
+    }))
+    .sort((a, b) => b.linhas - a.linhas || a.chave.localeCompare(b.chave));
+}
+
+/**
+ * Quanto das SAÍDAS já está classificado como venda.
+ *
+ * É o número que a página mostra em toda tela que usa venda medida: sem ele,
+ * quem lê não sabe se está vendo a demanda inteira ou um pedaço dela.
+ *
+ * @param {Array<object>} movimentos
+ * @param {Record<string, string>} mapa
+ */
+function coberturaDeVenda(movimentos, mapa) {
+  const zero = () => ({ linhas: 0, unidades: 0 });
+  const saidas = zero();
+  const venda = zero();
+  const porClasse = {};
+  for (const c of CLASSES.concat('desconhecido')) porClasse[c] = zero();
+
+  for (const m of movimentos || []) {
+    if (String(m && m.tp).trim().toUpperCase() !== 'S') continue;
+    const q = Number(m.qtd);
+    const un = Number.isFinite(q) ? q : 0;
+    saidas.linhas++;
+    saidas.unidades += un;
+    const c = classeDe(m, mapa);
+    porClasse[c].linhas++;
+    porClasse[c].unidades += un;
+    if (c === 'venda') { venda.linhas++; venda.unidades += un; }
+  }
+
+  /* Sem nenhuma saída não há cobertura para calcular. `null` e não 0: 0%
+     sugere que existe saída e nada foi classificado, que é outra situação. */
+  const pct = (parte, todo) => (todo > 0 ? parte / todo : null);
+  return {
+    saidas,
+    venda,
+    porClasse,
+    pctLinhas: pct(venda.linhas, saidas.linhas),
+    pctUnidades: pct(venda.unidades, saidas.unidades),
+    /* Verdadeiro quando NADA foi classificado ainda: a página não mostra
+       "venda zero", mostra "falta classificar". */
+    semClassificacao: saidas.linhas > 0 && porClasse.desconhecido.linhas === saidas.linhas,
+  };
+}
+
+/**
+ * Os códigos de saída que ainda faltam classificar, do maior volume para o
+ * menor — que é a ordem em que classificar rende mais.
+ */
+function saidasNaoClassificadas(movimentos, mapa) {
+  return resumirTrs(movimentos)
+    .filter((r) => r.tp === 'S' && !CLASSES.includes((mapa || {})[r.chave]));
+}
+
+
+/* FIM MOTOR TR */
+
+/* INICIO MOTOR CONCENTRACAO */
+/**
+ * Concentração da saída: quanto de tudo saiu num documento só.
+ *
+ * FONTE ÚNICA DA VERDADE: testado pelo vitest E injetado na página. JS puro.
+ *
+ * ────────────────────────────────────────────────────────────────────────
+ * POR QUE ISTO EXISTE
+ *
+ * "Vendeu 100 unidades em 8 meses" e "vendeu 90 num dia e 10 no resto" são a
+ * mesma média mensal e decisões de compra opostas. A primeira é giro; a
+ * segunda foi um pedido grande que pode não voltar nunca.
+ *
+ * A página media documentos distintos, mas não media o TAMANHO do maior. Uma
+ * saída única de 90 em 100 aparecia como demanda recorrente.
+ *
+ * ────────────────────────────────────────────────────────────────────────
+ * O QUE ESTE MÓDULO NÃO FAZ
+ *
+ * Não descarta nada. Concentração é FATO, não veredito: o módulo mede e quem
+ * decide é quem compra, com as três opções à mão — incluir, excluir, ver com
+ * e sem. Excluir em silêncio um pedido grande seria tão errado quanto contá-lo
+ * como se fosse rotina.
+ *
+ * A mediana entra ao lado da média pelo mesmo motivo: onde as duas se afastam,
+ * a média está sendo puxada por um mês fora do padrão.
+ */
+
+/** Acima disto a saída é chamada de concentrada. Quem usa escolhe. */
+const LIMIAR_CONCENTRACAO = 0.5;
+
+/** Mediana de uma lista de números. `null` para lista vazia — nunca zero. */
+function mediana(valores) {
+  const v = (valores || []).filter((x) => Number.isFinite(Number(x))).map(Number).sort((a, b) => a - b);
+  if (!v.length) return null;
+  const meio = Math.floor(v.length / 2);
+  return v.length % 2 ? v[meio] : (v[meio - 1] + v[meio]) / 2;
+}
+
+/**
+ * Mede a concentração de uma lista de saídas de UMA peça.
+ *
+ * @param {Array<{documento?: string, qtd?: number, data?: string}>} saidas
+ * @param {number} [limiar] fração acima da qual se chama de concentrada
+ * @returns {object|null} `null` quando não há saída — e não há o que medir
+ */
+function medirConcentracao(saidas, limiar = LIMIAR_CONCENTRACAO) {
+  const lista = (saidas || []).filter((m) => Number.isFinite(Number(m && m.qtd)));
+  if (!lista.length) return null;
+
+  const porDocumento = new Map();
+  const porMes = new Map();
+  let total = 0;
+  for (const m of lista) {
+    const q = Number(m.qtd);
+    total += q;
+    /* Saída sem documento conta no total mas não vira "um documento": somar
+       todas elas num balde só inventaria um pedido gigante que não existe. */
+    if (m.documento) porDocumento.set(m.documento, (porDocumento.get(m.documento) || 0) + q);
+    if (m.data) {
+      const mes = String(m.data).slice(0, 7);
+      porMes.set(mes, (porMes.get(mes) || 0) + q);
+    }
+  }
+
+  const documentos = [...porDocumento.entries()].sort((a, b) => b[1] - a[1]);
+  const maior = documentos.length ? { documento: documentos[0][0], unidades: documentos[0][1] } : null;
+  const fracao = maior && total > 0 ? maior.unidades / total : null;
+  const meses = [...porMes.values()];
+
+  return {
+    total,
+    lancamentos: lista.length,
+    documentos: documentos.length,
+    maiorDocumento: maior,
+    /* `null` quando nenhuma saída trouxe documento: não dá para afirmar
+       concentração sem saber em quantos pedidos aquilo saiu. */
+    fracaoNoMaior: fracao,
+    concentrada: fracao === null ? null : fracao > limiar,
+    limiar,
+    mesesAtivos: porMes.size,
+    mediaMensal: porMes.size ? total / porMes.size : null,
+    medianaMensal: mediana(meses),
+    /* O que sobra tirando o maior documento. É o "ver sem" da decisão. */
+    totalSemMaior: maior ? total - maior.unidades : total,
+  };
+}
+
+/**
+ * As saídas sem o maior documento — para a opção "ver sem".
+ *
+ * Devolve a lista inteira quando não há documento identificado: sem saber qual
+ * é o maior, não há o que tirar.
+ */
+function semMaiorDocumento(saidas) {
+  const m = medirConcentracao(saidas);
+  if (!m || !m.maiorDocumento) return (saidas || []).slice();
+  return (saidas || []).filter((s) => s.documento !== m.maiorDocumento.documento);
+}
+
+
+/* FIM MOTOR CONCENTRACAO */
 
 /* INICIO MOTOR REPOSICAO */
 /**
@@ -5571,13 +5928,20 @@ function resumirDemanda(movimentos) {
       const c = codigosTr.get(k); c.linhas++; c.unidades += m.qtd;
     }
     if (m.tp !== 'S') continue;
+    /* AQUI estava o defeito: toda saída virava demanda. Transferência entre
+       filiais mandava comprar de novo o que só mudou de prateleira. Agora só
+       entra o que quem conhece o ERP classificou como venda — e o que falta
+       classificar aparece como lacuna, nunca como venda zero. */
+    if (!ehVenda(m, estado.classificacaoTr)) continue;
     if (!porProduto.has(m.produto)) {
       porProduto.set(m.produto, {
         unidades: 0, pedidos: new Set(), ultima: null, descricao: m.descricao, porMes: new Map(),
+        saidas: [],
         proprias: 0, fora: 0, foraSP: 0, foraUF: 0, porFilial: new Map(),
       });
     }
     const p = porProduto.get(m.produto);
+    p.saidas.push({ documento: m.documento, qtd: m.qtd, data: m.data });
     p.unidades += m.qtd;
     if (m.documento) p.pedidos.add(m.documento);
     if (!p.ultima || m.data > p.ultima) p.ultima = m.data;
@@ -5620,12 +5984,19 @@ function resumirDemanda(movimentos) {
       /* Tendência só existe com pelo menos dois meses de cada lado. */
       tendencia: metade >= 2 && antes > 0 ? (depois - antes) / antes : null,
       antes, depois,
+      /* Concentração: 100 unidades em 8 meses e 90 num dia dão a mesma média
+         e decisões opostas. Medido, nunca descartado em silêncio. */
+      concentracao: medirConcentracao(p.saidas, estado.limiarConcentracao),
       proprias: p.proprias, fora: p.fora, foraSP: p.foraSP, foraUF: p.foraUF,
       porFilial: [...p.porFilial.entries()].sort((a, b) => b[1] - a[1]),
     });
   }
 
   return {
+    /* A cobertura acompanha TODA tela que usa venda medida: sem ela, quem lê
+       não sabe se está vendo a demanda inteira ou um pedaço. */
+    cobertura: coberturaDeVenda(movimentos, estado.classificacaoTr),
+    trs: resumirTrs(movimentos),
     demanda, dias,
     inicio: new Date(inicio).toISOString().slice(0, 10),
     fim: new Date(fim).toISOString().slice(0, 10),
@@ -5699,6 +6070,8 @@ const guardarMovimentos = (nome) => gravarVerificado(
   { id: '__movimentos', nome, em: new Date().toISOString(), movimentos: estado.movimentos },
   (r) => (r.movimentos || []).length);
 const guardarRede = () => comLoja('readwrite', (l) => l.put({ id: '__rede', filiais: estado.rede }));
+const guardarClassificacaoTr = () => comLoja('readwrite', (l) => l.put({
+  id: '__classificacaoTr', mapa: estado.classificacaoTr, limiar: estado.limiarConcentracao }));
 const guardarPacoteTecnico = () => gravarVerificado(
   { id: '__pacoteTecnico', em: new Date().toISOString(), pacote: estado.pacoteTecnico, precos: estado.precoCatalogo },
   (r) => ((r.pacote || {}).pacotes || []).length);
@@ -5743,6 +6116,11 @@ const estado = {
   /* Preço de VENDA do catálogo, por chave de código. Não é custo: não entra
      em margem, nem em capital parado, nem vira "valor do estoque". */
   precoCatalogo: {},
+  /* Classificação dos códigos de movimento: { 'S·50': 'venda', ... }.
+     Enquanto um TR de saída não estiver aqui, ele NÃO conta como venda. */
+  classificacaoTr: {},
+  /* Fração acima da qual a saída é chamada de concentrada. */
+  limiarConcentracao: LIMIAR_CONCENTRACAO,
   nomeTabelaMarcas: null,
   formatoMovimentos: null,
   rede: {},
@@ -6818,10 +7196,14 @@ function fichaDaPecaCompleta(g) {
   const preco = precoDoCatalogo(g);
   const pacotes = pacotesDaPeca(g);
   const pt = estado.pacoteTecnico;
+  /* Concentração: 100 unidades num pedido só e 100 espalhadas em oito meses
+     dão a mesma média e decisões opostas. */
+  const c = d && d.concentracao ? d.concentracao : null;
   const faltando = [];
   if (!d) faltando.push('venda medida (item fora do recorte da movimentação)');
   if (!g.marca) faltando.push('marca (importe a tabela do catálogo ou o Pacote Técnico)');
   if (preco === null) faltando.push('preço (esta peça não está no Pacote Técnico carregado)');
+  if (c && c.fracaoNoMaior === null) faltando.push('concentração (as saídas vieram sem número de documento)');
   if (!irmas.length) faltando.push('estoque das filiais irmãs');
   if (!temCusto()) faltando.push('custo — nenhum relatório carregado traz a coluna');
 
@@ -6835,7 +7217,31 @@ function fichaDaPecaCompleta(g) {
     linha('Saldo consolidado', g.estoqueGrupo === null ? '— <span style="font-weight:400;color:var(--tinta-3)">saldo ilegível</span>' : emUnidades(g.estoqueGrupo)) +
     linha('Variantes fiscais', emCadastros(g.quantidadeCadastros) +
       (g.cadastrosZerados ? ' <span style="font-weight:400;color:var(--tinta-3)">· ' + g.cadastrosZerados + ' zerados</span>' : '')) +
-    linha('Venda medida', d ? emUnidades(Math.round(d.unidades)) + ' <span style="font-weight:400;color:var(--tinta-3)">em ' + plural(d.pedidos, 'pedido', 'pedidos') + '</span>' : '— <span style="font-weight:400;color:var(--tinta-3)">não medida</span>') +
+    linha('Venda medida', d
+      ? emUnidades(Math.round(d.unidades)) + ' <span style="font-weight:400;color:var(--tinta-3)">em ' + plural(d.pedidos, 'pedido', 'pedidos') + '</span>'
+      : (estado.resumoDemanda
+        ? (estado.resumoDemanda.cobertura.semClassificacao
+          ? AUSENTE.naoCarregado('Nenhum código de movimento foi classificado como venda ainda.')
+          : AUSENTE.naoObservado)
+        : AUSENTE.naoCarregado('A movimentação não foi carregada.'))) +
+    (c
+      ? linha('Concentração', c.fracaoNoMaior === null
+        ? AUSENTE.indeterminado + ' <span style="font-weight:400;color:var(--tinta-3)">as saídas vieram sem documento</span>'
+        : (c.concentrada ? '<span style="color:var(--critico)">' : '<span>') +
+          pct(c.fracaoNoMaior) + ' num documento só</span>' +
+          '<div style="font-weight:400;font-size:12.5px;color:var(--tinta-2)">' +
+          'Maior: ' + esc(c.maiorDocumento.documento) + ' com ' + emUnidades(Math.round(c.maiorDocumento.unidades)) +
+          ' de ' + n(Math.round(c.total)) + ' · sem ele sobram ' + n(Math.round(c.totalSemMaior)) + '</div>')
+      : '') +
+    (c && c.mesesAtivos
+      ? linha('Média × mediana por mês',
+        n(Math.round(c.mediaMensal)) + ' × ' + n(Math.round(c.medianaMensal)) +
+        '<div style="font-weight:400;font-size:12.5px;color:var(--tinta-2)">' +
+        (c.medianaMensal !== null && c.mediaMensal !== null && c.mediaMensal > c.medianaMensal * 1.5
+          ? 'A média está acima da mediana: um mês fora do padrão está puxando.'
+          : 'Média e mediana próximas — o histórico é parelho.') +
+        ' ' + plural(c.mesesAtivos, 'mês com saída', 'meses com saída') + '</div>')
+      : '') +
     linha('Última venda', d ? haDias(d.diasSemVender) + (estado.resumoDemanda ? ' <span style="font-weight:400;color:var(--tinta-3)">(referência: ' + dataBr(estado.resumoDemanda.fimISO || envioAtual().dataISO) + ')</span>' : '') : '—') +
     linha('Cobertura', cobertura === null ? '— <span style="font-weight:400;color:var(--tinta-3)">sem ritmo medido</span>' : plural(cobertura, 'dia', 'dias')) +
     linha('Filiais com saldo', irmas.length
@@ -7254,6 +7660,79 @@ function textoParaGestor(blocos) {
 
 /* ─── 16a. Demanda ───────────────────────────────────────────────── */
 
+/* ── Classificação dos códigos de movimento ────────────────────────────
+   Ordenada por volume porque é assim que classificar rende: nos arquivos
+   reais, três códigos cobrem 99,6% das linhas de saída. */
+function renderTr(R) {
+  const alvo = $('#corpoTr');
+  if (!alvo) return;
+  const cob = R.cobertura;
+  const pct = (v) => (v === null ? 'N/D' : (v * 100).toFixed(v < 0.1 ? 1 : 0).replace('.', ',') + '%');
+
+  const aviso = $('#avisoTr');
+  if (cob.semClassificacao) {
+    aviso.dataset.tom = 'critico';
+    aviso.innerHTML = '<b>Nenhum código de saída foi classificado ainda.</b> ' +
+      'Por isso a venda medida está vazia — e isso não quer dizer que não houve venda: ' +
+      'quer dizer que a página ainda não sabe quais saídas são venda. ' +
+      'Classifique os códigos abaixo, começando pelo de cima.';
+  } else if (cob.pctLinhas !== null && cob.pctLinhas < 1) {
+    aviso.dataset.tom = 'atencao';
+    aviso.innerHTML = '<b>' + pct(cob.pctLinhas) + ' das saídas estão classificadas como venda</b> ' +
+      '(' + pct(cob.pctUnidades) + ' das unidades). ' +
+      n(cob.porClasse.desconhecido.linhas) + ' lançamentos ainda sem classificação ficam de fora da venda medida.';
+  } else {
+    aviso.dataset.tom = 'saudavel';
+    aviso.innerHTML = '<b>Todas as saídas estão classificadas.</b> ' +
+      pct(cob.pctLinhas) + ' delas contam como venda — ' +
+      n(cob.venda.linhas) + ' de ' + n(cob.saidas.linhas) + ' lançamentos.';
+  }
+
+  const opcoes = (chave) => {
+    const atual = estado.classificacaoTr[chave] || '';
+    return '<select class="tr-classe" data-chave="' + esc(chave) + '">' +
+      '<option value=""' + (atual ? '' : ' selected') + '>— escolher —</option>' +
+      CLASSES.map((c) => '<option value="' + c + '"' + (atual === c ? ' selected' : '') + '>' +
+        esc(ROTULO_CLASSE[c]) + '</option>').join('') +
+      '</select>';
+  };
+
+  alvo.innerHTML = (R.trs || []).map((c) => {
+    const classe = estado.classificacaoTr[c.chave] || '';
+    const pendente = c.tp === 'S' && !classe;
+    return '<tr' + (pendente ? ' style="background:color-mix(in srgb, var(--atencao) 8%, transparent)"' : '') + '>' +
+      '<td>' + (c.tp === 'S'
+        ? '<span class="etiqueta" data-tom="critico">saída</span>'
+        : '<span class="etiqueta" data-tom="saudavel">entrada</span>') + '</td>' +
+      '<td class="mono"><b>' + esc(c.tr) + '</b></td>' +
+      '<td class="dir num">' + n(c.linhas) + '</td>' +
+      '<td class="dir num">' + n(Math.round(c.unidades)) + '</td>' +
+      '<td class="dir num">' + n(c.documentos) + '</td>' +
+      '<td class="mono">' + esc(c.prefixoMaisComum || '—') + '</td>' +
+      '<td style="font-size:12.5px;color:var(--tinta-2);white-space:nowrap">' +
+        (c.primeira ? dataBr(c.primeira) + ' a ' + dataBr(c.ultima) : '—') + '</td>' +
+      '<td>' + (c.tp === 'S'
+        ? opcoes(c.chave) + (pendente
+          ? '<div style="font-size:12px;color:var(--atencao-texto);margin-top:3px">Não entra na venda medida enquanto não for classificado</div>'
+          : '')
+        : '<span style="font-size:12.5px;color:var(--tinta-3)">Entrada — não é venda em nenhum caso</span>') +
+      '</td></tr>';
+  }).join('');
+
+  $$('#corpoTr .tr-classe').forEach((sel) => sel.addEventListener('change', async (e) => {
+    const chave = e.target.dataset.chave;
+    const valor = e.target.value;
+    if (valor) estado.classificacaoTr[chave] = valor;
+    else delete estado.classificacaoTr[chave];
+    try { await guardarClassificacaoTr(); }
+    catch (err) { estado.gravacao = { ok: false, em: null, erro: err.message || String(err) }; }
+    recalcular();
+    invalidarVistas();
+    renderTudo();
+    equipeAgendarEnvio();
+  }));
+}
+
 function renderDemanda() {
   const R = estado.resumoDemanda;
   const temMov = !!R;
@@ -7351,12 +7830,7 @@ function renderDemanda() {
       cor: 'var(--marinho)',
     })).join('');
 
-  $('#corpoTr').innerHTML = R.codigosTr.map((c) =>
-    '<tr><td>' + (c.tp === 'S' ? '<span class="etiqueta" data-tom="critico">saída</span>' : '<span class="etiqueta" data-tom="saudavel">entrada</span>') + '</td>' +
-    '<td class="mono">' + esc(c.tr) + '</td>' +
-    '<td class="dir num">' + n(c.linhas) + '</td>' +
-    '<td class="dir num">' + n(Math.round(c.unidades)) + '</td>' +
-    '<td style="font-size:12.5px;color:var(--tinta-2)">' + (c.tp === 'S' ? 'Sim — conta como demanda' : 'Não — entrada não é venda') + '</td></tr>').join('');
+  renderTr(R);
 
   // ── Venda faturada por outra filial.
   const secaoFilial = $('#secaoFilial');
@@ -7623,6 +8097,27 @@ function renderDados() {
 
    O motor está em src/domain/clientes/carteira.js, testado pelo vitest e
    injetado no topo deste arquivo. Aqui só há tela. */
+
+/* ── O vocabulário da ausência ────────────────────────────────────────
+   Cinco estados diferentes que a tela nunca pode misturar, porque levam a
+   decisões opostas:
+
+     0                valor conhecido e igual a zero
+     —                dado não veio no arquivo
+     N/D              não deu para determinar com o que existe
+     não carregado    o relatório que traria isso não foi carregado
+     não observado    não houve registro no período carregado, o que NÃO
+                      prova que não existe
+
+   O caso que mais engana é o último: filial sem movimentação carregada
+   aparecendo como "vendeu 0". */
+const AUSENTE = {
+  vazio: '<span class="ausente" title="O arquivo não trouxe este dado.">—</span>',
+  indeterminado: '<span class="ausente" title="Não deu para determinar com os dados carregados.">N/D</span>',
+  naoCarregado: (oQue) => '<span class="ausente" title="' +
+    esc(oQue || 'O relatório que traria este dado não foi carregado.') + '">não carregado</span>',
+  naoObservado: '<span class="ausente" title="Não houve registro no período carregado. Isso não prova que não existe.">não observado</span>',
+};
 
 const dinheiroBr = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const rs = (v) => (v === null || v === undefined ? '—' : 'R$ ' + dinheiroBr.format(v));
@@ -8629,6 +9124,104 @@ function renderPraca() {
   if (sel) sel.value = aqui();
 }
 
+/* ── Central de decisões ──────────────────────────────────────────────
+   Cada decisão diz QUANTO tem para decidir, ou o que falta carregar para
+   ela existir. Botão que abre uma tela vazia é botão que perde a confiança
+   de quem clica. */
+const DECISOES = [
+  {
+    id: 'comprar', vista: 'comprar', titulo: 'Comprar',
+    pergunta: 'O que tem evidência local de venda e está sem saldo aqui?',
+    quanto: () => (itens().length ? { n: filtrar().length, un: 'peças na lista' } : null),
+    falta: () => (itens().length ? null : 'Carregue o estoque'),
+  },
+  {
+    id: 'transferir', vista: 'rede', titulo: 'Antes de comprar, tem na rede?',
+    pergunta: 'O que falta aqui e tem saldo numa filial irmã.',
+    quanto: () => { const R = analisarRede(); return R ? { n: R.faltaAB.length, un: 'peças com saldo lá' } : null; },
+    falta: () => (filiaisIrmas().length ? null : 'Carregue o estoque de outra filial'),
+  },
+  {
+    id: 'demanda', vista: 'demanda', titulo: 'Venda medida',
+    pergunta: 'O que saiu de verdade, pelos códigos que você classificou como venda.',
+    quanto: () => {
+      const R = estado.resumoDemanda;
+      if (!R) return null;
+      if (R.cobertura.semClassificacao) return null;
+      return { n: R.produtosComVenda, un: 'peças com venda medida' };
+    },
+    falta: () => {
+      if (!estado.resumoDemanda) return 'Carregue a movimentação';
+      return estado.resumoDemanda.cobertura.semClassificacao ? 'Classifique os códigos de movimento' : null;
+    },
+  },
+  {
+    id: 'empurrar', vista: 'oportunidades', titulo: 'Empurrar estoque',
+    pergunta: 'Temos aqui e não gira. O que os vendedores têm para oferecer.',
+    quanto: () => (itens().length
+      ? { n: itens().filter((i) => i.situacao === 'EXCESSO').length, un: 'peças paradas' } : null),
+    falta: () => (itens().length ? null : 'Carregue o estoque'),
+  },
+  {
+    id: 'clientes', vista: 'clientes', titulo: 'Recuperar clientes',
+    pergunta: 'Quem comprava e parou. A lista de ligações de hoje.',
+    quanto: () => {
+      const todos = Object.values(estado.carteiras || {}).flatMap((c) => c.clientes || []);
+      return todos.length ? { n: inativos(todos, hojeIso()).length, un: 'sem comprar há 30 dias' } : null;
+    },
+    falta: () => (Object.keys(estado.carteiras || {}).length ? null : 'Carregue a relação de clientes'),
+  },
+  {
+    id: 'comparar', vista: 'rede', titulo: 'Comparar filiais',
+    pergunta: 'O que gira lá e não aqui, e o contrário.',
+    quanto: () => { const R = analisarRede(); return R ? { n: R.irmas.length, un: 'filiais na comparação' } : null; },
+    falta: () => (filiaisIrmas().length ? null : 'Carregue o estoque de outra filial'),
+  },
+  {
+    id: 'investigar', vista: 'produtos', titulo: 'Investigar uma peça',
+    pergunta: 'Raio-X: saldo, movimento, rede, catálogo e o que não dá para afirmar.',
+    quanto: () => (itens().length ? { n: itens().length, un: 'cadastros para consultar' } : null),
+    falta: () => (itens().length ? null : 'Carregue o estoque'),
+  },
+  {
+    id: 'auditar', vista: 'dados', titulo: 'Auditar os dados',
+    pergunta: 'Até onde dá para confiar nesta análise: o que entrou e o que falta.',
+    quanto: () => ({ n: null, un: '' }),
+    falta: () => null,
+  },
+];
+
+function renderCentral() {
+  const alvo = $('#listaDecisoes');
+  if (!alvo) return;
+  alvo.innerHTML = DECISOES.map((d) => {
+    let falta = null;
+    let quanto = null;
+    try { falta = d.falta(); if (!falta) quanto = d.quanto(); }
+    catch { falta = 'Não consegui medir'; }
+    const rodape = falta
+      ? '<div class="falta">' + esc(falta) + '</div>'
+      : (quanto && quanto.n !== null
+        ? '<div class="quanto"><b>' + n(quanto.n) + '</b> ' + esc(quanto.un) + '</div>'
+        : '<div class="quanto">&nbsp;</div>');
+    return '<button class="decisao" type="button" data-vista="' + esc(d.vista) + '"' +
+      (falta ? ' disabled' : '') + '>' +
+      '<span class="titulo">' + esc(d.titulo) + '</span>' +
+      '<span class="pergunta">' + esc(d.pergunta) + '</span>' + rodape + '</button>';
+  }).join('');
+  $$('#listaDecisoes .decisao').forEach((b) => b.addEventListener('click', () => {
+    trocarVista(b.dataset.vista);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }));
+  const nota = $('#centralNota');
+  if (nota) {
+    const R = estado.resumoDemanda;
+    nota.textContent = R && R.cobertura.semClassificacao
+      ? 'A venda medida está esperando você dizer quais códigos de movimento são venda.'
+      : 'Cada opção mostra quanto há para decidir agora.';
+  }
+}
+
 function renderVersao() {
   const marca = VERSAO.data.startsWith('__')
     ? 'não gerada (arquivo de desenvolvimento)'
@@ -8658,6 +9251,7 @@ function renderVersao() {
 function renderEstado() {
   renderPraca();
   renderVersao();
+  renderCentral();
   const st = situacaoDoSistema();
   const fichas = [];
 
@@ -8918,6 +9512,7 @@ function renderTudo() {
      estoque seria esconder dado que já está carregado. */
   const temCarteira = Object.values(estado.carteiras || {}).some((c) => (c.clientes || []).length);
   $('#semDados').classList.toggle('oculto', temEstoque || temCarteira);
+  $('#central').classList.toggle('oculto', !(temEstoque || temCarteira));
   $$('.vista').forEach((v) => {
     v.classList.toggle('oculto', !(v.id === 'vista-clientes' ? temCarteira : temEstoque));
   });
@@ -9165,6 +9760,8 @@ function pacoteDeDados() {
     rede: estado.rede,
     praca: estado.praca,
     vendaRede: estado.vendaRede,
+    classificacaoTr: estado.classificacaoTr,
+    limiarConcentracao: estado.limiarConcentracao,
     pacoteTecnico: estado.pacoteTecnico,
     precoCatalogo: estado.precoCatalogo,
     carteiras: estado.carteiras,
@@ -9195,6 +9792,8 @@ async function aplicarPacote(pacote) {
   estado.rede = pacote.rede || {};
   if (pacote.praca) estado.praca = pacote.praca;
   estado.vendaRede = pacote.vendaRede || {};
+  estado.classificacaoTr = pacote.classificacaoTr || {};
+  if (Number.isFinite(pacote.limiarConcentracao)) estado.limiarConcentracao = pacote.limiarConcentracao;
   estado.pacoteTecnico = pacote.pacoteTecnico || null;
   estado.precoCatalogo = pacote.precoCatalogo || {};
   estado.carteiras = pacote.carteiras || {};
@@ -9216,6 +9815,7 @@ async function aplicarPacote(pacote) {
     if (estado.tabelaMarcas) await guardarTabelaMarcas(estado.nomeTabelaMarcas || 'pacote');
     if (estado.praca) await guardarPraca();
     await guardarVendaRede();
+    await guardarClassificacaoTr();
     if (estado.pacoteTecnico) await guardarPacoteTecnico();
     if (Object.keys(estado.carteiras).length) await guardarClientes();
     await guardarMapaMarcas();
@@ -9312,7 +9912,7 @@ liga('#btApagar', 'click', async () => {
 /* Carimbo de versão, trocado por scripts/gerar-plataforma.mjs na geração.
    Fica com o valor literal quando alguém abre plataforma/corpo.html direto,
    que é justamente o aviso de que aquele arquivo não é o publicado. */
-const VERSAO = { data: '25/08/2026 12:50', commit: 'f12bf13', gerado: '25/08/2026, 12:50' };
+const VERSAO = { data: '25/08/2026 12:50', commit: 'd00a36b+alteracoes-nao-commitadas', gerado: '26/08/2026, 11:25' };
 
 const PRACA_DO_ENDERECO = (() => {
   try { return reconhecerFilial(String(location.hostname || '').replace(/\./g, ' ')) || null; }
@@ -9493,9 +10093,11 @@ function analisarRedeAgora() {
     /* Venda medida nas irmãs. Só entra praça que teve o relatório de
        movimentação carregado; quem não tem fica de fora da conta em vez de
        entrar como zero — ausência de medida não é venda zero. */
+    /* Cada praça com o SEU período medido. Usar um período único para todas
+       dilui quem mediu menos tempo — se uma mediu 232 dias e outra 30, a taxa
+       da segunda cai por um período que ela nunca teve. */
+    const pracasMedidas = [];
     let vendeuNaRede = null;
-    let pracasComVenda = 0;
-    let diasDaMedida = 0;
     for (const f of irmas) {
       const v = estado.vendaRede[f.ff];
       const pc = f.pecas[k];
@@ -9508,17 +10110,13 @@ function analisarRedeAgora() {
       }
       if (!achou) continue;
       vendeuNaRede = (vendeuNaRede === null ? 0 : vendeuNaRede) + un;
-      pracasComVenda++;
-      /* Período da medida: o mais longo entre as praças que mediram. Usar o
-         mais curto encolheria a média diária de quem mediu mais tempo. */
-      if (v.inicio && v.fim) {
-        const d = Math.max(1, Math.round((Date.parse(v.fim) - Date.parse(v.inicio)) / DIA) + 1);
-        if (d > diasDaMedida) diasDaMedida = d;
-      }
+      const dias = v.inicio && v.fim
+        ? Math.max(1, Math.round((Date.parse(v.fim) - Date.parse(v.inicio)) / DIA) + 1)
+        : 0;
+      pracasMedidas.push({ ff: f.ff, nome: f.nome, unidades: un, dias });
     }
-    const vendaNaRede = vendeuNaRede === null ? null
-      : { unidades: vendeuNaRede, dias: diasDaMedida, pracasComVenda };
-    const sugestaoRede = quantidadePelaRede(vendaNaRede, estado.diasCobertura, meu ? meu.s : null);
+    const pracasComVenda = pracasMedidas.length;
+    const sugestaoRede = quantidadePelaRede(pracasMedidas, estado.diasCobertura, meu ? meu.s : null);
 
     const ref = irmas.filter((f) => f.pecas[k]).map((f) => f.pecas[k]);
     const abNaRede = ref.filter((a) => postoCurva(a.c) <= 1).length;
@@ -9537,7 +10135,7 @@ function analisarRedeAgora() {
       melhorLa,
       vendeuNaRede,
       pracasComVenda,
-      vendaNaRede,
+      pracasMedidas,
       sugestaoRede,
       /* Força do argumento, e é só isso que a ordenação usa: em quantas
          praças a peça é bem classificada, em quantas ela tem saldo, e o
@@ -9754,14 +10352,16 @@ function renderRede() {
       '<td class="dir">' + n(f.praças) + '</td>' +
       '<td class="dir">' + n(f.unidades) + '</td>' +
       '<td class="dir">' + (f.vendeuNaRede === null
-        ? '<span style="color:var(--tinta-3)" title="Nenhuma praça com esta peça teve o relatório de movimentação carregado. Ausência de medida não é venda zero.">não medido</span>'
+        ? (Object.keys(estado.vendaRede || {}).length
+          ? AUSENTE.naoObservado
+          : AUSENTE.naoCarregado('Nenhuma filial irmã teve a movimentação carregada.'))
         : '<b>' + n(Math.round(f.vendeuNaRede)) + '</b>' +
           '<div style="font-size:12px;color:var(--tinta-3)">' + plural(f.pracasComVenda, 'praça', 'praças') + '</div>') + '</td>' +
       '<td class="dir">' + (f.sugestaoRede
         ? '<b style="font-size:15px">' + n(f.sugestaoRede.qtd) + '</b>' +
           '<div style="font-size:12px;color:var(--tinta-3)" title="' + esc(f.sugestaoRede.base) +
-          '. Cobertura de ' + n(estado.diasCobertura) + ' dias.">' +
-          f.sugestaoRede.porDiaPorPraca.toFixed(2).replace('.', ',') + '/dia · ' + n(estado.diasCobertura) + 'd</div>'
+          '. Cobertura de ' + n(estado.diasCobertura) + ' dias. Menos o saldo daqui.">' +
+          f.sugestaoRede.porDiaPorPraca.toFixed(2).replace('.', ',') + '/dia × ' + n(estado.diasCobertura) + 'd</div>'
         : '<span style="color:var(--tinta-3)">—</span>') + '</td>' +
       '<td><div class="grupo-filiais">' + selos + '</div></td></tr>';
   }).join('');
@@ -10413,6 +11013,11 @@ $('#logo').src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAOAAAAB4CAIAAABk
     if (praca && praca.ff) estado.praca = praca.ff;
     const vr = guardados.find((e) => e.id === '__vendaRede');
     if (vr) estado.vendaRede = vr.filiais || {};
+    const ctr = guardados.find((e) => e.id === '__classificacaoTr');
+    if (ctr) {
+      estado.classificacaoTr = ctr.mapa || {};
+      if (Number.isFinite(ctr.limiar)) estado.limiarConcentracao = ctr.limiar;
+    }
     const pt = guardados.find((e) => e.id === '__pacoteTecnico');
     if (pt) { estado.pacoteTecnico = pt.pacote || null; estado.precoCatalogo = pt.precos || {}; }
     const carteiras = guardados.find((e) => e.id === '__carteiras');

@@ -793,6 +793,94 @@ Detalhes de operação, cadastro de usuários e como publicar de novo: `deploy-n
 
 ---
 
+## 3l. Nem toda saída é venda
+
+**Era o defeito mais grave da ferramenta.** A conta em `resumirDemanda` fazia
+`if (m.tp !== 'S') continue` e somava tudo, e a tela escrevia, para todo código de saída,
+*"Sim — conta como demanda"*. Numa rede que transfere mercadoria entre filiais, isso conta
+transferência interna como venda e manda **comprar de novo o que só mudou de prateleira**.
+
+Motor em [`src/domain/movimentos/tr.js`](../src/domain/movimentos/tr.js).
+
+### Como as saídas se distribuem de verdade
+
+Medido nos quatro relatórios reais, 81.427 linhas:
+
+| TR | Linhas | Unidades | % das saídas | Documento |
+|---|---:|---:|---:|---|
+| `S·50` | 53.477 | 204.419 | **93,4%** | NF |
+| `S·98` | 2.974 | 17.601 | 5,2% | NF |
+| `S·54` | 600 | 9.858 | 1,0% | NF |
+| `S·70` | 199 | 1.128 | 0,3% | NF |
+| `S·RS` | 48 | 53 | 0,1% | **RI** |
+| `S·92` `S·RW` `S·JS` | 19 | 25 | — | NF |
+
+**Três códigos cobrem 99,6% das linhas.** Por isso a tela ordena por volume: classificar três
+resolve quase tudo, e o resto fica visível como lacuna em vez de entrar escondido.
+
+### A regra
+
+TR de saída não classificado **não é venda**. Também não é venda zero — é venda *não
+classificada*, que é outra coisa e aparece como lacuna. A página **não adivinha** pelo volume
+nem pelo prefixo do documento: ela mostra essas evidências (volume, período, filiais, prefixo)
+e quem classifica é quem conhece o ERP.
+
+Enquanto nada estiver classificado, a venda medida fica vazia e a tela diz *"Nenhum código de
+saída foi classificado ainda — isso não quer dizer que não houve venda"*. Toda tela que usa
+venda medida carrega a cobertura: **"X% das saídas estão classificadas como venda"**.
+
+---
+
+## 3m. A pedrada: concentração da saída
+
+*"Vendeu 100 unidades em 8 meses"* e *"vendeu 90 num dia e 10 no resto"* são a mesma média
+mensal e decisões de compra opostas. A página contava documentos distintos, mas não media o
+**tamanho do maior** — uma saída única de 90 em 100 aparecia como demanda recorrente.
+
+Motor em [`src/domain/movimentos/concentracao.js`](../src/domain/movimentos/concentracao.js).
+
+A ficha da peça passa a mostrar:
+
+| | |
+|---|---|
+| **Concentração** | quanto por cento saiu no maior documento, qual é ele, e quanto sobra sem ele |
+| **Média × mediana por mês** | onde as duas se afastam, um mês fora do padrão está puxando a média |
+
+**Nada é descartado.** Concentração é fato, não veredito: o módulo mede, e excluir em silêncio
+um pedido grande seria tão errado quanto contá-lo como rotina. Sem número de documento, a
+página diz `N/D` — sem saber em quantos pedidos aquilo saiu, não há concentração a medir.
+
+---
+
+## 3n. Cada praça no período que ela mediu
+
+A sugestão pela rede usava o período **mais longo** entre as praças. Se Cascavel mediu 232 dias
+e outra mediu 30, a taxa da segunda caía por um período que ela nunca teve, e a peça sumia da
+lista.
+
+Agora a conta é praça a praça — `unidades ÷ dias daquela praça` — e a referência é a **média
+dessas taxas**. A base escrita na tela diz qual dos dois casos é: *"em 232 dias"* quando todas
+mediram o mesmo, *"cada uma no período que mediu"* quando não.
+
+---
+
+## 3o. O vocabulário da ausência
+
+Cinco estados que a tela nunca mistura, porque levam a decisões opostas:
+
+| | |
+|---|---|
+| `0` | valor conhecido e igual a zero |
+| `—` | o arquivo não trouxe este dado |
+| `N/D` | não deu para determinar com o que existe |
+| `não carregado` | o relatório que traria isso não foi carregado |
+| `não observado` | não houve registro no período carregado — **o que não prova que não existe** |
+
+O caso que mais engana é o último: filial sem movimentação carregada aparecendo como
+*"vendeu 0"*.
+
+---
+
 ## 7a. A praça desta análise
 
 A página nasceu com o código de uma filial escrito em vinte lugares. O resultado é

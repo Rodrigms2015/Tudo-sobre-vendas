@@ -36,6 +36,8 @@ const MODULOS = [
   { arquivo: ['src', 'domain', 'estoque', 'filiais.js'], abre: '/* INICIO MOTOR FILIAIS */', fecha: '/* FIM MOTOR FILIAIS */', nome: 'filiais' },
   { arquivo: ['src', 'domain', 'compras', 'rede.js'], abre: '/* INICIO MOTOR REDE */', fecha: '/* FIM MOTOR REDE */', nome: 'rede' },
   { arquivo: ['src', 'domain', 'dados', 'pacoteTecnico.js'], abre: '/* INICIO MOTOR PACOTE TECNICO */', fecha: '/* FIM MOTOR PACOTE TECNICO */', nome: 'pacote tecnico' },
+  { arquivo: ['src', 'domain', 'movimentos', 'tr.js'], abre: '/* INICIO MOTOR TR */', fecha: '/* FIM MOTOR TR */', nome: 'tr' },
+  { arquivo: ['src', 'domain', 'movimentos', 'concentracao.js'], abre: '/* INICIO MOTOR CONCENTRACAO */', fecha: '/* FIM MOTOR CONCENTRACAO */', nome: 'concentracao' },
 ];
 
 for (const m of MODULOS) {

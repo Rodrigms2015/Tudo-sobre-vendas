@@ -1559,6 +1559,37 @@
     </div>
     <div id="clientesConteudo">
       <div class="secao"><div class="placas" id="placasClientes"></div></div>
+
+      <div class="secao" id="secaoLigacoes">
+        <div class="secao-topo">
+          <h2>Minhas ligações de hoje</h2>
+          <span class="nota" id="notaLigacoes"></span>
+        </div>
+        <div class="filtros">
+          <div class="campo">
+            <label for="fRegua">Considerar sumido a partir de</label>
+            <select id="fRegua">
+              <option value="15">15 dias sem comprar</option>
+              <option value="30">30 dias sem comprar</option>
+              <option value="45">45 dias sem comprar</option>
+              <option value="60">60 dias sem comprar</option>
+              <option value="90">90 dias sem comprar</option>
+            </select>
+          </div>
+        </div>
+        <div id="blocosLigacoes" style="margin-top:12px"></div>
+        <div class="rolo" style="margin-top:12px">
+          <table>
+            <thead><tr id="cabLigacoes"></tr></thead>
+            <tbody id="corpoLigacoes"></tbody>
+          </table>
+        </div>
+        <div style="margin-top:12px;display:flex;gap:9px;flex-wrap:wrap;align-items:center">
+          <button class="bt" id="btMaisLigacoes" type="button" hidden>Mostrar mais</button>
+          <button class="bt" id="btCsvLigacoes" type="button">Baixar a lista de ligações</button>
+        </div>
+      </div>
+
       <div class="secao">
         <div class="secao-topo">
           <h2>Carteira</h2>
@@ -1584,6 +1615,19 @@
               <option value="DORMINDO">Dormindo</option>
               <option value="PERDIDO">Sem comprar há mais de um ano</option>
               <option value="SEM_DATA">Sem data de compra</option>
+            </select>
+          </div>
+          <div class="campo">
+            <label for="fClienteCategoria">Comportamento</label>
+            <select id="fClienteCategoria">
+              <option value="">Todos</option>
+              <option value="REGULAR_E_SUMIU">Comprava todo mês e parou</option>
+              <option value="ESTA_CAINDO">Está caindo</option>
+              <option value="COMPRA_ESPORADICA">Compra esporádica</option>
+              <option value="INATIVO">Inativo</option>
+              <option value="ATIVO">Ativo</option>
+              <option value="SEM_COMPRA_REGISTRADA">Sem compra registrada</option>
+              <option value="SEM_BASE">Sem base para classificar</option>
             </select>
           </div>
           <div class="campo">
@@ -1843,6 +1887,9 @@
 
 /* INICIO MOTOR CARTEIRA */
 /* FIM MOTOR CARTEIRA */
+
+/* INICIO MOTOR COMPORTAMENTO */
+/* FIM MOTOR COMPORTAMENTO */
 
 /* INICIO MOTOR FILIAIS */
 /* FIM MOTOR FILIAIS */
@@ -3802,7 +3849,7 @@ const guardarPacoteTecnico = () => gravarVerificado(
 const guardarVendaRede = () => comLoja('readwrite', (l) => l.put({ id: '__vendaRede', filiais: estado.vendaRede }));
 const guardarPraca = () => comLoja('readwrite', (l) => l.put({ id: '__praca', ff: estado.praca }));
 const guardarClientes = () => gravarVerificado(
-  { id: '__carteiras', em: new Date().toISOString(), carteiras: estado.carteiras, metaFator: estado.metaFator },
+  { id: '__carteiras', em: new Date().toISOString(), carteiras: estado.carteiras, metaFator: estado.metaFator, regua: estado.reguaClientes },
   (r) => Object.values(r.carteiras || {}).reduce((t, c) => t + (c.clientes || []).length, 0));
 const lerEnvios = () => comLoja('readonly', (l) => l.getAll());
 const removerEnvio = (id) => comLoja('readwrite', (l) => l.delete(id));
@@ -3868,8 +3915,12 @@ const estado = {
   /* Multiplicador da meta. 1 = repetir a média dos meses fechados. Quem
      gerencia escolhe; a página não inventa crescimento. */
   metaFator: 1,
-  filtrosClientes: { busca: '', situacao: '', vendedor: '' },
+  /* Régua da lista de ligações, em dias. Quem trabalha a carteira escolhe;
+     o código não decide por ele. 30 é onde a lista de ataque já estava. */
+  reguaClientes: CORTE_INATIVIDADE,
+  filtrosClientes: { busca: '', situacao: '', vendedor: '', categoria: '' },
   limiteClientes: 50,
+  limiteLigacoes: 25,
   bancoOk: true,
 };
 
@@ -5879,6 +5930,8 @@ function clientesFiltrados() {
   return lista.filter((c) => {
     if (busca && !chave(c.nome + ' ' + c.codigo).includes(busca)) return false;
     if (f.vendedor && c.vendedor !== f.vendedor) return false;
+    if (f.categoria &&
+      categoriaDoCliente(c, diasSemComprar(c, hoje), estado.reguaClientes).categoria !== f.categoria) return false;
     if (!f.situacao) return true;
     if (f.situacao === 'PARADO') return clienteParou(c, hoje, estado.metaFator);
     if (f.situacao === 'INATIVO30') {
@@ -5899,11 +5952,97 @@ const porTamanho = (a, b) => {
 
 const TOM_SITUACAO = { ATIVO: 'saudavel', ESFRIANDO: 'atencao', DORMINDO: 'critico', PERDIDO: 'neutro', SEM_DATA: 'neutro' };
 
+/* Tom de cada comportamento. A cor NUNCA carrega o significado sozinha: o
+   rótulo de texto vai junto, sempre, em toda etiqueta desta tela. */
+const TOM_CATEGORIA = {
+  SEM_COMPRA_REGISTRADA: 'neutro',
+  REGULAR_E_SUMIU: 'critico',
+  ESTA_CAINDO: 'atencao',
+  COMPRA_ESPORADICA: 'neutro',
+  INATIVO: 'critico',
+  ATIVO: 'saudavel',
+  SEM_BASE: 'neutro',
+};
+
+/**
+ * A lista de ligações de hoje, com a régua escolhida na tela.
+ *
+ * Fica fora de `renderLigacoes` porque a contagem do selo e o CSV precisam
+ * dela sem montar a tabela.
+ */
+function ligacoesDeHoje() {
+  return listaDeLigacoes(clientesVisiveis(), hojeIso(), estado.reguaClientes, diasSemComprar);
+}
+
+function renderLigacoes() {
+  const hoje = hojeIso();
+  const todos = clientesVisiveis();
+  const regua = estado.reguaClientes;
+  $('#fRegua').value = String(regua);
+
+  const conta = contarCategorias(todos, hoje, regua, diasSemComprar);
+  const lista = ligacoesDeHoje();
+
+  /* Os blocos contam a carteira inteira, inclusive as categorias que não
+     viram ligação. Esconder ATIVO faria a soma não fechar com o total. */
+  $('#blocosLigacoes').innerHTML = '<div class="placas">' + CATEGORIAS_CLIENTE.map((cat) => placa({
+    rotulo: ROTULO_CATEGORIA_CLIENTE[cat].charAt(0).toUpperCase() + ROTULO_CATEGORIA_CLIENTE[cat].slice(1),
+    valor: n(conta[cat]),
+    rodape: esc(ACAO_CATEGORIA_CLIENTE[cat]),
+    tom: TOM_CATEGORIA[cat] || 'neutro',
+  })).join('') + '</div>';
+
+  $('#notaLigacoes').textContent = lista.length
+    ? n(lista.length) + ' de ' + n(todos.length) + ' clientes pedem telefonema com a régua de ' +
+      regua + ' dias. Ficam de fora quem está em dia, quem não tem base e o cadastro sem compra ' +
+      'registrada — nenhum dos três é telefonema de hoje. Todos continuam contados nos blocos acima.'
+    : 'Nenhum cliente pede telefonema com a régua de ' + regua + ' dias. ' +
+      'Aumente ou diminua a régua para ver outra faixa.';
+
+  const varias = carteirasVisiveis().length > 1;
+  $('#cabLigacoes').innerHTML = '<th>Cliente</th>' + (varias ? '<th>Praça</th>' : '') +
+    '<th>Comportamento</th><th class="dir">Sem comprar</th>' +
+    '<th class="dir">Mediana fechada</th><th class="dir">Média fechada</th>' +
+    '<th>O que fazer</th><th>Por que apareceu</th>';
+
+  const mostrados = lista.slice(0, estado.limiteLigacoes);
+  $('#corpoLigacoes').innerHTML = mostrados.length ? mostrados.map((l) => {
+    const c = l.cliente;
+    const media = mediaDosFechados(c.faturamento);
+    return '<tr>' +
+      '<td><b style="font-weight:600">' + esc(c.nome) + '</b>' +
+        '<div class="num" style="font-size:12px;color:var(--tinta-3)">' + esc(c.codigo) +
+        (c.vendedor ? ' · vendedor ' + esc(c.vendedor) : '') + '</div></td>' +
+      (varias ? '<td>' + esc(c.__praca || '—') + '</td>' : '') +
+      '<td><span class="etiqueta" data-tom="' + (TOM_CATEGORIA[l.categoria] || 'neutro') + '">' +
+        esc(l.rotulo) + '</span></td>' +
+      '<td class="dir num">' + (l.dias === null ? AUSENTE.vazio : n(l.dias) + ' dias') + '</td>' +
+      /* Mediana e média lado a lado de propósito: uma é a rotina, a outra
+         inclui o pedido grande. Ver as duas evita tratar um pedido único
+         como se fosse hábito. */
+      '<td class="dir num">' + (l.mediana === null ? AUSENTE.vazio : rs(l.mediana)) + '</td>' +
+      '<td class="dir num">' + (media ? rs(media.media) : AUSENTE.vazio) + '</td>' +
+      '<td style="max-width:260px">' + esc(l.acao) + '</td>' +
+      '<td style="max-width:320px;font-size:12.5px;color:var(--tinta-2)">' +
+        (l.evidencia ? esc(l.evidencia) : '') +
+        (l.lacuna ? '<div class="ausente">falta: ' + esc(l.lacuna) + '</div>' : '') + '</td>' +
+      '</tr>';
+  }).join('') : '<tr><td colspan="8" style="padding:14px;color:var(--tinta-2)">' +
+    'Nenhuma ligação com a régua de ' + regua + ' dias. Mude a régua acima.</td></tr>';
+
+  const restam = lista.length - mostrados.length;
+  $('#btMaisLigacoes').hidden = restam <= 0;
+  $('#btMaisLigacoes').textContent = 'Mostrar mais ' + n(Math.min(25, restam)) + ' de ' + n(restam) + ' restantes';
+  $('#btCsvLigacoes').disabled = !lista.length;
+}
+
 function renderClientes() {
   const temCarteira = Object.values(estado.carteiras || {}).some((c) => (c.clientes || []).length);
   $('#clientesVazio').classList.toggle('oculto', temCarteira);
   $('#clientesConteudo').classList.toggle('oculto', !temCarteira);
   if (!temCarteira) return;
+
+  renderLigacoes();
 
   const todos = clientesVisiveis();
   const hoje = hojeIso();
@@ -5969,7 +6108,8 @@ function renderClientes() {
 
   const varias = carteiras.length > 1;
   $('#cabClientes').innerHTML =
-    '<th>Cliente</th>' + (varias ? '<th>Praça</th>' : '') + '<th>Situação</th><th class="dir">Última compra</th>' +
+    '<th>Cliente</th>' + (varias ? '<th>Praça</th>' : '') +
+    '<th>Situação</th><th>Comportamento</th><th class="dir">Última compra</th>' +
     rotulos.map((r) => '<th class="dir">' + esc(r.rotulo) + (r.parcial ? '<br><span style="font-weight:400;color:var(--tinta-3)">parcial</span>' : '') + '</th>').join('') +
     '<th class="dir">Média fechada</th><th class="dir">Meta</th><th class="dir">Falta</th>';
 
@@ -5977,6 +6117,7 @@ function renderClientes() {
   const mostrados = lista.slice(0, estado.limiteClientes);
   $('#corpoClientes').innerHTML = mostrados.length ? mostrados.map((c) => {
     const sit = situacaoDoCliente(c, hoje);
+    const cat = categoriaDoCliente(c, diasSemComprar(c, hoje), estado.reguaClientes);
     const m = metaDoCliente(c, fator);
     const media = mediaDosFechados(c.faturamento);
     const parcial = c.faturamento[0];
@@ -5987,6 +6128,8 @@ function renderClientes() {
         (c.vendedor ? ' · vendedor ' + esc(c.vendedor) : '') + '</div></td>' +
       (varias ? '<td>' + esc(c.__praca || '—') + '</td>' : '') +
       '<td><span class="etiqueta" data-tom="' + (TOM_SITUACAO[sit.situacao] || 'neutro') + '">' + esc(sit.rotulo) + '</span></td>' +
+      '<td><span class="etiqueta" data-tom="' + (TOM_CATEGORIA[cat.categoria] || 'neutro') + '" title="' +
+        esc(cat.evidencia || cat.lacuna || '') + '">' + esc(cat.rotulo) + '</span></td>' +
       '<td class="dir num">' + (c.ultimaCompra ? dataBr(c.ultimaCompra) +
         '<div style="font-size:12px;color:var(--tinta-3)">' + esc(haDias(sit.dias)) + '</div>' : '—') + '</td>' +
       c.faturamento.map((v) => '<td class="dir num">' + rs(v) + '</td>').join('') +
@@ -5998,7 +6141,7 @@ function renderClientes() {
         ? '<span style="color:var(--saudavel)">meta batida</span>'
         : rs(falta)) + '</td>' +
       '</tr>';
-  }).join('') : '<tr><td colspan="11" style="padding:14px;color:var(--tinta-2)">' +
+  }).join('') : '<tr><td colspan="12" style="padding:14px;color:var(--tinta-2)">' +
     'Nenhum cliente com esses filtros. Tire a busca ou volte a situação para “Todas”.</td></tr>';
 
   $('#btMaisClientes').hidden = lista.length <= mostrados.length;
@@ -6027,6 +6170,27 @@ function csvDaCarteira(lista) {
         .concat([valor(media ? media.media : null), valor(m.meta),
           m.meta === null ? m.motivo : 'media de ' + m.mesesUsados + ' meses fechados x ' + estado.metaFator,
           valor(falta)]);
+    }));
+}
+
+/**
+ * A lista de ligações em planilha.
+ *
+ * Leva a evidência e a lacuna junto, para que quem receber a planilha possa
+ * conferir por que cada cliente está ali — o mesmo texto que a tela mostra.
+ */
+function csvDasLigacoes(lista) {
+  const valor = (v) => (v === null || v === undefined ? '' : v.toFixed(2).replace('.', ','));
+  return paraCsv(
+    ['Codigo', 'Cliente', 'Praca', 'Vendedor', 'Comportamento', 'Dias sem comprar',
+      'Mediana fechada', 'Media fechada', 'O que fazer', 'Por que apareceu', 'Falta'],
+    lista.map((l) => {
+      const c = l.cliente;
+      const media = mediaDosFechados(c.faturamento);
+      return [c.codigo, c.nome, c.__praca || '', c.vendedor || '', l.rotulo,
+        l.dias === null ? '' : l.dias,
+        valor(l.mediana), valor(media ? media.media : null),
+        l.acao, l.evidencia || '', l.lacuna || ''];
     }));
 }
 
@@ -7351,12 +7515,34 @@ liga('#fClienteBusca', 'input', (e) => {
   estado.limiteClientes = 50;
   renderClientes();
 });
-['fClienteSituacao', 'fClienteVendedor'].forEach((id) =>
+const CAMPO_DO_FILTRO_CLIENTE = {
+  fClienteSituacao: 'situacao', fClienteVendedor: 'vendedor', fClienteCategoria: 'categoria',
+};
+Object.keys(CAMPO_DO_FILTRO_CLIENTE).forEach((id) =>
   liga('#' + id, 'change', (e) => {
-    estado.filtrosClientes[id === 'fClienteSituacao' ? 'situacao' : 'vendedor'] = e.target.value;
+    estado.filtrosClientes[CAMPO_DO_FILTRO_CLIENTE[id]] = e.target.value;
     estado.limiteClientes = 50;
     renderClientes();
   }));
+/* A régua muda quem é "sumido". Muda a lista de ligações, o selo da aba e o
+   filtro de comportamento da carteira — por isso remonta a tela inteira. */
+liga('#fRegua', 'change', async (e) => {
+  const dias = Number(e.target.value);
+  if (!REGUA_DIAS.includes(dias)) return;
+  estado.reguaClientes = dias;
+  estado.limiteLigacoes = 25;
+  estado.limiteClientes = 50;
+  renderClientes();
+  atualizarSelos();
+  try { if (Object.keys(estado.carteiras).length) await guardarClientes(); }
+  catch (err) { estado.gravacao = { ok: false, em: null, erro: err.message || String(err) }; }
+});
+liga('#btMaisLigacoes', 'click', () => { estado.limiteLigacoes += 25; renderLigacoes(); });
+liga('#btCsvLigacoes', 'click', () => {
+  const lista = ligacoesDeHoje();
+  if (!lista.length) { recado('Nenhuma ligação hoje', 'Mude a régua antes de baixar.', 'erro'); return; }
+  baixar('ligacoes-de-hoje.csv', csvDasLigacoes(lista), 'text/csv');
+});
 liga('#fClienteFilial', 'change', (e) => {
   estado.filialClientes = e.target.value;
   estado.limiteClientes = 50;
@@ -8750,6 +8936,7 @@ $('#logo').src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAOAAAAB4CAIAAABk
     if (carteiras) {
       estado.carteiras = carteiras.carteiras || {};
       if (carteiras.metaFator) estado.metaFator = carteiras.metaFator;
+      if (REGUA_DIAS.includes(Number(carteiras.regua))) estado.reguaClientes = Number(carteiras.regua);
     }
     /* Base gravada antes de existir carteira por filial: entra como a praça
        desta análise, que é de onde ela veio. Migrar aqui evita pedir o

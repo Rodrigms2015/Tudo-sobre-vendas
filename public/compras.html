@@ -1568,6 +1568,37 @@
     </div>
     <div id="clientesConteudo">
       <div class="secao"><div class="placas" id="placasClientes"></div></div>
+
+      <div class="secao" id="secaoLigacoes">
+        <div class="secao-topo">
+          <h2>Minhas ligações de hoje</h2>
+          <span class="nota" id="notaLigacoes"></span>
+        </div>
+        <div class="filtros">
+          <div class="campo">
+            <label for="fRegua">Considerar sumido a partir de</label>
+            <select id="fRegua">
+              <option value="15">15 dias sem comprar</option>
+              <option value="30">30 dias sem comprar</option>
+              <option value="45">45 dias sem comprar</option>
+              <option value="60">60 dias sem comprar</option>
+              <option value="90">90 dias sem comprar</option>
+            </select>
+          </div>
+        </div>
+        <div id="blocosLigacoes" style="margin-top:12px"></div>
+        <div class="rolo" style="margin-top:12px">
+          <table>
+            <thead><tr id="cabLigacoes"></tr></thead>
+            <tbody id="corpoLigacoes"></tbody>
+          </table>
+        </div>
+        <div style="margin-top:12px;display:flex;gap:9px;flex-wrap:wrap;align-items:center">
+          <button class="bt" id="btMaisLigacoes" type="button" hidden>Mostrar mais</button>
+          <button class="bt" id="btCsvLigacoes" type="button">Baixar a lista de ligações</button>
+        </div>
+      </div>
+
       <div class="secao">
         <div class="secao-topo">
           <h2>Carteira</h2>
@@ -1593,6 +1624,19 @@
               <option value="DORMINDO">Dormindo</option>
               <option value="PERDIDO">Sem comprar há mais de um ano</option>
               <option value="SEM_DATA">Sem data de compra</option>
+            </select>
+          </div>
+          <div class="campo">
+            <label for="fClienteCategoria">Comportamento</label>
+            <select id="fClienteCategoria">
+              <option value="">Todos</option>
+              <option value="REGULAR_E_SUMIU">Comprava todo mês e parou</option>
+              <option value="ESTA_CAINDO">Está caindo</option>
+              <option value="COMPRA_ESPORADICA">Compra esporádica</option>
+              <option value="INATIVO">Inativo</option>
+              <option value="ATIVO">Ativo</option>
+              <option value="SEM_COMPRA_REGISTRADA">Sem compra registrada</option>
+              <option value="SEM_BASE">Sem base para classificar</option>
             </select>
           </div>
           <div class="campo">
@@ -2709,6 +2753,314 @@ function resumirCarteira(clientes, multiplicador = 1) {
 
 
 /* FIM MOTOR CARTEIRA */
+
+/* INICIO MOTOR COMPORTAMENTO */
+/**
+ * Comportamento de compra do cliente — filial 37, Passo Fundo.
+ *
+ * FONTE ÚNICA DA VERDADE: testado pelo vitest E injetado na página pelo
+ * gerador. JavaScript puro, sem import.
+ *
+ * ────────────────────────────────────────────────────────────────────────
+ * DE ONDE VEM CADA CATEGORIA — E O QUE ELA *NÃO* SIGNIFICA
+ *
+ * O relatório de clientes traz quatro colunas de faturamento (a primeira é o
+ * mês corrente, PARCIAL — ver `carteira.js`) e a data da última compra. Isso é
+ * tudo. Não há nota fiscal, não há item comprado, não há histórico além de
+ * quatro meses.
+ *
+ * Portanto:
+ *
+ *   • A categoria descreve o COMPORTAMENTO DE FATURAMENTO em três meses
+ *     fechados. Não descreve o cliente, não descreve o motivo, e não diz o
+ *     que oferecer — a ferramenta não sabe o que ele compra.
+ *   • Coluna não lida é LACUNA, não zero. Um cliente com uma coluna ilegível
+ *     não vira "esporádico" por causa disso: ele fica SEM_BASE.
+ *   • Faturamento zero num mês fechado é informação de verdade (ele não
+ *     comprou). Coluna `null` não é.
+ *
+ * A precedência existe porque as categorias se sobrepõem: quem comprou nos
+ * três meses e sumiu também está, tecnicamente, caindo. Sumir é mais urgente
+ * do que cair, e cair é mais urgente do que ser esporádico.
+ */
+
+/** Meses fechados do relatório. Espelha `MESES_FECHADOS` da carteira. */
+const MESES_FECHADOS_COMP = 3;
+
+/**
+ * Quantos dias sem comprar já contam como "sumiu" / "inativo".
+ *
+ * É a mesma régua da lista de ataque, e ela é escolhida por quem usa
+ * (15/30/45/60/90). Não é um limiar fixo escondido no código.
+ */
+const REGUA_DIAS = [15, 30, 45, 60, 90];
+
+const CATEGORIAS_CLIENTE = ['SEM_BASE', 'SEM_COMPRA_REGISTRADA', 'REGULAR_E_SUMIU',
+  'ESTA_CAINDO', 'COMPRA_ESPORADICA', 'INATIVO', 'ATIVO'];
+
+/** Quanto menor o número, mais cedo a categoria ganha. */
+const PRECEDENCIA_CLIENTE = {
+  SEM_BASE: 0,
+  SEM_COMPRA_REGISTRADA: 1,
+  REGULAR_E_SUMIU: 2,
+  ESTA_CAINDO: 3,
+  COMPRA_ESPORADICA: 4,
+  INATIVO: 5,
+  ATIVO: 6,
+};
+
+const ROTULO_CATEGORIA_CLIENTE = {
+  SEM_BASE: 'sem base para classificar',
+  SEM_COMPRA_REGISTRADA: 'sem compra registrada',
+  REGULAR_E_SUMIU: 'comprava todo mês e parou',
+  ESTA_CAINDO: 'está caindo',
+  COMPRA_ESPORADICA: 'compra esporádica',
+  INATIVO: 'inativo',
+  ATIVO: 'ativo',
+};
+
+/**
+ * O que o vendedor faz com cada categoria.
+ *
+ * Se não há ação, a categoria não deveria existir — mesma regra dos alertas.
+ */
+const ACAO_CATEGORIA_CLIENTE = {
+  SEM_BASE: 'confira o cadastro: o relatório não trouxe faturamento legível deste cliente',
+  SEM_COMPRA_REGISTRADA: 'cadastro sem nenhuma compra no relatório — prospecte do zero ou tire da carteira ativa',
+  REGULAR_E_SUMIU: 'ligue hoje e pergunte o que mudou — ele tinha rotina de compra',
+  ESTA_CAINDO: 'ligue antes de sumir: o faturamento caiu mês a mês',
+  COMPRA_ESPORADICA: 'trate como cliente de oportunidade, não como rotina',
+  INATIVO: 'reative ou tire da carteira ativa',
+  ATIVO: 'mantenha a rotina; não precisa de ação hoje',
+};
+
+/**
+ * Mediana de uma lista de números.
+ *
+ * Anda ao lado da média em toda a tela de clientes porque as duas contam
+ * histórias diferentes: um cliente com 1.000 / 1.000 / 30.000 tem média
+ * 10.667 e mediana 1.000. A média é o pedido grande; a mediana é a rotina.
+ *
+ * @param {Array<number>} valores
+ * @returns {number|null} `null` quando não há nenhum valor — nunca 0.
+ */
+function medianaDeValores(valores) {
+  const v = (valores || []).filter((x) => typeof x === 'number' && Number.isFinite(x)).slice().sort((a, b) => a - b);
+  if (!v.length) return null;
+  const meio = Math.floor(v.length / 2);
+  return v.length % 2 ? v[meio] : (v[meio - 1] + v[meio]) / 2;
+}
+
+/**
+ * Os meses FECHADOS do cliente, do mais recente para o mais antigo.
+ *
+ * A coluna 0 é o mês corrente e é parcial — ela nunca entra aqui, pelo mesmo
+ * motivo documentado em `carteira.js`: incluí-la derruba tudo que depende
+ * dela em cerca de um terço de um mês.
+ *
+ * @param {{faturamento: Array<number|null>}} cliente
+ * @returns {Array<number|null>} três posições, `null` onde a coluna não foi lida.
+ */
+function fechadosDoCliente(cliente) {
+  const f = (cliente && cliente.faturamento) || [];
+  const saida = [];
+  for (let i = 1; i <= MESES_FECHADOS_COMP; i++) {
+    const v = f[i];
+    saida.push(v === null || v === undefined ? null : Number(v));
+  }
+  return saida;
+}
+
+/**
+ * A mediana do faturamento nos meses fechados.
+ *
+ * @param {{faturamento: Array<number|null>}} cliente
+ * @returns {{mediana: number, mesesUsados: number}|null}
+ */
+function medianaDosFechados(cliente) {
+  const lidos = fechadosDoCliente(cliente).filter((v) => v !== null);
+  if (!lidos.length) return null;
+  return { mediana: medianaDeValores(lidos), mesesUsados: lidos.length };
+}
+
+/**
+ * Categoria de comportamento do cliente.
+ *
+ * `dias` é a distância até a última compra; vem de `diasSemComprar` e pode
+ * ser `null` (cliente sem data no relatório).
+ *
+ * Cada retorno traz `evidencia`: os números concretos que levaram àquela
+ * categoria, para a tela poder responder "por que este cliente apareceu?".
+ * Quando falta dado, `lacuna` diz o que falta — e as duas nunca ficam vazias
+ * ao mesmo tempo.
+ *
+ * @param {{faturamento: Array<number|null>, ultimaCompra: string|null}} cliente
+ * @param {number|null} dias
+ * @param {number} corte régua escolhida por quem usa (15/30/45/60/90)
+ * @returns {{categoria: string, rotulo: string, acao: string, evidencia: string|null, lacuna: string|null}}
+ */
+function categoriaDoCliente(cliente, dias, corte) {
+  const regua = Number.isFinite(Number(corte)) && Number(corte) > 0 ? Number(corte) : 30;
+  const fechados = fechadosDoCliente(cliente);
+  const lidos = fechados.filter((v) => v !== null);
+  const dinheiro = (v) => 'R$ ' + v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  const devolver = (categoria, evidencia, lacuna) => ({
+    categoria,
+    rotulo: ROTULO_CATEGORIA_CLIENTE[categoria],
+    acao: ACAO_CATEGORIA_CLIENTE[categoria],
+    evidencia: evidencia || null,
+    lacuna: lacuna || null,
+  });
+
+  /* Sem nenhuma coluna fechada legível não há comportamento a descrever.
+     Note que isso é diferente de "faturou zero": zero é medição, null não é. */
+  if (!lidos.length) {
+    return devolver('SEM_BASE', null,
+      'nenhum dos ' + MESES_FECHADOS_COMP + ' meses fechados foi lido no relatório');
+  }
+
+  const compradosNosFechados = lidos.filter((v) => v > 0).length;
+  const todosLidos = lidos.length === MESES_FECHADOS_COMP;
+  const semData = dias === null || dias === undefined;
+
+  /* fechados[0] é o mês fechado mais RECENTE. "Caindo" é do passado para o
+     presente: o mais antigo maior que o do meio, e o do meio maior que o
+     mais recente. */
+  const [recente, meio, antigo] = fechados;
+
+  const linhaDoTempo = todosLidos
+    ? dinheiro(antigo) + ' → ' + dinheiro(meio) + ' → ' + dinheiro(recente) + ' nos 3 meses fechados'
+    : lidos.length + ' de ' + MESES_FECHADOS_COMP + ' meses fechados lidos';
+
+  /* 1 — Comprava todo mês e parou. A rotina existia e sumiu: é o caso mais
+         caro da carteira, e por isso ganha de todos os outros. */
+  if (compradosNosFechados === MESES_FECHADOS_COMP && todosLidos && !semData && dias > regua) {
+    return devolver('REGULAR_E_SUMIU',
+      'faturou nos 3 meses fechados (' + linhaDoTempo + ') e está há ' + dias + ' dias sem comprar',
+      null);
+  }
+
+  /* 2 — Está caindo. Exige os três meses lidos e queda estrita: dois meses
+         iguais não são queda, são estabilidade. */
+  if (todosLidos && antigo > meio && meio > recente) {
+    return devolver('ESTA_CAINDO',
+      'faturamento caiu mês a mês: ' + linhaDoTempo,
+      null);
+  }
+
+  /* 3 — Compra esporádica: faturou em no máximo um dos meses fechados, mas
+         faturou em algum. Sem os três meses lidos não dá para afirmar isso,
+         porque a coluna que falta pode ser justamente uma compra. */
+  if (todosLidos && compradosNosFechados > 0 && compradosNosFechados <= 1) {
+    return devolver('COMPRA_ESPORADICA',
+      'faturou em 1 dos 3 meses fechados: ' + linhaDoTempo,
+      null);
+  }
+
+  /* 4 — Inativo: não faturou em nenhum mês fechado lido E passou da régua.
+         Sem data de última compra a segunda metade não é verificável. */
+  if (compradosNosFechados === 0) {
+    if (semData) {
+      /* Zero faturado E sem data NÃO é lacuna: o arquivo diz R$ 0,00 em cada
+         coluna e não traz última compra. Isso descreve o CADASTRO — não prova
+         que o cliente nunca comprou na vida, só que este relatório não tem
+         compra dele. Chamar isso de "sem base" jogava 437 dos 1.142 clientes
+         de Passo Fundo numa caixa que não dizia nada. */
+      return devolver('SEM_COMPRA_REGISTRADA',
+        'R$ 0,00 nos ' + lidos.length + ' meses fechados lidos e sem data de última compra no relatório',
+        null);
+    }
+    if (dias > regua) {
+      return devolver('INATIVO',
+        'não faturou em nenhum dos ' + lidos.length + ' meses fechados e está há ' + dias + ' dias sem comprar',
+        null);
+    }
+  }
+
+  /* 5 — O resto está ativo: comprou dentro da régua, ou comprou em mais de um
+         mês sem cair. */
+  const dentro = semData ? 'comprou nos meses fechados' : 'última compra há ' + dias + ' dias';
+  return devolver('ATIVO',
+    dentro + '; faturou em ' + compradosNosFechados + ' de ' + lidos.length + ' meses fechados lidos',
+    semData ? 'sem data de última compra no relatório' : null);
+}
+
+/**
+ * A lista de ligações de hoje.
+ *
+ * Ordem: primeiro a categoria mais urgente (precedência), depois o dinheiro
+ * que está em jogo — a MEDIANA dos meses fechados, não a média, para que um
+ * pedido grande e único não jogue um cliente esporádico para o topo.
+ *
+ * ATIVO e SEM_BASE ficam de fora: um não precisa de ligação hoje, o outro
+ * precisa de conferência de cadastro, não de telefonema.
+ *
+ * @param {Array<object>} clientes
+ * @param {string} hojeIso
+ * @param {number} corte régua em dias
+ * @param {(cliente: object, hojeIso: string) => number|null} calcularDias
+ * @returns {Array<{cliente: object, dias: number|null, categoria: string, rotulo: string, acao: string, evidencia: string|null, lacuna: string|null, mediana: number|null}>}
+ */
+function listaDeLigacoes(clientes, hojeIso, corte, calcularDias) {
+  /* Fora da lista de hoje: quem está em dia (não precisa), quem não tem base
+     (precisa de conferência de cadastro, não de telefonema) e o cadastro sem
+     compra registrada (é prospecção, não reativação — outro trabalho, outro
+     dia). Os três continuam contados nos blocos acima da lista. */
+  const fora = new Set(['ATIVO', 'SEM_BASE', 'SEM_COMPRA_REGISTRADA']);
+  const linhas = [];
+  for (const c of clientes || []) {
+    if (!c) continue;
+    const dias = calcularDias ? calcularDias(c, hojeIso) : null;
+    const cat = categoriaDoCliente(c, dias, corte);
+    if (fora.has(cat.categoria)) continue;
+    const med = medianaDosFechados(c);
+    linhas.push({
+      cliente: c,
+      dias,
+      categoria: cat.categoria,
+      rotulo: cat.rotulo,
+      acao: cat.acao,
+      evidencia: cat.evidencia,
+      lacuna: cat.lacuna,
+      mediana: med ? med.mediana : null,
+    });
+  }
+  linhas.sort((a, b) => {
+    const pa = PRECEDENCIA_CLIENTE[a.categoria];
+    const pb = PRECEDENCIA_CLIENTE[b.categoria];
+    if (pa !== pb) return pa - pb;
+    /* Mediana desconhecida vai para o fim do próprio bloco: não dá para
+       afirmar que vale mais do que quem tem número medido. */
+    const ma = a.mediana === null ? -1 : a.mediana;
+    const mb = b.mediana === null ? -1 : b.mediana;
+    if (mb !== ma) return mb - ma;
+    return (b.dias || 0) - (a.dias || 0);
+  });
+  return linhas;
+}
+
+/**
+ * Quantos clientes há em cada categoria.
+ *
+ * Serve para a tela dizer o tamanho de cada bloco antes de abrir a lista.
+ *
+ * @returns {Record<string, number>} toda categoria presente, inclusive com 0 —
+ *   aqui zero é contagem medida, não ausência de dado.
+ */
+function contarCategorias(clientes, hojeIso, corte, calcularDias) {
+  const conta = {};
+  for (const k of CATEGORIAS_CLIENTE) conta[k] = 0;
+  for (const c of clientes || []) {
+    if (!c) continue;
+    const dias = calcularDias ? calcularDias(c, hojeIso) : null;
+    conta[categoriaDoCliente(c, dias, corte).categoria] += 1;
+  }
+  return conta;
+}
+
+
+/* FIM MOTOR COMPORTAMENTO */
 
 /* INICIO MOTOR FILIAIS */
 /**
@@ -6081,7 +6433,7 @@ const guardarPacoteTecnico = () => gravarVerificado(
 const guardarVendaRede = () => comLoja('readwrite', (l) => l.put({ id: '__vendaRede', filiais: estado.vendaRede }));
 const guardarPraca = () => comLoja('readwrite', (l) => l.put({ id: '__praca', ff: estado.praca }));
 const guardarClientes = () => gravarVerificado(
-  { id: '__carteiras', em: new Date().toISOString(), carteiras: estado.carteiras, metaFator: estado.metaFator },
+  { id: '__carteiras', em: new Date().toISOString(), carteiras: estado.carteiras, metaFator: estado.metaFator, regua: estado.reguaClientes },
   (r) => Object.values(r.carteiras || {}).reduce((t, c) => t + (c.clientes || []).length, 0));
 const lerEnvios = () => comLoja('readonly', (l) => l.getAll());
 const removerEnvio = (id) => comLoja('readwrite', (l) => l.delete(id));
@@ -6147,8 +6499,12 @@ const estado = {
   /* Multiplicador da meta. 1 = repetir a média dos meses fechados. Quem
      gerencia escolhe; a página não inventa crescimento. */
   metaFator: 1,
-  filtrosClientes: { busca: '', situacao: '', vendedor: '' },
+  /* Régua da lista de ligações, em dias. Quem trabalha a carteira escolhe;
+     o código não decide por ele. 30 é onde a lista de ataque já estava. */
+  reguaClientes: CORTE_INATIVIDADE,
+  filtrosClientes: { busca: '', situacao: '', vendedor: '', categoria: '' },
   limiteClientes: 50,
+  limiteLigacoes: 25,
   bancoOk: true,
 };
 
@@ -8158,6 +8514,8 @@ function clientesFiltrados() {
   return lista.filter((c) => {
     if (busca && !chave(c.nome + ' ' + c.codigo).includes(busca)) return false;
     if (f.vendedor && c.vendedor !== f.vendedor) return false;
+    if (f.categoria &&
+      categoriaDoCliente(c, diasSemComprar(c, hoje), estado.reguaClientes).categoria !== f.categoria) return false;
     if (!f.situacao) return true;
     if (f.situacao === 'PARADO') return clienteParou(c, hoje, estado.metaFator);
     if (f.situacao === 'INATIVO30') {
@@ -8178,11 +8536,97 @@ const porTamanho = (a, b) => {
 
 const TOM_SITUACAO = { ATIVO: 'saudavel', ESFRIANDO: 'atencao', DORMINDO: 'critico', PERDIDO: 'neutro', SEM_DATA: 'neutro' };
 
+/* Tom de cada comportamento. A cor NUNCA carrega o significado sozinha: o
+   rótulo de texto vai junto, sempre, em toda etiqueta desta tela. */
+const TOM_CATEGORIA = {
+  SEM_COMPRA_REGISTRADA: 'neutro',
+  REGULAR_E_SUMIU: 'critico',
+  ESTA_CAINDO: 'atencao',
+  COMPRA_ESPORADICA: 'neutro',
+  INATIVO: 'critico',
+  ATIVO: 'saudavel',
+  SEM_BASE: 'neutro',
+};
+
+/**
+ * A lista de ligações de hoje, com a régua escolhida na tela.
+ *
+ * Fica fora de `renderLigacoes` porque a contagem do selo e o CSV precisam
+ * dela sem montar a tabela.
+ */
+function ligacoesDeHoje() {
+  return listaDeLigacoes(clientesVisiveis(), hojeIso(), estado.reguaClientes, diasSemComprar);
+}
+
+function renderLigacoes() {
+  const hoje = hojeIso();
+  const todos = clientesVisiveis();
+  const regua = estado.reguaClientes;
+  $('#fRegua').value = String(regua);
+
+  const conta = contarCategorias(todos, hoje, regua, diasSemComprar);
+  const lista = ligacoesDeHoje();
+
+  /* Os blocos contam a carteira inteira, inclusive as categorias que não
+     viram ligação. Esconder ATIVO faria a soma não fechar com o total. */
+  $('#blocosLigacoes').innerHTML = '<div class="placas">' + CATEGORIAS_CLIENTE.map((cat) => placa({
+    rotulo: ROTULO_CATEGORIA_CLIENTE[cat].charAt(0).toUpperCase() + ROTULO_CATEGORIA_CLIENTE[cat].slice(1),
+    valor: n(conta[cat]),
+    rodape: esc(ACAO_CATEGORIA_CLIENTE[cat]),
+    tom: TOM_CATEGORIA[cat] || 'neutro',
+  })).join('') + '</div>';
+
+  $('#notaLigacoes').textContent = lista.length
+    ? n(lista.length) + ' de ' + n(todos.length) + ' clientes pedem telefonema com a régua de ' +
+      regua + ' dias. Ficam de fora quem está em dia, quem não tem base e o cadastro sem compra ' +
+      'registrada — nenhum dos três é telefonema de hoje. Todos continuam contados nos blocos acima.'
+    : 'Nenhum cliente pede telefonema com a régua de ' + regua + ' dias. ' +
+      'Aumente ou diminua a régua para ver outra faixa.';
+
+  const varias = carteirasVisiveis().length > 1;
+  $('#cabLigacoes').innerHTML = '<th>Cliente</th>' + (varias ? '<th>Praça</th>' : '') +
+    '<th>Comportamento</th><th class="dir">Sem comprar</th>' +
+    '<th class="dir">Mediana fechada</th><th class="dir">Média fechada</th>' +
+    '<th>O que fazer</th><th>Por que apareceu</th>';
+
+  const mostrados = lista.slice(0, estado.limiteLigacoes);
+  $('#corpoLigacoes').innerHTML = mostrados.length ? mostrados.map((l) => {
+    const c = l.cliente;
+    const media = mediaDosFechados(c.faturamento);
+    return '<tr>' +
+      '<td><b style="font-weight:600">' + esc(c.nome) + '</b>' +
+        '<div class="num" style="font-size:12px;color:var(--tinta-3)">' + esc(c.codigo) +
+        (c.vendedor ? ' · vendedor ' + esc(c.vendedor) : '') + '</div></td>' +
+      (varias ? '<td>' + esc(c.__praca || '—') + '</td>' : '') +
+      '<td><span class="etiqueta" data-tom="' + (TOM_CATEGORIA[l.categoria] || 'neutro') + '">' +
+        esc(l.rotulo) + '</span></td>' +
+      '<td class="dir num">' + (l.dias === null ? AUSENTE.vazio : n(l.dias) + ' dias') + '</td>' +
+      /* Mediana e média lado a lado de propósito: uma é a rotina, a outra
+         inclui o pedido grande. Ver as duas evita tratar um pedido único
+         como se fosse hábito. */
+      '<td class="dir num">' + (l.mediana === null ? AUSENTE.vazio : rs(l.mediana)) + '</td>' +
+      '<td class="dir num">' + (media ? rs(media.media) : AUSENTE.vazio) + '</td>' +
+      '<td style="max-width:260px">' + esc(l.acao) + '</td>' +
+      '<td style="max-width:320px;font-size:12.5px;color:var(--tinta-2)">' +
+        (l.evidencia ? esc(l.evidencia) : '') +
+        (l.lacuna ? '<div class="ausente">falta: ' + esc(l.lacuna) + '</div>' : '') + '</td>' +
+      '</tr>';
+  }).join('') : '<tr><td colspan="8" style="padding:14px;color:var(--tinta-2)">' +
+    'Nenhuma ligação com a régua de ' + regua + ' dias. Mude a régua acima.</td></tr>';
+
+  const restam = lista.length - mostrados.length;
+  $('#btMaisLigacoes').hidden = restam <= 0;
+  $('#btMaisLigacoes').textContent = 'Mostrar mais ' + n(Math.min(25, restam)) + ' de ' + n(restam) + ' restantes';
+  $('#btCsvLigacoes').disabled = !lista.length;
+}
+
 function renderClientes() {
   const temCarteira = Object.values(estado.carteiras || {}).some((c) => (c.clientes || []).length);
   $('#clientesVazio').classList.toggle('oculto', temCarteira);
   $('#clientesConteudo').classList.toggle('oculto', !temCarteira);
   if (!temCarteira) return;
+
+  renderLigacoes();
 
   const todos = clientesVisiveis();
   const hoje = hojeIso();
@@ -8248,7 +8692,8 @@ function renderClientes() {
 
   const varias = carteiras.length > 1;
   $('#cabClientes').innerHTML =
-    '<th>Cliente</th>' + (varias ? '<th>Praça</th>' : '') + '<th>Situação</th><th class="dir">Última compra</th>' +
+    '<th>Cliente</th>' + (varias ? '<th>Praça</th>' : '') +
+    '<th>Situação</th><th>Comportamento</th><th class="dir">Última compra</th>' +
     rotulos.map((r) => '<th class="dir">' + esc(r.rotulo) + (r.parcial ? '<br><span style="font-weight:400;color:var(--tinta-3)">parcial</span>' : '') + '</th>').join('') +
     '<th class="dir">Média fechada</th><th class="dir">Meta</th><th class="dir">Falta</th>';
 
@@ -8256,6 +8701,7 @@ function renderClientes() {
   const mostrados = lista.slice(0, estado.limiteClientes);
   $('#corpoClientes').innerHTML = mostrados.length ? mostrados.map((c) => {
     const sit = situacaoDoCliente(c, hoje);
+    const cat = categoriaDoCliente(c, diasSemComprar(c, hoje), estado.reguaClientes);
     const m = metaDoCliente(c, fator);
     const media = mediaDosFechados(c.faturamento);
     const parcial = c.faturamento[0];
@@ -8266,6 +8712,8 @@ function renderClientes() {
         (c.vendedor ? ' · vendedor ' + esc(c.vendedor) : '') + '</div></td>' +
       (varias ? '<td>' + esc(c.__praca || '—') + '</td>' : '') +
       '<td><span class="etiqueta" data-tom="' + (TOM_SITUACAO[sit.situacao] || 'neutro') + '">' + esc(sit.rotulo) + '</span></td>' +
+      '<td><span class="etiqueta" data-tom="' + (TOM_CATEGORIA[cat.categoria] || 'neutro') + '" title="' +
+        esc(cat.evidencia || cat.lacuna || '') + '">' + esc(cat.rotulo) + '</span></td>' +
       '<td class="dir num">' + (c.ultimaCompra ? dataBr(c.ultimaCompra) +
         '<div style="font-size:12px;color:var(--tinta-3)">' + esc(haDias(sit.dias)) + '</div>' : '—') + '</td>' +
       c.faturamento.map((v) => '<td class="dir num">' + rs(v) + '</td>').join('') +
@@ -8277,7 +8725,7 @@ function renderClientes() {
         ? '<span style="color:var(--saudavel)">meta batida</span>'
         : rs(falta)) + '</td>' +
       '</tr>';
-  }).join('') : '<tr><td colspan="11" style="padding:14px;color:var(--tinta-2)">' +
+  }).join('') : '<tr><td colspan="12" style="padding:14px;color:var(--tinta-2)">' +
     'Nenhum cliente com esses filtros. Tire a busca ou volte a situação para “Todas”.</td></tr>';
 
   $('#btMaisClientes').hidden = lista.length <= mostrados.length;
@@ -8306,6 +8754,27 @@ function csvDaCarteira(lista) {
         .concat([valor(media ? media.media : null), valor(m.meta),
           m.meta === null ? m.motivo : 'media de ' + m.mesesUsados + ' meses fechados x ' + estado.metaFator,
           valor(falta)]);
+    }));
+}
+
+/**
+ * A lista de ligações em planilha.
+ *
+ * Leva a evidência e a lacuna junto, para que quem receber a planilha possa
+ * conferir por que cada cliente está ali — o mesmo texto que a tela mostra.
+ */
+function csvDasLigacoes(lista) {
+  const valor = (v) => (v === null || v === undefined ? '' : v.toFixed(2).replace('.', ','));
+  return paraCsv(
+    ['Codigo', 'Cliente', 'Praca', 'Vendedor', 'Comportamento', 'Dias sem comprar',
+      'Mediana fechada', 'Media fechada', 'O que fazer', 'Por que apareceu', 'Falta'],
+    lista.map((l) => {
+      const c = l.cliente;
+      const media = mediaDosFechados(c.faturamento);
+      return [c.codigo, c.nome, c.__praca || '', c.vendedor || '', l.rotulo,
+        l.dias === null ? '' : l.dias,
+        valor(l.mediana), valor(media ? media.media : null),
+        l.acao, l.evidencia || '', l.lacuna || ''];
     }));
 }
 
@@ -9630,12 +10099,34 @@ liga('#fClienteBusca', 'input', (e) => {
   estado.limiteClientes = 50;
   renderClientes();
 });
-['fClienteSituacao', 'fClienteVendedor'].forEach((id) =>
+const CAMPO_DO_FILTRO_CLIENTE = {
+  fClienteSituacao: 'situacao', fClienteVendedor: 'vendedor', fClienteCategoria: 'categoria',
+};
+Object.keys(CAMPO_DO_FILTRO_CLIENTE).forEach((id) =>
   liga('#' + id, 'change', (e) => {
-    estado.filtrosClientes[id === 'fClienteSituacao' ? 'situacao' : 'vendedor'] = e.target.value;
+    estado.filtrosClientes[CAMPO_DO_FILTRO_CLIENTE[id]] = e.target.value;
     estado.limiteClientes = 50;
     renderClientes();
   }));
+/* A régua muda quem é "sumido". Muda a lista de ligações, o selo da aba e o
+   filtro de comportamento da carteira — por isso remonta a tela inteira. */
+liga('#fRegua', 'change', async (e) => {
+  const dias = Number(e.target.value);
+  if (!REGUA_DIAS.includes(dias)) return;
+  estado.reguaClientes = dias;
+  estado.limiteLigacoes = 25;
+  estado.limiteClientes = 50;
+  renderClientes();
+  atualizarSelos();
+  try { if (Object.keys(estado.carteiras).length) await guardarClientes(); }
+  catch (err) { estado.gravacao = { ok: false, em: null, erro: err.message || String(err) }; }
+});
+liga('#btMaisLigacoes', 'click', () => { estado.limiteLigacoes += 25; renderLigacoes(); });
+liga('#btCsvLigacoes', 'click', () => {
+  const lista = ligacoesDeHoje();
+  if (!lista.length) { recado('Nenhuma ligação hoje', 'Mude a régua antes de baixar.', 'erro'); return; }
+  baixar('ligacoes-de-hoje.csv', csvDasLigacoes(lista), 'text/csv');
+});
 liga('#fClienteFilial', 'change', (e) => {
   estado.filialClientes = e.target.value;
   estado.limiteClientes = 50;
@@ -9917,7 +10408,7 @@ liga('#btApagar', 'click', async () => {
 /* Carimbo de versão, trocado por scripts/gerar-plataforma.mjs na geração.
    Fica com o valor literal quando alguém abre plataforma/corpo.html direto,
    que é justamente o aviso de que aquele arquivo não é o publicado. */
-const VERSAO = { data: '26/08/2026 11:30', commit: '9cd613d+alteracoes-nao-commitadas', gerado: '26/08/2026, 11:33' };
+const VERSAO = { data: '26/08/2026 11:33', commit: 'd3b2f1c+alteracoes-nao-commitadas', gerado: '26/08/2026, 11:50' };
 
 const PRACA_DO_ENDERECO = (() => {
   try { return reconhecerFilial(String(location.hostname || '').replace(/\./g, ' ')) || null; }
@@ -11029,6 +11520,7 @@ $('#logo').src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAOAAAAB4CAIAAABk
     if (carteiras) {
       estado.carteiras = carteiras.carteiras || {};
       if (carteiras.metaFator) estado.metaFator = carteiras.metaFator;
+      if (REGUA_DIAS.includes(Number(carteiras.regua))) estado.reguaClientes = Number(carteiras.regua);
     }
     /* Base gravada antes de existir carteira por filial: entra como a praça
        desta análise, que é de onde ela veio. Migrar aqui evita pedir o

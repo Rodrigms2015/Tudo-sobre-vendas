@@ -1695,6 +1695,26 @@
 
     <div class="secao">
       <div class="secao-topo">
+        <h2>Cobertura dos dados</h2>
+        <span class="nota" id="notaCobertura"></span>
+      </div>
+      <div class="rolo">
+        <table>
+          <thead><tr>
+            <th>Fonte</th><th>O que ela responde</th><th>Situação</th>
+            <th>Período que ela cobre</th><th>O que ela ainda não cobre</th>
+          </tr></thead>
+          <tbody id="corpoCobertura"></tbody>
+        </table>
+      </div>
+      <p class="nota" style="margin-top:10px">
+        Cada linha vazia aqui é uma pergunta que a ferramenta <b>não</b> vai responder.
+        Ela prefere dizer que não sabe a inventar um número que parece certo.
+      </p>
+    </div>
+
+    <div class="secao">
+      <div class="secao-topo">
         <h2>Versão desta página</h2>
         <span class="nota">Confira aqui se a mudança que você pediu já está no ar.</span>
       </div>
@@ -3074,7 +3094,12 @@ function analisar(itens, mapaMarcas = {}, resumo = null, tabelaMarcas = null) {
      existe e derrubaria a nota de itens que vendem bem. */
   let cobertura = 0, abrangente = false;
   if (resumo) {
-    const noRelatorio = itens.filter((i) => resumo.demanda.has(i.interno)).length;
+    /* Alcance do RELATÓRIO, não da venda classificada: uma peça que só teve
+       transferência continua tendo sido MEDIDA — o que ela não teve foi
+       venda. Confundir as duas zerava esta cobertura antes de alguém
+       classificar o primeiro TR. */
+    const alcance = resumo.tocados || resumo.demanda;
+    const noRelatorio = itens.filter((i) => alcance.has(i.interno)).length;
     cobertura = itens.length ? noRelatorio / itens.length : 0;
     abrangente = cobertura >= 0.5;
     resumo.cobertura = cobertura;
@@ -3681,6 +3706,9 @@ function resumirDemanda(movimentos) {
   const dias = Math.max(1, Math.round((fim - inicio) / DIA) + 1);
 
   const porProduto = new Map();
+  /* Peças com QUALQUER saída no arquivo, venda ou não. Mede o alcance do
+     relatório sobre o cadastro; ver o comentário no laço abaixo. */
+  const tocados = new Set();
   const porMes = new Map();
   const codigosTr = new Map();
   const porFilialGeral = new Map();
@@ -3698,6 +3726,13 @@ function resumirDemanda(movimentos) {
       const c = codigosTr.get(k); c.linhas++; c.unidades += m.qtd;
     }
     if (m.tp !== 'S') continue;
+    /* Alcance do RELATÓRIO: toda peça que aparece com saída, classificada ou
+       não. É diferente do alcance da VENDA (`coberturaVenda`), e a diferença
+       importa: antes de classificar os TRs, a venda medida é zero, mas o
+       arquivo continua alcançando as mesmas peças. Misturar as duas fazia a
+       tela dizer "a movimentação cobre 0,0% do cadastro" sobre um arquivo de
+       228 dias que estava inteiro ali. */
+    tocados.add(m.produto);
     /* AQUI estava o defeito: toda saída virava demanda. Transferência entre
        filiais mandava comprar de novo o que só mudou de prateleira. Agora só
        entra o que quem conhece o ERP classificou como venda — e o que falta
@@ -3767,6 +3802,8 @@ function resumirDemanda(movimentos) {
        "fração do CADASTRO que o relatório alcança". São duas coberturas
        diferentes, e trocá-las fazia a tela dizer "0,0% do cadastro". */
     coberturaVenda: coberturaDeVenda(movimentos, estado.classificacaoTr),
+    /* Peças alcançadas pelo relatório, independentemente de classificação. */
+    tocados,
     trs: resumirTrs(movimentos),
     demanda, dias,
     inicio: new Date(inicio).toISOString().slice(0, 10),
@@ -3954,6 +3991,7 @@ const emUnidades = (q) => plural(q, 'unidade', 'unidades');
 const emItens = (q) => plural(q, 'item', 'itens');
 const emFiliais = (q) => plural(q, 'filial irmã', 'filiais irmãs');
 const emClientes = (q) => plural(q, 'cliente', 'clientes');
+const emPracas = (q) => plural(q, 'praça', 'praças');
 const dataBr = (iso) => new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 const horaBr = (iso) => new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
@@ -5745,7 +5783,178 @@ function renderEvolucao() {
 
 /* ─── 19. Dados e qualidade ──────────────────────────────────────── */
 
+/**
+ * Cobertura dos dados: uma linha por fonte, dizendo o que ela responde, o
+ * período que ela alcança e — a parte que importa — o que ela NÃO cobre.
+ *
+ * Existe porque a pergunta mais cara desta ferramenta não é "quanto comprar",
+ * é "com o que eu estou decidindo isso". Uma filial sem movimentação
+ * carregada não vendeu zero: ela não foi medida. As duas coisas levam a
+ * decisões opostas e a tela nunca pode deixar as duas com a mesma cara.
+ *
+ * @returns {Array<{fonte, responde, ok, situacao, periodo, buraco}>}
+ */
+function coberturaDosDados() {
+  const st = situacaoDoSistema();
+  const R = estado.resumoDemanda;
+  const linhas = [];
+  const periodoDe = (ini, fim, dias) => (ini && fim
+    ? dataBr(ini) + ' a ' + dataBr(fim) + (dias ? ' · ' + n(dias) + ' dias' : '')
+    : null);
+
+  /* 1 — Estoque desta praça. Sem ele não há saldo, e sem saldo não há
+     compra: é a única fonte de que tudo o mais depende. */
+  linhas.push({
+    fonte: 'Estoque de ' + nomeAqui(),
+    responde: 'quanto tem aqui agora, e de que peça',
+    ok: st.estoque.ok,
+    situacao: st.estoque.ok ? n(st.estoque.itens) + ' peças no cadastro' : 'não carregado',
+    periodo: st.estoque.ok ? 'foto de ' + dataBr(st.estoque.data) : null,
+    buraco: st.estoque.ok
+      ? 'é uma FOTO, não um filme: não diz o que saiu, só o que sobrou'
+      : 'sem o relatório de estoque nenhuma tela de compra funciona',
+  });
+
+  /* 2 — Movimentação. É o filme. A cobertura que importa aqui é dupla:
+     quanto do CADASTRO ela alcança, e quanto das SAÍDAS é venda de fato. */
+  const cv = R && R.coberturaVenda;
+  linhas.push({
+    fonte: 'Movimentação de ' + nomeAqui(),
+    responde: 'o que saiu, quando saiu e por qual documento',
+    ok: st.movimentacao.ok,
+    situacao: st.movimentacao.ok
+      ? n(st.movimentacao.lancamentos) + ' lançamentos · ' +
+        (R.tocados ? n(R.tocados.size) + ' peças com saída' : AUSENTE.indeterminado)
+      : 'não carregada',
+    situacaoEhHtml: true,
+    periodo: st.movimentacao.ok ? periodoDe(R.inicio, R.fim, R.dias) : null,
+    buraco: !st.movimentacao.ok
+      ? 'sem ela a demanda é desconhecida — a tela não estima venda por saldo'
+      : (R.cobertura !== null && R.cobertura !== undefined
+          ? 'alcança ' + pct(R.cobertura) + ' do cadastro. As peças de fora não tiveram saída no período — ' +
+            'isso NÃO prova que não giram, e alcance do arquivo não é o mesmo que venda medida'
+          : 'não deu para medir quanto do cadastro ela alcança'),
+  });
+
+  /* 3 — Classificação dos TRs. Enquanto ela não existe, saída não é venda, e
+     a tela mostra a lacuna em vez de um número inflado por transferência. */
+  const trsSaida = R ? (R.trs || []).filter((t) => t.tp === 'S') : [];
+  const classificados = trsSaida.filter((t) => estado.classificacaoTr[t.chave]).length;
+  linhas.push({
+    fonte: 'Classificação dos códigos de movimento',
+    responde: 'quais saídas são VENDA e quais são transferência, ajuste ou devolução',
+    ok: !!(cv && cv.pctLinhas !== null),
+    situacao: !R ? 'depende da movimentação'
+      : classificados + ' de ' + trsSaida.length + ' códigos de saída classificados',
+    /* Com nada classificado, a venda medida não é 0% — ela é desconhecida.
+       Mostrar "0,0%" aqui convidaria a ler o arquivo como "não vendeu nada". */
+    periodo: !R ? null
+      : (cv && cv.semClassificacao
+          ? AUSENTE.indeterminado + ' — nada classificado, então não há venda medida a mostrar'
+          : (cv && cv.pctLinhas !== null
+              ? pct(cv.pctLinhas) + ' das saídas viraram venda medida' +
+                (cv.pctUnidades !== null ? ' (' + pct(cv.pctUnidades) + ' das unidades)' : '')
+              : null)),
+    periodoEhHtml: true,
+    buraco: !R ? 'carregue a movimentação primeiro'
+      : (cv && cv.semClassificacao
+          ? 'nenhum código de saída foi classificado ainda: a venda medida fica em branco, não em zero'
+          : (classificados < trsSaida.length
+              ? n(trsSaida.length - classificados) + ' de ' + n(trsSaida.length) +
+                ' códigos de saída ainda sem classificação não entram em nenhuma conta de venda'
+              : 'nenhum código de saída ficou de fora')),
+  });
+
+  /* 4 — Carteira de clientes. Independente do estoque de propósito. */
+  const carteiras = Object.values(estado.carteiras || {});
+  const totalClientes = carteiras.reduce((t, c) => t + (c.clientes || []).length, 0);
+  linhas.push({
+    fonte: 'Carteira de clientes',
+    responde: 'quem comprava e parou, e quanto cada um faturou em quatro meses',
+    ok: totalClientes > 0,
+    situacao: totalClientes
+      ? n(totalClientes) + ' clientes em ' + emPracas(carteiras.length)
+      : 'não carregada',
+    periodo: totalClientes ? 'quatro colunas de faturamento; a primeira é o mês corrente, parcial' : null,
+    /* Este é o limite mais importante da ferramenta inteira e ele fica
+       escrito na tela, não só no código. */
+    buraco: totalClientes
+      ? 'não existe cliente × produto: a ferramenta nunca dirá qual peça oferecer a qual cliente'
+      : 'sem ela não há lista de ligações nem meta por cliente',
+  });
+
+  /* 5 e 6 — As irmãs. Estoque e venda são duas fontes diferentes: dá para ter
+     o saldo de Londrina sem ter a venda dela, e o contrário também. */
+  const estoquesIrmaos = Object.values(estado.rede || {});
+  linhas.push({
+    fonte: 'Estoque das filiais irmãs',
+    responde: 'quem na rede tem a peça que falta aqui',
+    ok: estoquesIrmaos.length > 0,
+    situacao: estoquesIrmaos.length
+      ? emPracas(estoquesIrmaos.length) + ': ' + estoquesIrmaos.map((f) => f.nome).join(', ')
+      : 'nenhuma carregada',
+    periodo: estoquesIrmaos.length
+      ? estoquesIrmaos.map((f) => f.nome + ' em ' + dataBr(f.dataISO)).join(' · ') : null,
+    buraco: estoquesIrmaos.length
+      ? 'saldo não é folga: ter a peça não quer dizer que ela pode ceder'
+      : 'sem elas a tela não sabe de onde transferir',
+  });
+
+  const vendasIrmas = Object.values(estado.vendaRede || {});
+  linhas.push({
+    fonte: 'Movimentação das filiais irmãs',
+    responde: 'o que gira na rede — e a que ritmo, em cada praça',
+    ok: vendasIrmas.length > 0,
+    situacao: vendasIrmas.length
+      ? emPracas(vendasIrmas.length) + ': ' + vendasIrmas.map((f) => f.nome).join(', ')
+      : 'nenhuma carregada',
+    /* Cada irmã tem o SEU período. Somar unidades de janelas diferentes é o
+       erro clássico desta tela, e por isso o período aparece uma a uma. */
+    periodo: vendasIrmas.length
+      ? vendasIrmas.map((f) => f.nome + ': ' + (periodoDe(f.inicio, f.fim) || 'sem data')).join(' · ')
+      : null,
+    buraco: vendasIrmas.length
+      ? 'cada praça mediu um período diferente — a taxa por dia é comparável, o total de unidades não'
+      : 'filial sem movimentação carregada aparece como NÃO OBSERVADA, nunca como “vendeu zero”',
+  });
+
+  /* 7 — Pacote técnico. Texto de consulta, e nada além disso. */
+  const pt = (estado.pacoteTecnico || {}).pacotes || [];
+  linhas.push({
+    fonte: 'Pacote técnico (PDF do catálogo)',
+    responde: 'que peças o catálogo lista juntas dentro de um mesmo conjunto',
+    ok: pt.length > 0,
+    situacao: pt.length ? n(pt.length) + ' conjuntos lidos' : 'não carregado',
+    periodo: pt.length ? 'catálogo, sem data de vigência no arquivo' : null,
+    /* R1 do CLAUDE.md, escrito onde o usuário lê. */
+    buraco: 'é TEXTO DE CONSULTA: não afirma que uma peça serve num veículo, e nunca vai afirmar',
+  });
+
+  return linhas;
+}
+
+function renderCobertura() {
+  const linhas = coberturaDosDados();
+  const prontas = linhas.filter((l) => l.ok).length;
+  $('#notaCobertura').textContent = prontas + ' de ' + linhas.length +
+    ' fontes carregadas. O que falta está escrito abaixo, linha por linha.';
+  $('#corpoCobertura').innerHTML = linhas.map((l) =>
+    '<tr>' +
+    '<td><b style="font-weight:600">' + esc(l.fonte) + '</b></td>' +
+    '<td style="max-width:230px">' + esc(l.responde) + '</td>' +
+    '<td><span class="etiqueta" data-tom="' + (l.ok ? 'saudavel' : 'neutro') + '">' +
+      (l.ok ? 'carregada' : 'falta') + '</span>' +
+      '<div style="font-size:12.5px;color:var(--tinta-2);margin-top:4px">' +
+      (l.situacaoEhHtml ? l.situacao : esc(l.situacao)) + '</div></td>' +
+    '<td style="max-width:280px;font-size:12.5px">' +
+      (l.periodo ? (l.periodoEhHtml ? l.periodo : esc(l.periodo))
+        : AUSENTE.naoCarregado('Esta fonte ainda não foi carregada.')) + '</td>' +
+    '<td style="max-width:320px;font-size:12.5px;color:var(--tinta-2)">' + esc(l.buraco) + '</td>' +
+    '</tr>').join('');
+}
+
 function renderDados() {
+  renderCobertura();
   const st = situacaoDoSistema();
   const cartao = ({ rot, ok, valor, linhas, acao }) =>
     '<div class="ficha" style="border-left:4px solid ' + (ok ? 'var(--saudavel)' : 'var(--borda-forte)') + '">' +

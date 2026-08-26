@@ -7,7 +7,7 @@
 
 import { describe, expect, it } from 'vitest';
 import {
-  CLASSES, chaveTr, classeDe, coberturaDeVenda, ehVenda,
+  CLASSES_TR, chaveTr, classeDe, coberturaDeVenda, ehVenda,
   resumirTrs, saidasNaoClassificadas,
 } from './tr.js';
 
@@ -138,8 +138,8 @@ describe('o que ainda falta classificar', () => {
   });
 
   it('todas classificadas não deixa pendência', () => {
-    const mapa = Object.fromEntries(CLASSES.map((c, i) => [`S·${i}`, c]));
-    const movimentos = CLASSES.map((_, i) => mov('S', String(i)));
+    const mapa = Object.fromEntries(CLASSES_TR.map((c, i) => [`S·${i}`, c]));
+    const movimentos = CLASSES_TR.map((_, i) => mov('S', String(i)));
     expect(saidasNaoClassificadas(movimentos, mapa)).toEqual([]);
   });
 });

@@ -5415,8 +5415,8 @@ function renderTr(R) {
     const atual = estado.classificacaoTr[chave] || '';
     return '<select class="tr-classe" data-chave="' + esc(chave) + '">' +
       '<option value=""' + (atual ? '' : ' selected') + '>— escolher —</option>' +
-      CLASSES.map((c) => '<option value="' + c + '"' + (atual === c ? ' selected' : '') + '>' +
-        esc(ROTULO_CLASSE[c]) + '</option>').join('') +
+      CLASSES_TR.map((c) => '<option value="' + c + '"' + (atual === c ? ' selected' : '') + '>' +
+        esc(ROTULO_CLASSE_TR[c]) + '</option>').join('') +
       '</select>';
   };
 
@@ -6851,7 +6851,9 @@ function renderPraca() {
    Cada decisão diz QUANTO tem para decidir, ou o que falta carregar para
    ela existir. Botão que abre uma tela vazia é botão que perde a confiança
    de quem clica. */
-const DECISOES = [
+/* Nome distinto do `DECISOES` do motor de recomendação, que é outro
+   conceito: aquele classifica uma peça, este lista o que se pode decidir. */
+const DECISOES_CENTRAL = [
   {
     id: 'comprar', vista: 'comprar', titulo: 'Comprar',
     pergunta: 'O que tem evidência local de venda e está sem saldo aqui?',
@@ -6917,7 +6919,7 @@ const DECISOES = [
 function renderCentral() {
   const alvo = $('#listaDecisoes');
   if (!alvo) return;
-  alvo.innerHTML = DECISOES.map((d) => {
+  alvo.innerHTML = DECISOES_CENTRAL.map((d) => {
     let falta = null;
     let quanto = null;
     try { falta = d.falta(); if (!falta) quanto = d.quanto(); }

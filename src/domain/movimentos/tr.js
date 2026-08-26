@@ -33,9 +33,11 @@
  */
 
 /** As classes que quem usa pode atribuir. `desconhecido` não se atribui: é a ausência. */
-const CLASSES = ['venda', 'transferencia', 'ajuste', 'devolucao', 'outro'];
+const CLASSES_TR = ['venda', 'transferencia', 'ajuste', 'devolucao', 'outro'];
 
-const ROTULO_CLASSE = {
+/* Nomes longos de propósito: a página já tem `CLASSES` e `ROTULO_CLASSE`
+   para classe de peça (consumível, desgaste), e o escopo é o mesmo. */
+const ROTULO_CLASSE_TR = {
   venda: 'Venda',
   transferencia: 'Transferência',
   ajuste: 'Ajuste',
@@ -63,7 +65,7 @@ function classeDe(mov, mapa) {
   const k = chaveTr(mov && mov.tp, mov && mov.tr);
   if (!k) return 'desconhecido';
   const c = (mapa || {})[k];
-  return CLASSES.includes(c) ? c : 'desconhecido';
+  return CLASSES_TR.includes(c) ? c : 'desconhecido';
 }
 
 /**
@@ -149,7 +151,7 @@ function coberturaDeVenda(movimentos, mapa) {
   const saidas = zero();
   const venda = zero();
   const porClasse = {};
-  for (const c of CLASSES.concat('desconhecido')) porClasse[c] = zero();
+  for (const c of CLASSES_TR.concat('desconhecido')) porClasse[c] = zero();
 
   for (const m of movimentos || []) {
     if (String(m && m.tp).trim().toUpperCase() !== 'S') continue;
@@ -184,12 +186,12 @@ function coberturaDeVenda(movimentos, mapa) {
  */
 function saidasNaoClassificadas(movimentos, mapa) {
   return resumirTrs(movimentos)
-    .filter((r) => r.tp === 'S' && !CLASSES.includes((mapa || {})[r.chave]));
+    .filter((r) => r.tp === 'S' && !CLASSES_TR.includes((mapa || {})[r.chave]));
 }
 
 export {
-  CLASSES,
-  ROTULO_CLASSE,
+  CLASSES_TR,
+  ROTULO_CLASSE_TR,
   chaveTr,
   classeDe,
   ehVenda,

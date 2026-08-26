@@ -6,8 +6,8 @@ export interface ResumoTr {
   primeira: string | null; ultima: string | null;
 }
 export interface Contagem { linhas: number; unidades: number }
-export const CLASSES: string[];
-export const ROTULO_CLASSE: Record<string, string>;
+export const CLASSES_TR: string[];
+export const ROTULO_CLASSE_TR: Record<string, string>;
 export function chaveTr(tp: unknown, tr: unknown): string;
 export function classeDe(mov: MovimentoTr, mapa: Record<string, string>): string;
 export function ehVenda(mov: MovimentoTr, mapa: Record<string, string>): boolean;

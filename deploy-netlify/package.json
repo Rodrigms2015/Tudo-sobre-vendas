@@ -1,0 +1,10 @@
+{
+  "name": "central-compras-ribeirao-preto",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Publicacao com login da Central de Compras. A pagina sai de plataforma/corpo.html; aqui ficam a porta de entrada e a base compartilhada.",
+  "type": "module",
+  "dependencies": {
+    "@netlify/blobs": "^8.1.0"
+  }
+}

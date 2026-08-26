@@ -112,6 +112,27 @@ registradas** por conta. Com menos que isso ele diz "sem base" em vez de inventa
 | `npm run preview` | Serve o build de produção |
 | `npm run lint` | ESLint com zero tolerância a aviso |
 | `npm run format` | Prettier |
+| `npm run plataforma` | Regera `public/compras.html` e o hash da CSP (roda sozinho no build) |
+
+---
+
+## Central de Compras — filial Ribeirão Preto
+
+Uma página à parte do aplicativo, publicada em **`/compras.html`**, para a decisão de
+**compra** em vez da decisão de visita. Ela lê o relatório de estoque da filial (`.xls` do
+sistema, sem editar) e devolve a lista de compra priorizada, a pauta de oportunidades para
+os vendedores e o cruzamento com a frota da região.
+
+O que ela resolve: o relatório entrega **4.742 itens com saldo zero**, e quase dois terços
+disso não é falta — é o mesmo item cadastrado várias vezes, com saldo parado em um dos
+cadastros. Sobram **1.778 rupturas reais**, e **598** com prioridade de comprar nesta semana.
+
+Como o resto do produto, ela não afirma aplicação técnica, não faz requisição de rede e
+explica toda nota que dá. A partir do segundo envio do mesmo relatório, o consumo do período
+passa a ser medido e a quantidade sugerida deixa de ser referência por classe.
+
+Fonte em [`plataforma/corpo.html`](plataforma/corpo.html); detalhes em
+[`docs/CENTRAL_DE_COMPRAS.md`](docs/CENTRAL_DE_COMPRAS.md).
 
 ---
 
@@ -240,6 +261,7 @@ Escrita **antes** do código, conforme o briefing:
 | [`SECURITY.md`](docs/SECURITY.md) | Modelo de ameaça, CSP, LGPD, checklist |
 | [`DEPLOYMENT.md`](docs/DEPLOYMENT.md) | Comandos exatos, Cloudflare Pages, domínio, rollback |
 | [`ROADMAP.md`](docs/ROADMAP.md) | Fases 1 a 5 e o que **nunca** será feito |
+| [`CENTRAL_DE_COMPRAS.md`](docs/CENTRAL_DE_COMPRAS.md) | A página de compras da filial Ribeirão Preto: motor, fontes e privacidade |
 | [`CLAUDE.md`](CLAUDE.md) | Convenções para quem for continuar o trabalho |
 
 ---

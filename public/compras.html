@@ -6376,6 +6376,10 @@ function resumirDemanda(movimentos) {
       /* Concentração: 100 unidades em 8 meses e 90 num dia dão a mesma média
          e decisões opostas. Medido, nunca descartado em silêncio. */
       concentracao: medirConcentracao(p.saidas, estado.limiarConcentracao),
+      /* Mês a mês desta peça, em ordem. A média esconde o formato da curva:
+         30 unidades por mês durante oito meses e 240 num mês só dão a mesma
+         média e pedem compras opostas. */
+      porMes: [...p.porMes.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1)),
       proprias: p.proprias, fora: p.fora, foraSP: p.foraSP, foraUF: p.foraUF,
       porFilial: [...p.porFilial.entries()].sort((a, b) => b[1] - a[1]),
     });
@@ -7579,6 +7583,63 @@ function pacotesDaPeca(g) {
   return pt.pacotes.filter((p) => codigos.has(p.codigo));
 }
 
+/**
+ * Barras do mês a mês de uma peça. Texto e número junto com a barra, porque
+ * a barra sozinha não é legível para quem enxerga mal nem imprimível.
+ */
+function barrasPorMes(porMes) {
+  if (!porMes || !porMes.length) return '';
+  const maior = Math.max(...porMes.map(([, u]) => u));
+  if (!(maior > 0)) return '';
+  return '<div style="display:grid;gap:3px;margin-top:6px">' + porMes.map(([mes, u]) => {
+    const larg = Math.max(2, Math.round((u / maior) * 100));
+    return '<div style="display:flex;align-items:center;gap:8px;font-size:12px">' +
+      '<span class="num" style="width:62px;color:var(--tinta-3)">' + esc(mes) + '</span>' +
+      '<span style="flex:0 0 ' + larg + '%;height:9px;border-radius:2px;background:var(--marinho)"></span>' +
+      '<span class="num"><b>' + n(Math.round(u)) + '</b></span></div>';
+  }).join('') + '</div>';
+}
+
+/**
+ * O que cada praça irmã VENDEU desta peça, com o período que ela mediu.
+ *
+ * O total de unidades de praças diferentes não é comparável — cada arquivo
+ * cobre uma janela própria. A taxa por dia é. Por isso as duas aparecem
+ * juntas e o período vai escrito em cada linha.
+ *
+ * Quem não teve movimentação carregada aparece como NÃO OBSERVADA. Filial
+ * sem arquivo não vendeu zero: ela não foi medida.
+ */
+function vendaDasIrmasDaPeca(g, it) {
+  const irmas = filiaisIrmas();
+  if (!irmas.length) return [];
+  const k = semSufixo((it && it.produto) || g.codigoFabricaBase).toUpperCase();
+  return irmas.map((f) => {
+    const v = estado.vendaRede[f.ff];
+    const pc = f.pecas[k];
+    const saldo = pc ? (pc.s || 0) : null;
+    if (!v) return { nome: f.nome, saldo, medida: false, motivo: 'movimentação desta filial não carregada' };
+    if (!pc || !pc.i || !pc.i.length) {
+      return { nome: f.nome, saldo, medida: false, motivo: 'esta peça não está no cadastro desta filial' };
+    }
+    let un = 0, achou = false;
+    for (const interno of pc.i) {
+      const reg = v.porInterno[interno];
+      if (reg) { un += reg.u; achou = true; }
+    }
+    const dias = v.inicio && v.fim
+      ? Math.max(1, Math.round((Date.parse(v.fim) - Date.parse(v.inicio)) / DIA) + 1) : null;
+    if (!achou) {
+      return { nome: f.nome, saldo, medida: true, unidades: 0, dias,
+        periodo: v.inicio && v.fim ? dataBr(v.inicio) + ' a ' + dataBr(v.fim) : null,
+        motivo: 'medida no período e sem saída desta peça' };
+    }
+    return { nome: f.nome, saldo, medida: true, unidades: un, dias,
+      periodo: v.inicio && v.fim ? dataBr(v.inicio) + ' a ' + dataBr(v.fim) : null,
+      porDia: dias ? un / dias : null };
+  });
+}
+
 function fichaDaPecaCompleta(g) {
   const it = itemDoGrupo(g);
   const d = it && it.demandaUsada;
@@ -7602,10 +7663,14 @@ function fichaDaPecaCompleta(g) {
   if (preco === null) faltando.push('preço (esta peça não está no Pacote Técnico carregado)');
   if (c && c.fracaoNoMaior === null) faltando.push('concentração (as saídas vieram sem número de documento)');
   if (!irmas.length) faltando.push('estoque das filiais irmãs');
+  if (irmas.length && !Object.keys(estado.vendaRede || {}).length) {
+    faltando.push('venda das filiais irmãs (o saldo delas está carregado, o giro não)');
+  }
   if (!temCusto()) faltando.push('custo — nenhum relatório carregado traz a coluna');
 
   const cobertura = d && d.porDia > 0 && g.estoqueGrupo !== null
     ? Math.floor(g.estoqueGrupo / d.porDia) : null;
+  const naRede = vendaDasIrmasDaPeca(g, it);
 
   return '<div class="ficha-peca">' +
     '<div class="sobrancelha">' + esc(g.codigoFabricaBase) + (g.marca ? ' · ' + esc(g.marca) : '') + '</div>' +
@@ -7667,6 +7732,33 @@ function fichaDaPecaCompleta(g) {
           '</li>').join('') +
         (pacotes.length > 6 ? '<li style="color:var(--tinta-3)">e mais ' + n(pacotes.length - 6) + '</li>' : '') +
         '</ul></div>'
+      : '') +
+    (d && d.porMes && d.porMes.length > 1
+      ? '<div class="cadastros" style="margin-top:12px"><div class="titulo">Mês a mês aqui</div>' +
+        '<p style="font-size:12.5px;color:var(--tinta-2);margin:0">' +
+        'Só a venda classificada, nos ' + plural(d.porMes.length, 'mês medido', 'meses medidos') + '. ' +
+        'Mês sem barra é mês sem venda medida — não é mês sem procura.</p>' +
+        barrasPorMes(d.porMes) + '</div>'
+      : '') +
+    (naRede.length
+      ? '<div class="cadastros" style="margin-top:12px"><div class="titulo">O que a rede fez com esta peça</div>' +
+        '<p style="font-size:12.5px;color:var(--tinta-2);margin:0 0 6px">' +
+        'Cada praça mediu um período próprio. Some as unidades e você soma janelas diferentes; ' +
+        'por isso o ritmo por dia vai junto, e é ele que compara.</p>' +
+        '<div class="rolo"><table><tbody>' + naRede.map((r) =>
+          '<tr><td style="width:34%"><b style="font-weight:600">' + esc(r.nome) + '</b>' +
+          '<div style="font-size:12px;color:var(--tinta-3)">saldo ' +
+            (r.saldo === null ? AUSENTE.vazio : n(r.saldo)) + '</div></td>' +
+          '<td>' + (!r.medida
+            ? AUSENTE.naoCarregado(r.motivo) + ' <span style="font-size:12px;color:var(--tinta-3)">' + esc(r.motivo) + '</span>'
+            : (r.unidades === 0
+              ? AUSENTE.naoObservado + ' <span style="font-size:12px;color:var(--tinta-3)">' + esc(r.motivo) + '</span>'
+              : '<b>' + n(Math.round(r.unidades)) + '</b> un' +
+                (r.porDia ? ' · <b>' + r.porDia.toFixed(2).replace('.', ',') + '</b>/dia' : '') +
+                '<div style="font-size:12px;color:var(--tinta-3)">' +
+                (r.periodo ? esc(r.periodo) : 'período não determinado') +
+                (r.dias ? ' · ' + n(r.dias) + ' dias' : '') + '</div>')) +
+          '</td></tr>').join('') + '</tbody></table></div></div>'
       : '') +
     '<div class="cadastros" style="margin-top:12px"><div class="titulo">Recomendação</div>' +
     (it && it.sugestao
@@ -10617,7 +10709,7 @@ liga('#btApagar', 'click', async () => {
 /* Carimbo de versão, trocado por scripts/gerar-plataforma.mjs na geração.
    Fica com o valor literal quando alguém abre plataforma/corpo.html direto,
    que é justamente o aviso de que aquele arquivo não é o publicado. */
-const VERSAO = { data: '26/08/2026 11:50', commit: '851c79a+alteracoes-nao-commitadas', gerado: '26/08/2026, 11:57' };
+const VERSAO = { data: '26/08/2026 12:00', commit: '70bc356+alteracoes-nao-commitadas', gerado: '26/08/2026, 12:09' };
 
 const PRACA_DO_ENDERECO = (() => {
   try { return reconhecerFilial(String(location.hostname || '').replace(/\./g, ' ')) || null; }
@@ -10802,11 +10894,17 @@ function analisarRedeAgora() {
        dilui quem mediu menos tempo — se uma mediu 232 dias e outra 30, a taxa
        da segunda cai por um período que ela nunca teve. */
     const pracasMedidas = [];
+    /* Praças que TÊM esta peça mas cuja movimentação não foi carregada.
+       Sem isso a coluna dizia "não observado" para uma filial que ninguém
+       mediu — que é o contrário: não observado quer dizer "medi e não saiu".
+       As duas frases levam a decisões opostas. */
+    const pracasSemMedida = [];
     let vendeuNaRede = null;
     for (const f of irmas) {
       const v = estado.vendaRede[f.ff];
       const pc = f.pecas[k];
-      if (!v || !pc || !pc.i || !pc.i.length) continue;
+      if (!pc || !pc.i || !pc.i.length) continue;
+      if (!v) { pracasSemMedida.push(f.nome); continue; }
       let un = 0;
       let achou = false;
       for (const interno of pc.i) {
@@ -10841,6 +10939,7 @@ function analisarRedeAgora() {
       vendeuNaRede,
       pracasComVenda,
       pracasMedidas,
+      pracasSemMedida,
       sugestaoRede,
       /* Força do argumento, e é só isso que a ordenação usa: em quantas
          praças a peça é bem classificada, em quantas ela tem saldo, e o
@@ -11056,10 +11155,16 @@ function renderRede() {
           '<br><span style="color:var(--tinta-3);font-size:12px">conferir no sistema</span>') + '</td>' +
       '<td class="dir">' + n(f.praças) + '</td>' +
       '<td class="dir">' + n(f.unidades) + '</td>' +
+      /* Três estados que a tela nunca pode misturar: medi e não saiu; não
+         medi porque falta o arquivo daquela praça; medi e saiu tanto. */
       '<td class="dir">' + (f.vendeuNaRede === null
-        ? (Object.keys(estado.vendaRede || {}).length
-          ? AUSENTE.naoObservado
-          : AUSENTE.naoCarregado('Nenhuma filial irmã teve a movimentação carregada.'))
+        ? (f.pracasSemMedida && f.pracasSemMedida.length
+          ? AUSENTE.naoCarregado('Sem movimentação de ' + f.pracasSemMedida.join(', ') +
+            ' — a praça que tem esta peça não foi medida.') +
+            '<div style="font-size:12px;color:var(--tinta-3)">falta ' + esc(f.pracasSemMedida.join(', ')) + '</div>'
+          : (Object.keys(estado.vendaRede || {}).length
+            ? AUSENTE.naoObservado
+            : AUSENTE.naoCarregado('Nenhuma filial irmã teve a movimentação carregada.')))
         : '<b>' + n(Math.round(f.vendeuNaRede)) + '</b>' +
           '<div style="font-size:12px;color:var(--tinta-3)">' + plural(f.pracasComVenda, 'praça', 'praças') + '</div>') + '</td>' +
       '<td class="dir">' + (f.sugestaoRede

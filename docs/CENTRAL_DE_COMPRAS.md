@@ -1271,6 +1271,104 @@ Resultado no arquivo real: **7.398 lançamentos de 05/01/2026 a 20/08/2026**, 7.
 
 ---
 
+## 7c. Comportamento do cliente — o que a carteira permite afirmar
+
+O relatório de clientes traz **quatro colunas de faturamento** (a primeira é o mês corrente,
+parcial) e a **data da última compra**. É tudo. Não há nota fiscal, não há item comprado.
+Com isso dá para descrever o comportamento de faturamento — e nada além disso.
+
+**Seis categorias**, cada uma com a ação que o vendedor faz e a evidência que a colocou ali.
+Elas se sobrepõem, então a precedência é explícita (menor ganha):
+
+| # | Categoria | Regra | Ação |
+|---|---|---|---|
+| 0 | `SEM_BASE` | nenhuma das 3 colunas fechadas foi lida | conferir cadastro |
+| 1 | `SEM_COMPRA_REGISTRADA` | R$ 0,00 lido em todas **e** sem data de última compra | prospectar do zero |
+| 2 | `REGULAR_E_SUMIU` | faturou nos 3 fechados **e** passou da régua | ligar hoje |
+| 3 | `ESTA_CAINDO` | 3 fechados lidos e queda estrita mês a mês | ligar antes de sumir |
+| 4 | `COMPRA_ESPORADICA` | faturou em exatamente 1 dos 3 fechados | tratar como oportunidade |
+| 5 | `INATIVO` | R$ 0,00 nos fechados lidos **e** passou da régua | reativar ou tirar da carteira |
+| 6 | `ATIVO` | o resto | manter a rotina |
+
+**A distinção que segura tudo:** coluna ilegível é `null`; R$ 0,00 é medição. A primeira
+versão confundia as duas e jogava **437 dos 1.142 clientes de Passo Fundo** em "sem base".
+Medido no arquivo real: nenhum deles tem coluna ilegível — todos têm R$ 0,00 lido e nenhuma
+data. Isso descreve o **cadastro**, não uma lacuna, e virou categoria própria.
+
+**A régua** de quem é "sumido" (15/30/45/60/90 dias) é escolhida na tela e fica gravada com
+a carteira. Não é um limiar escondido no código.
+
+**A lista de ligações** ordena por precedência e, dentro dela, pela **mediana** dos meses
+fechados — não pela média. Um cliente com 1.000 / 1.000 / 30.000 tem média 10.667 e mediana
+1.000: a média é o pedido grande, a mediana é a rotina. Ordenar pela média empurraria um
+cliente esporádico para o topo da lista de hoje.
+
+Ficam **fora** da lista de ligações, mas contados nos blocos: `ATIVO` (não precisa),
+`SEM_BASE` (precisa de conferência de cadastro) e `SEM_COMPRA_REGISTRADA` (é prospecção,
+outro trabalho).
+
+O que esta tela **nunca** vai fazer: dizer qual peça oferecer a qual cliente. Não existe
+cliente × produto em nenhum relatório carregado, e isso está escrito na tela de Cobertura.
+
+Motor: `src/domain/clientes/comportamento.js` · 26 testes.
+
+---
+
+## 3p. Folga aparente — ter saldo não é poder ceder
+
+A palavra **aparente** não é enfeite. A ferramenta não sabe se a filial pode ceder uma peça:
+não conhece o pedido em carteira dela, o cliente que ela está segurando, nem a compra que
+ela já colocou. Conhece o saldo de uma foto e a saída de um período.
+
+```
+folga aparente = saldo dela × (1 − 20% de reserva)
+                 − (ritmo medido dela × dias de cobertura)
+```
+
+A reserva de 20% não é margem de segurança inventada: é o reconhecimento de que a foto do
+saldo tem dias de atraso e de que a praça tem compromissos que o arquivo não mostra.
+
+**Se a movimentação daquela praça não foi carregada, a folga é `null`** — desconhecida, com
+o motivo escrito. O selo da praça mostra `folga ?`. Não é folga zero e muito menos folga
+inteira: tratar "não medi" como "não vende" mandaria pedir a peça de uma filial que gira
+mais do que a nossa.
+
+Armadilha que o teste pegou: `Number(null)` é `0` e `Number.isFinite(0)` é verdadeiro. Sem
+guarda explícita, saldo ausente virava folga zero **medida** — uma afirmação onde deveria
+haver lacuna.
+
+Motor: `src/domain/compras/folga.js` · 11 testes.
+
+---
+
+## 3q. Cobertura dos dados — a tela que diz com o que você está decidindo
+
+Uma linha por fonte: o que ela responde, o período que alcança e **o que ela não cobre**.
+Sete fontes. Três delas carregam limites que antes existiam só no código:
+
+- não existe cliente × produto;
+- saldo da irmã não é folga;
+- o Pacote Técnico é **texto de consulta** e nunca afirma aplicação (R1 do `CLAUDE.md`).
+
+**Duas coberturas diferentes, que já foram confundidas duas vezes:**
+
+| Nome | O que mede | Onde vive |
+|---|---|---|
+| `cobertura` | fração do **cadastro** que o relatório de movimentação alcança | `analisar()` |
+| `coberturaVenda` | fração das **saídas** que viraram venda classificada | `tr.js` |
+
+Confundi-las fazia a tela dizer "a movimentação cobre 0,0% do cadastro" sobre um arquivo de
+228 dias, porque antes de alguém classificar o primeiro TR não havia venda nenhuma. Uma peça
+que só teve transferência **foi medida**; o que ela não teve foi venda.
+
+E com nada classificado, a venda medida não é 0% — é **N/D**. Mostrar "0,0%" convidaria a
+ler o arquivo como "não vendeu nada".
+
+Medido em Passo Fundo: 4.319 lançamentos, 1.228 peças com saída, 23% do cadastro, 3 códigos
+de saída. Classificando o maior, 95% das saídas viram venda medida (91% das unidades).
+
+---
+
 ## 9. Ao mexer nesta página
 
 1. Edite **`plataforma/corpo.html`** — nunca `public/compras.html` nem

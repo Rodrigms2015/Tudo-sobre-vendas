@@ -1917,6 +1917,9 @@
 /* INICIO MOTOR REDE */
 /* FIM MOTOR REDE */
 
+/* INICIO MOTOR FOLGA */
+/* FIM MOTOR FOLGA */
+
 /* INICIO MOTOR PACOTE TECNICO */
 /* FIM MOTOR PACOTE TECNICO */
 
@@ -8337,6 +8340,20 @@ function analisarRedeAgora() {
     const pracasComVenda = pracasMedidas.length;
     const sugestaoRede = quantidadePelaRede(pracasMedidas, estado.diasCobertura, meu ? meu.s : null);
 
+    /* Quem PODE ceder. Ter saldo não é ter folga: a praça também precisa
+       cobrir o próprio giro. Quem não teve movimentação carregada entra em
+       `semMedida`, nunca como folga cheia. */
+    const paraPedir = dequemPedir(com.map((x) => {
+      const v = estado.vendaRede[x.ff];
+      const medida = pracasMedidas.find((m) => m.ff === x.ff);
+      return {
+        ff: x.ff, nome: x.nome, saldo: x.s,
+        unidades: v ? (medida ? medida.unidades : 0) : null,
+        dias: medida ? medida.dias : (v && v.inicio && v.fim
+          ? Math.max(1, Math.round((Date.parse(v.fim) - Date.parse(v.inicio)) / DIA) + 1) : null),
+      };
+    }), estado.diasCobertura);
+
     const ref = irmas.filter((f) => f.pecas[k]).map((f) => f.pecas[k]);
     const abNaRede = ref.filter((a) => postoCurva(a.c) <= 1).length;
     const melhorLa = Math.min(...ref.map((a) => postoCurva(a.c)));
@@ -8356,6 +8373,7 @@ function analisarRedeAgora() {
       pracasComVenda,
       pracasMedidas,
       pracasSemMedida,
+      paraPedir,
       sugestaoRede,
       /* Força do argumento, e é só isso que a ordenação usa: em quantas
          praças a peça é bem classificada, em quantas ela tem saldo, e o
@@ -8559,9 +8577,24 @@ function renderRede() {
 
   const lista = faltaFiltrada(R);
   const linhasFalta = lista.slice(0, 300).map((f) => {
-    const selos = f.com.map((x) =>
-      '<span class="selo-filial" data-c="' + esc(x.c || '-') + '" title="' + esc(x.nome) + ' — curva ' + esc(x.c || 'sem curva') + ', ' + n(x.s) + ' unidades">' +
-      esc(nomeCurto(x.nome)) + ' <b>' + esc(x.c || '–') + '</b> · ' + n(x.s) + '</span>').join('');
+    /* O selo diz saldo E folga. Ter saldo não é poder ceder: a praça também
+       precisa cobrir o giro dela. Quando não dá para medir, o selo diz
+       "folga ?" — nunca some, nunca finge que a folga é o saldo. */
+    const folgaDe = (ff) => {
+      const p1 = (f.paraPedir.podem || []).find((x) => x.ff === ff);
+      if (p1) return { folga: p1.folga, base: p1.base };
+      const p2 = (f.paraPedir.semMedida || []).find((x) => x.ff === ff);
+      if (p2) return { folga: null, base: p2.motivo || p2.base };
+      return { folga: 0, base: 'ela consome o próprio saldo na janela de ' + n(estado.diasCobertura) + ' dias' };
+    };
+    const selos = f.com.map((x) => {
+      const fg = folgaDe(x.ff);
+      return '<span class="selo-filial" data-c="' + esc(x.c || '-') + '" title="' + esc(x.nome) +
+      ' — curva ' + esc(x.c || 'sem curva') + ', ' + n(x.s) + ' unidades. Folga aparente: ' +
+      (fg.folga === null ? 'desconhecida' : n(fg.folga)) + ' — ' + esc(fg.base) + '">' +
+      esc(nomeCurto(x.nome)) + ' <b>' + esc(x.c || '–') + '</b> · ' + n(x.s) +
+      ' <span style="opacity:.75">· folga ' + (fg.folga === null ? '?' : n(fg.folga)) + '</span></span>';
+    }).join('');
     return '<tr><td>' + esc(f.descricao || '(sem descrição)') +
       '<br><span style="color:var(--tinta-3);font-size:12px">' + esc(f.codigo) +
       (f.original ? ' · orig. ' + esc(f.original) : '') + '</span></td>' +

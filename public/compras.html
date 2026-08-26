@@ -3337,6 +3337,122 @@ function ordenarPorGiro(a, b) {
 
 /* FIM MOTOR REDE */
 
+/* INICIO MOTOR FOLGA */
+/**
+ * Folga aparente de uma praça irmã — o que ela poderia ceder sem se machucar.
+ *
+ * FONTE ÚNICA DA VERDADE: testado pelo vitest E injetado na página pelo
+ * gerador. JavaScript puro, sem import.
+ *
+ * ────────────────────────────────────────────────────────────────────────
+ * POR QUE "APARENTE"
+ *
+ * A palavra não é enfeite. A ferramenta NÃO sabe se a filial pode ceder uma
+ * peça: não conhece o pedido que ela tem em carteira, o cliente que ela está
+ * segurando, nem a compra que ela já colocou. O que ela conhece é o saldo de
+ * uma foto e a saída de um período.
+ *
+ * Então a conta é só esta, e ela é dita com todas as letras na tela:
+ *
+ *     folga aparente = saldo dela − o que ela precisa para os próximos N dias
+ *                      no ritmo que ela mesma mediu
+ *
+ * Se a movimentação daquela praça não foi carregada, o ritmo é DESCONHECIDO
+ * e não existe folga a calcular. Não é folga zero, e muito menos folga
+ * inteira: é `null`, com o motivo escrito. Tratar "não medi" como "não vende"
+ * mandaria pedir a peça de uma filial que gira mais do que a nossa.
+ */
+
+/** Fração do saldo que a conta nunca pede, mesmo com folga de sobra. */
+const RESERVA_MINIMA = 0.2;
+
+/**
+ * Folga aparente de uma praça.
+ *
+ * @param {{saldo: number|null, unidades: number|null, dias: number|null}} praca
+ *   `saldo` é a foto do estoque dela; `unidades` e `dias` vêm da movimentação
+ *   DELA. `unidades` nula significa movimentação não carregada.
+ * @param {number} diasCobertura quantos dias ela precisa cobrir para si
+ * @returns {{folga: number|null, precisa: number|null, porDia: number|null,
+ *            base: string, motivo: string|null}}
+ */
+function folgaAparente(praca, diasCobertura) {
+  const p = praca || {};
+  /* `Number(null)` é 0 e `Number.isFinite(0)` é verdadeiro: sem esta guarda
+     um saldo ausente virava folga zero medida, que é uma afirmação. */
+  const numero = (v) => (v === null || v === undefined || v === '' ? NaN : Number(v));
+  const saldo = numero(p.saldo);
+  const dias = numero(diasCobertura);
+
+  if (!Number.isFinite(saldo)) {
+    return { folga: null, precisa: null, porDia: null,
+      base: 'sem saldo legível desta praça', motivo: 'o relatório de estoque dela não trouxe saldo' };
+  }
+  if (!Number.isFinite(dias) || dias <= 0) {
+    return { folga: null, precisa: null, porDia: null,
+      base: 'sem janela de cobertura definida', motivo: 'a cobertura em dias não foi informada' };
+  }
+  /* Movimentação não carregada: o ritmo dela é desconhecido. Ver o cabeçalho
+     — este é o caso que mais engana, e ele NUNCA vira folga cheia. */
+  if (!Number.isFinite(numero(p.unidades)) || !Number.isFinite(numero(p.dias)) || numero(p.dias) <= 0) {
+    return { folga: null, precisa: null, porDia: null,
+      base: 'saldo ' + saldo + ', ritmo não medido',
+      motivo: 'a movimentação desta praça não foi carregada — não dá para saber do que ela precisa' };
+  }
+
+  const porDia = numero(p.unidades) / numero(p.dias);
+  const precisa = porDia * dias;
+  /* A reserva não é margem de segurança inventada: é o reconhecimento de que
+     a foto do saldo tem dias de atraso e de que a praça tem compromissos que
+     este arquivo não mostra. */
+  const disponivel = saldo * (1 - RESERVA_MINIMA);
+  const folga = Math.floor(Math.max(0, disponivel - precisa));
+  return {
+    folga,
+    precisa,
+    porDia,
+    base: 'saldo ' + saldo + ' − ' + Math.ceil(precisa) + ' que ela consome em ' + dias +
+      ' dias (' + porDia.toFixed(2).replace('.', ',') + '/dia medido no período dela)' +
+      ' − ' + Math.round(RESERVA_MINIMA * 100) + '% de reserva',
+    motivo: null,
+  };
+}
+
+/**
+ * De quem pedir, em ordem.
+ *
+ * Só entra quem tem folga aparente maior que zero. Quem não foi medido
+ * aparece na lista com `folga: null` e o motivo — para que a tela possa
+ * mostrar o que falta carregar em vez de esconder a praça.
+ *
+ * @param {Array<{nome: string, saldo: number|null, unidades: number|null, dias: number|null}>} pracas
+ * @param {number} diasCobertura
+ * @returns {{podem: Array, semMedida: Array, folgaTotal: number|null}}
+ *   `folgaTotal` é `null` quando NENHUMA praça pôde ser medida.
+ */
+function dequemPedir(pracas, diasCobertura) {
+  const podem = [];
+  const semMedida = [];
+  for (const p of pracas || []) {
+    const f = folgaAparente(p, diasCobertura);
+    const linha = Object.assign({}, p, f);
+    if (f.folga === null) semMedida.push(linha);
+    else if (f.folga > 0) podem.push(linha);
+    /* Folga medida e igual a zero não é lacuna nem oferta: some da lista,
+       porque pedir dela machucaria a praça. */
+  }
+  podem.sort((a, b) => b.folga - a.folga);
+  return {
+    podem,
+    semMedida,
+    folgaTotal: podem.length ? podem.reduce((t, x) => t + x.folga, 0)
+      : (semMedida.length ? null : 0),
+  };
+}
+
+
+/* FIM MOTOR FOLGA */
+
 /* INICIO MOTOR PACOTE TECNICO */
 /**
  * Pacote Técnico do Opus (`PCARP12`).
@@ -10709,7 +10825,7 @@ liga('#btApagar', 'click', async () => {
 /* Carimbo de versão, trocado por scripts/gerar-plataforma.mjs na geração.
    Fica com o valor literal quando alguém abre plataforma/corpo.html direto,
    que é justamente o aviso de que aquele arquivo não é o publicado. */
-const VERSAO = { data: '26/08/2026 12:00', commit: '70bc356+alteracoes-nao-commitadas', gerado: '26/08/2026, 12:09' };
+const VERSAO = { data: '26/08/2026 12:11', commit: '6cdc0d7+alteracoes-nao-commitadas', gerado: '26/08/2026, 12:19' };
 
 const PRACA_DO_ENDERECO = (() => {
   try { return reconhecerFilial(String(location.hostname || '').replace(/\./g, ' ')) || null; }
@@ -10921,6 +11037,20 @@ function analisarRedeAgora() {
     const pracasComVenda = pracasMedidas.length;
     const sugestaoRede = quantidadePelaRede(pracasMedidas, estado.diasCobertura, meu ? meu.s : null);
 
+    /* Quem PODE ceder. Ter saldo não é ter folga: a praça também precisa
+       cobrir o próprio giro. Quem não teve movimentação carregada entra em
+       `semMedida`, nunca como folga cheia. */
+    const paraPedir = dequemPedir(com.map((x) => {
+      const v = estado.vendaRede[x.ff];
+      const medida = pracasMedidas.find((m) => m.ff === x.ff);
+      return {
+        ff: x.ff, nome: x.nome, saldo: x.s,
+        unidades: v ? (medida ? medida.unidades : 0) : null,
+        dias: medida ? medida.dias : (v && v.inicio && v.fim
+          ? Math.max(1, Math.round((Date.parse(v.fim) - Date.parse(v.inicio)) / DIA) + 1) : null),
+      };
+    }), estado.diasCobertura);
+
     const ref = irmas.filter((f) => f.pecas[k]).map((f) => f.pecas[k]);
     const abNaRede = ref.filter((a) => postoCurva(a.c) <= 1).length;
     const melhorLa = Math.min(...ref.map((a) => postoCurva(a.c)));
@@ -10940,6 +11070,7 @@ function analisarRedeAgora() {
       pracasComVenda,
       pracasMedidas,
       pracasSemMedida,
+      paraPedir,
       sugestaoRede,
       /* Força do argumento, e é só isso que a ordenação usa: em quantas
          praças a peça é bem classificada, em quantas ela tem saldo, e o
@@ -11143,9 +11274,24 @@ function renderRede() {
 
   const lista = faltaFiltrada(R);
   const linhasFalta = lista.slice(0, 300).map((f) => {
-    const selos = f.com.map((x) =>
-      '<span class="selo-filial" data-c="' + esc(x.c || '-') + '" title="' + esc(x.nome) + ' — curva ' + esc(x.c || 'sem curva') + ', ' + n(x.s) + ' unidades">' +
-      esc(nomeCurto(x.nome)) + ' <b>' + esc(x.c || '–') + '</b> · ' + n(x.s) + '</span>').join('');
+    /* O selo diz saldo E folga. Ter saldo não é poder ceder: a praça também
+       precisa cobrir o giro dela. Quando não dá para medir, o selo diz
+       "folga ?" — nunca some, nunca finge que a folga é o saldo. */
+    const folgaDe = (ff) => {
+      const p1 = (f.paraPedir.podem || []).find((x) => x.ff === ff);
+      if (p1) return { folga: p1.folga, base: p1.base };
+      const p2 = (f.paraPedir.semMedida || []).find((x) => x.ff === ff);
+      if (p2) return { folga: null, base: p2.motivo || p2.base };
+      return { folga: 0, base: 'ela consome o próprio saldo na janela de ' + n(estado.diasCobertura) + ' dias' };
+    };
+    const selos = f.com.map((x) => {
+      const fg = folgaDe(x.ff);
+      return '<span class="selo-filial" data-c="' + esc(x.c || '-') + '" title="' + esc(x.nome) +
+      ' — curva ' + esc(x.c || 'sem curva') + ', ' + n(x.s) + ' unidades. Folga aparente: ' +
+      (fg.folga === null ? 'desconhecida' : n(fg.folga)) + ' — ' + esc(fg.base) + '">' +
+      esc(nomeCurto(x.nome)) + ' <b>' + esc(x.c || '–') + '</b> · ' + n(x.s) +
+      ' <span style="opacity:.75">· folga ' + (fg.folga === null ? '?' : n(fg.folga)) + '</span></span>';
+    }).join('');
     return '<tr><td>' + esc(f.descricao || '(sem descrição)') +
       '<br><span style="color:var(--tinta-3);font-size:12px">' + esc(f.codigo) +
       (f.original ? ' · orig. ' + esc(f.original) : '') + '</span></td>' +
